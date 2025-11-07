@@ -1,0 +1,12 @@
+display_order,id,name,type,level,accounts_to_include,accounts_to_exclude,formula,notes
+10,1,Total produits d'exploitation,acc,1,70*;71*;72*;74*;75*;78*;79*,,,"Inclut 709* (rabais/remises) qui viendront diminuer le CA via les signes. Convention FinSight (signes) : Produits → Crédit = positif, Débit = négatif ; Charges → Débit = positif, Crédit = négatif. Les montants sont agrégés avec leur signe d'origine."
+20,2,Total charges d'exploitation,acc,1,60*;61*;62*;63*;64*;65*;68*,,,"Charges d'exploitation agrégées. Convention FinSight (signes) : Produits → Crédit = positif, Débit = négatif ; Charges → Débit = positif, Crédit = négatif. Les montants sont agrégés avec leur signe d'origine."
+30,3,Résultat d'exploitation,calc,1,,,=1+2,Produits + Charges (charges négatives après normalisation).
+40,4,Produits financiers,acc,1,76*,,,"Convention FinSight (signes) : Produits → Crédit = positif, Débit = négatif ; Charges → Débit = positif, Crédit = négatif. Les montants sont agrégés avec leur signe d'origine."
+50,5,Charges financières,acc,1,66*,,,"Convention FinSight (signes) : Produits → Crédit = positif, Débit = négatif ; Charges → Débit = positif, Crédit = négatif. Les montants sont agrégés avec leur signe d'origine."
+60,6,Résultat financier,calc,1,,,=4+5,Produits financiers + Charges financières (charges négatives après normalisation).
+70,7,Produits exceptionnels,acc,1,77*,,,"Convention FinSight (signes) : Produits → Crédit = positif, Débit = négatif ; Charges → Débit = positif, Crédit = négatif. Les montants sont agrégés avec leur signe d'origine."
+80,8,Charges exceptionnelles,acc,1,67*,,,"Convention FinSight (signes) : Produits → Crédit = positif, Débit = négatif ; Charges → Débit = positif, Crédit = négatif. Les montants sont agrégés avec leur signe d'origine."
+90,9,Résultat exceptionnel,calc,1,,,=7+8,Produits exceptionnels + Charges exceptionnelles (charges négatives après normalisation).
+100,10,Impôt sur les bénéfices,acc,1,69*,,,Inclut 691* si présent (version simplifiée).
+110,11,Résultat net,calc,0,,,=3+6+9+10,Résultat d'exploitation + financier + exceptionnel + impôt (charge négative après normalisation).

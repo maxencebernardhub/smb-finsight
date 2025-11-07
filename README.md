@@ -1,0 +1,160 @@
+# 🧾 SMB FinSight
+
+**SMB FinSight** is a Python-based financial dashboard & analysis application designed for **small and medium-sized businesses**.  
+It aggregates **accounting entries (accounts 6 & 7)** from a CSV file to automatically produce **normalized income statements** (simplified or regular) based on the French *Plan Comptable Général* (PCG).
+
+---
+
+## ⚙️ Main Features
+
+- 📂 Reads an `accounting_entries.csv` file containing debit/credit postings.  
+- 📊 Aggregates data automatically according to a selected mapping (`simplified` or `regular`).  
+- 🧮 Applies pre-defined calculation formulas (`Products + Charges`) after sign normalization.  
+- 💾 Exports a hierarchical **Income Statement** as a CSV file.  
+- 🧰 Modular and extensible architecture — ready for IFRS / ASPE extensions.
+
+---
+
+## 📁 Project Structure
+
+```
+smb-finsight/
+│
+├── data/
+│   └── mappings/
+│       ├── simplified_income_statement_pcg.csv
+│       └── regular_income_statement_pcg.csv
+│
+├── examples/
+│   ├── accounting_entries.csv
+│   ├── out_simplified.csv
+│   └── out_regular.csv
+│
+├── src/
+│   └── smb_finsight/
+│       ├── __init__.py
+│       ├── cli.py
+│       ├── io.py
+│       ├── mapping.py
+│       └── engine.py
+│
+└── pyproject.toml
+```
+
+---
+
+## 🧩 Installation (Local)
+
+```bash
+git clone https://github.com/<your-account>/smb-finsight.git
+cd smb-finsight
+python -m venv .venv
+source .venv/bin/activate   # macOS / Linux
+pip install -e .
+```
+
+---
+
+### 🧩 Setup for Development
+
+To install SMB FinSight with dev tools (Ruff & Pytest):
+
+```bash
+pip install -e ".[dev]"
+```
+
+---
+
+## 🖋️ Input File
+
+### `examples/accounting_entries.csv`
+
+```csv
+date,account,debit,credit
+2024-12-31,62201,533.25,0
+2024-12-31,75402,0,844.65
+```
+
+- Columns `debit` and `credit` are **required**.  
+- The engine computes `amount = credit − debit`.  
+- As a result:
+  - **Expenses (class 6)** → negative amounts  
+  - **Revenues (class 7)** → positive amounts
+
+---
+
+## 🧮 CLI Usage
+
+### Simplified Income Statement
+```bash
+python -m smb_finsight.cli   --accounting_entries examples/accounting_entries.csv   --template data/mappings/simplified_income_statement_pcg.csv   --output examples/out_simplified.csv
+```
+
+### Regular Income Statement
+```bash
+python -m smb_finsight.cli   --accounting_entries examples/accounting_entries.csv   --template data/mappings/regular_income_statement_pcg.csv   --output examples/out_regular.csv
+```
+
+---
+
+## 📤 Example Output
+
+**File:** `examples/out_simplified.csv`
+```csv
+level,display_order,id,name,type,amount
+0,110,11,Net income,calc,311.4
+1,10,1,Operating revenues,acc,844.65
+1,20,2,Operating expenses,acc,-533.25
+1,30,3,Operating income,calc,311.4
+```
+
+---
+
+## 🔢 FinSight Sign Convention
+
+| Element | Debit | Credit | Computed amount (`credit − debit`) |
+|----------|--------|---------|-----------------------------------|
+| **Expenses (class 6)** | positive (debit) | negative (credit) | negative amount |
+| **Revenues (class 7)** | negative (debit) | positive (credit) | positive amount |
+
+**Formula convention:**  
+> `Result = Revenues + Expenses`  
+> (since expenses are negative after normalization)
+
+---
+
+## ✅ Available Mappings
+
+| Mapping | Description | Main Formula |
+|----------|--------------|---------------|
+| **Simplified** | Condensed version of income statement (classes 6 & 7) | `=Revenues + Expenses` |
+| **Regular** | Full PCG income statement with main sections | `=Revenues + Expenses` |
+
+---
+
+## 🧪 Quick Tests
+
+```bash
+pytest -q
+```
+
+Tests validate:
+- correct formula evaluation (`=1+2`, `=7+14`, etc.);
+- proper aggregation of account ranges;
+- consistency of computed totals in generated CSVs.
+
+---
+
+## 🚀 Roadmap
+
+- [ ] Add **detailed** mapping (full PCG multi-level format).  
+- [ ] Introduce **financial ratios** & **Dash/Matplotlib dashboards**.  
+- [ ] Extend compatibility to **IFRS** and **ASPE (Canada)**.  
+- [ ] Generate **SIG** (Intermediate Management Balances) automatically.
+
+---
+
+## 📜 License
+
+MIT License © Maxence Bernard  
+See [`LICENSE`](LICENSE) for details.
