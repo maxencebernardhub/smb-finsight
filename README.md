@@ -1,7 +1,25 @@
 # 🧾 SMB FinSight
 
+![CI](https://github.com/maxencebernardhub/smb-finsight/actions/workflows/ci.yml/badge.svg)
+[![Latest Release](https://img.shields.io/github/v/release/maxencebernardhub/smb-finsight?color=blue)](https://github.com/maxencebernardhub/smb-finsight/releases)
+
 **SMB FinSight** is a Python-based financial dashboard & analysis application designed for **small and medium-sized businesses**.  
 It aggregates **accounting entries (accounts 6 & 7)** from a CSV file to automatically produce **normalized income statements** (simplified or regular) based on the French *Plan Comptable Général* (PCG).
+
+💡 Ideal for freelancers, entrepreneurs, CFOs, CEOs of SMBs, accountants or analysts who want to automate financial KPIs and income statement generation using simple CSV exports.
+
+---
+
+## 📚 Table of Contents
+- [Main Features](#-main-features)
+- [Project Structure](#-project-structure)
+- [Installation (Local)](#-installation-local)
+- [CLI Usage](#-cli-usage)
+- [Quick Tests](#-quick-tests)
+- [Contributing](#-contributing)
+- [Roadmap](#-roadmap)
+- [Version History](#-version-history)
+- [License](#-license)
 
 ---
 
@@ -143,14 +161,63 @@ Tests validate:
 - proper aggregation of account ranges;
 - consistency of computed totals in generated CSVs.
 
+Run Ruff checks and formatting validation:
+
+```bash
+ruff check src tests
+ruff format --check src tests
+```
+
+---
+
+## 🤝 Contributing
+
+Set up a local development environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+ruff check src tests && ruff format --check src tests
+pytest -q
+```
+
+Please ensure all tests pass and code is linted before pushing.
+Pull requests are welcome!
+
 ---
 
 ## 🚀 Roadmap
 
-- [ ] Add **detailed** mapping (full PCG multi-level format).  
-- [ ] Introduce **financial ratios** & **Dash/Matplotlib dashboards**.  
-- [ ] Extend compatibility to **IFRS** and **ASPE (Canada)**.  
-- [ ] Generate **SIG** (Intermediate Management Balances) automatically.
+### ✅ Completed
+- [x] Core aggregation engine (v0.1.0)
+- [x] CLI interface (`smb-finsight`)
+- [x] Mapping templates (Simplified & Regular PCG)
+- [x] CI/CD pipeline (Ruff + Pytest)
+
+### 🚧 In Progress
+- [ ] Adding inline comments and docstrings to improve code readability.
+
+### 🧭 Planned
+- [ ] Add **detailed** mapping (full PCG multi-level format).
+- [ ] Generate Intermediate Management Balances (aka SIG in PCG) automatically.
+- [ ] Add **dates** and **periods**.
+- [ ] Add **projected** accounting entries.
+- [ ] Introduce **financial ratios**.
+- [ ] Extend compatibility to **ASPE (Canada)**.
+- [ ] Extend compatibility to **US GAAP / IFRS**.
+- [ ] Improve CLI options (output formats, filters)
+- [ ] Add **database** feature (save **history** / **current** accounting entries)
+- [ ] Add interactive visual reports.  
+
+---
+
+## 🕒 Version History
+
+| Version | Date | Highlights | Tag |
+|----------|------|-------------|------|
+| 0.1.1 | Nov 2025 | Updated README (CI badge, contributing), CI improvements | [v0.1.1](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.1) |
+| 0.1.0 | Nov 2025 | Initial release: core engine, mappings, CLI, tests | [v0.1.0](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.0) |
 
 ---
 
