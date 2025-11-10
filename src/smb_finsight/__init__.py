@@ -6,12 +6,17 @@
 SMB FinSight
 ------------
 
-A financial dashboard & analysis tool for Small and Medium Businesses (SMBs).
+A Python-based financial dashboard & analysis application for Small and
+Medium-sized Businesses (SMBs).
+
+It aggregates accounting entries (accounts 6 & 7) into normalized income statements
+based on the French *Plan Comptable Général* (PCG).
 
 Modules:
-- engine: Core aggregation logic for income statement generation.
-- mapping: Handles PCG mapping templates and formula evaluation.
-- io: Input/output utilities for reading accounting entries (CSV).
+- `engine`: Core aggregation logic for income statement generation.
+- `mapping`: Handles PCG mapping templates and formula evaluation.
+- `io`: Input/output utilities for reading accounting entries (CSV files).
+- `cli`: Command-line interface for batch execution.
 
 Usage example:
     python -m smb_finsight.cli --help
