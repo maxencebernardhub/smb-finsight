@@ -189,7 +189,7 @@ class Template:
 
         The formula can:
           - reference other rows by ID (e.g. '=1+2'),
-          - use SUM(...) (e.g. '=SUM(1,2,3)'),
+          - use SUM(...) (e.g. '=SUM(1;2;3)'),
           - combine these with basic arithmetic operators (+, -, *, /).
 
         Process:
@@ -234,23 +234,18 @@ class Template:
 
         import re
 
-        # First, expand SUM(...) calls into numeric sums.
+        # 1) First : replace IDs (1,2,3,...) by their numerical values.
+        expr = re.sub(r"\b(\d+)\b", lambda m: repl_token(m.group(1)), expr)
+
+        # 2) Then : develop SUM(...) by calculating the sum of its arguments,
+        # already replaced.
         expr = re.sub(
             r"SUM\(([^\)]*)\)",
             lambda m: str(
-                sum(
-                    float(values_by_id.get(int(t.strip()), 0.0))
-                    for t in m.group(1).split(",")
-                    if t.strip()
-                )
+                sum(float(t.strip()) for t in m.group(1).split(";") if t.strip())
             ),
             expr,
         )
-
-        # Then, replace any remaining numeric tokens by their values.
-        expr = re.sub(r"\b(\d+)\b", lambda m: repl_token(m.group(1)), expr)
-
-        import re
 
         # Whitelist: digits, dot, operators, parentheses, comma, whitespace.
         # Any other character is considered unsafe/invalid.
