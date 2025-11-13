@@ -38,3 +38,6 @@ src/smb_finsight.egg-info/
 
 # Project specific
 examples/out_*.csv
+
+# Ignore temporary exports or experiments under legacy
+data/mappings/legacy/*.tmp

@@ -11,10 +11,14 @@ It aggregates **accounting entries (accounts 6 & 7)** from a CSV file to automat
 ---
 
 ## 📚 Table of Contents
+
 - [Main Features](#-main-features)
 - [Project Structure](#-project-structure)
-- [Installation (Local)](#-installation-local)
+- [Installation](#-installation)
+- [Input Files](#-input-files)
 - [CLI Usage](#-cli-usage)
+- [FinSight Sign Convention](#-finsight-sign-convention)
+- [Output Format](#-output-format)
 - [Quick Tests](#-quick-tests)
 - [Contributing](#-contributing)
 - [Roadmap](#-roadmap)
@@ -25,11 +29,18 @@ It aggregates **accounting entries (accounts 6 & 7)** from a CSV file to automat
 
 ## ⚙️ Main Features
 
-- 📂 Reads an `accounting_entries.csv` file containing debit/credit postings.  
-- 📊 Aggregates data automatically according to a selected mapping (`simplified` or `regular`).  
-- 🧮 Applies pre-defined calculation formulas (`Products + Charges`) after sign normalization.  
-- 💾 Exports a hierarchical **Income Statement** as a CSV file.  
-- 🧰 Modular and extensible architecture — ready for IFRS / ASPE extensions.
+- 📂 Reads accounting entries (`code`, `debit`, `credit`) from CSV file.  
+- 🧮 Normalizes amounts (`amount = credit − debit`). 
+- 📊 Aggregates entries according to a **single unified mapping file**:  
+  `detailed_income_statement_pcg.csv`.
+- 🧱 Supports **4 views**:  
+  - **simplified** → levels ≤ 1  
+  - **regular** → levels ≤ 2  
+  - **detailed** → levels ≤ 3  
+  - **complete** → full mapping + automatic listing of individual account codes from the PCG  
+- 🧰 Validates imported account codes using a user-provided **list_of_accounts** file (`pcg.csv`).
+- 💾 Exports hierarchical income statements with columns:  
+  `display_order, id, level, name, type, amount` as a CSV file.
 
 ---
 
@@ -39,14 +50,19 @@ It aggregates **accounting entries (accounts 6 & 7)** from a CSV file to automat
 smb-finsight/
 │
 ├── data/
-│   └── mappings/
-│       ├── simplified_income_statement_pcg.csv
-│       └── regular_income_statement_pcg.csv
+│   ├── mappings/
+│   │   ├── detailed_income_statement_pcg.csv
+│   │   └── legacy/
+│   │       ├── simplified_income_statement_pcg.csv
+│   │       └── regular_income_statement_pcg.csv
+│   └── accounts/
+│       └── pcg.csv
 │
 ├── examples/
 │   ├── accounting_entries.csv
-│   ├── out_simplified.csv
-│   └── out_regular.csv
+│   ├── accounting_entries_large.csv
+│   ├── out_detailed.csv
+│   └── out_complete.csv
 │
 ├── src/
 │   └── smb_finsight/
@@ -54,17 +70,21 @@ smb-finsight/
 │       ├── cli.py
 │       ├── io.py
 │       ├── mapping.py
-│       └── engine.py
+│       ├── engine.py
+│       ├── views.py
+│       └── accounts.py
 │
 └── pyproject.toml
 ```
 
+🗂️ Legacy mappings (simplified, regular) are preserved under /data/mappings/legacy/ for reference only.
+
 ---
 
-## 🧩 Installation (Local)
+## 🧩 Installation
 
 ```bash
-git clone https://github.com/<your-account>/smb-finsight.git
+git clone https://github.com/maxencebernardhub/smb-finsight.git
 cd smb-finsight
 python -m venv .venv
 source .venv/bin/activate   # macOS / Linux
@@ -83,9 +103,9 @@ pip install -e ".[dev]"
 
 ---
 
-## 🖋️ Input File
+## 🖋️ Input Files
 
-### `examples/accounting_entries.csv`
+### 1. `accounting_entries.csv`
 
 ```csv
 date,account,debit,credit
@@ -93,60 +113,76 @@ date,account,debit,credit
 2024-12-31,75402,0,844.65
 ```
 
-- Columns `debit` and `credit` are **required**.  
-- The engine computes `amount = credit − debit`.  
-- As a result:
-  - **Expenses (class 6)** → negative amounts  
-  - **Revenues (class 7)** → positive amounts
+Behavior:
+
+- `amount = credit − debit`
+- Class 6 → negative  
+- Class 7 → positive
+
+---
+
+### 2. `pcg.csv` (required)
+
+This file **must** list all valid account codes (PCG or custom user chart of accounts):
+
+```csv
+account,name
+701000,Ventes de produits finis
+706000,Prestations de services
+62201,Hono…
+…
+```
+
+Used to:
+
+- Validate imported entries  
+- Ignore unknown codes with a console message:  
+  `Unknown account code XXXXX ignored`
+- Attach accounts automatically in **complete** view
 
 ---
 
 ## 🧮 CLI Usage
 
-### Simplified Income Statement
+### Base command
+
 ```bash
-python -m smb_finsight.cli   --accounting_entries examples/accounting_entries.csv   --template data/mappings/simplified_income_statement_pcg.csv   --output examples/out_simplified.csv
+python -m smb_finsight.cli     --accounting_entries <path>     --template data/mappings/detailed_income_statement_pcg.csv     --list-of-accounts data/accounts/pcg.csv     --view <simplified|regular|detailed|complete>     --output <output.csv>
 ```
 
-### Regular Income Statement
+### Example (detailed view)
+
 ```bash
-python -m smb_finsight.cli   --accounting_entries examples/accounting_entries.csv   --template data/mappings/regular_income_statement_pcg.csv   --output examples/out_regular.csv
+python -m smb_finsight.cli   --accounting_entries examples/accounting_entries_large.csv   --template data/mappings/detailed_income_statement_pcg.csv   --list-of-accounts data/accounts/pcg.csv   --view detailed   --output examples/out_detailed.csv
 ```
 
----
+### Example (complete view)
 
-## 📤 Example Output
-
-**File:** `examples/out_simplified.csv`
-```csv
-level,display_order,id,name,type,amount
-0,110,11,Net income,calc,311.4
-1,10,1,Operating revenues,acc,844.65
-1,20,2,Operating expenses,acc,-533.25
-1,30,3,Operating income,calc,311.4
+```bash
+python -m smb_finsight.cli   --accounting_entries examples/accounting_entries_large.csv   --template data/mappings/detailed_income_statement_pcg.csv   --list-of-accounts data/accounts/pcg.csv   --view complete   --output examples/out_complete.csv
 ```
 
 ---
 
 ## 🔢 FinSight Sign Convention
 
-| Element | Debit | Credit | Computed amount (`credit − debit`) |
-|----------|--------|---------|-----------------------------------|
-| **Expenses (class 6)** | positive (debit) | negative (credit) | negative amount |
-| **Revenues (class 7)** | negative (debit) | positive (credit) | positive amount |
+| Element | Debit | Credit | Result |
+|--------|--------|---------|--------|
+| Expenses (6*) | + | – | negative |
+| Revenues (7*) | – | + | positive |
 
-**Formula convention:**  
-> `Result = Revenues + Expenses`  
-> (since expenses are negative after normalization)
+Formula rule:  
+`Result = Revenues + Expenses`
 
 ---
 
-## ✅ Available Mappings
+## 📤 Output Format
 
-| Mapping | Description | Main Formula |
-|----------|--------------|---------------|
-| **Simplified** | Condensed version of income statement (classes 6 & 7) | `=Revenues + Expenses` |
-| **Regular** | Full PCG income statement with main sections | `=Revenues + Expenses` |
+All generated CSVs follow the **same column order**:
+
+```csv
+display_order,id,level,name,type,amount
+```
 
 ---
 
@@ -154,19 +190,17 @@ level,display_order,id,name,type,amount
 
 ```bash
 pytest -q
-```
-
-Tests validate:
-- correct formula evaluation (`=1+2`, `=7+14`, etc.);
-- proper aggregation of account ranges;
-- consistency of computed totals in generated CSVs.
-
-Run Ruff checks and formatting validation:
-
-```bash
 ruff check src tests
 ruff format --check src tests
 ```
+
+Includes:
+
+- IO validation  
+- Template logic  
+- SUM(; ; ) syntax  
+- View filtering  
+- Account-code validation 
 
 ---
 
@@ -192,14 +226,17 @@ Pull requests are welcome!
 ### ✅ Completed
 - [x] Core aggregation engine (v0.1.0)
 - [x] CLI interface (`smb-finsight`)
-- [x] Mapping templates (Simplified & Regular PCG)
 - [x] CI/CD pipeline (Ruff + Pytest)
+- [x] Adding inline comments and docstrings to improve code readability.
+- [x] Account validation
+- [x] Mapping template (Simplified, Regular, Detailed and Complete view)
+- [x] Full PCG multi-level format
+- [x] SUM(; ) support 
 
 ### 🚧 In Progress
-- [ ] Adding inline comments and docstrings to improve code readability.
+- [ ] 
 
 ### 🧭 Planned
-- [ ] Add **detailed** mapping (full PCG multi-level format).
 - [ ] Generate Intermediate Management Balances (aka SIG in PCG) automatically.
 - [ ] Add **dates** and **periods**.
 - [ ] Add **projected** accounting entries.
@@ -216,8 +253,10 @@ Pull requests are welcome!
 
 | Version | Date | Highlights | Tag |
 |----------|------|-------------|------|
-| 0.1.1 | Nov 2025 | Updated README (CI badge, contributing), CI improvements | [v0.1.1](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.1) |
-| 0.1.0 | Nov 2025 | Initial release: core engine, mappings, CLI, tests | [v0.1.0](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.0) |
+| **0.1.3** | Nov 2025 | Unified mapping, new CLI, complete income statement view | [v0.1.3](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.3) |
+| **0.1.2** | Nov 2025 | Internal documentation update | [v0.1.2](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.2) |
+| **0.1.1** | Nov 2025 | Updated README (CI badge, contributing), CI improvements | [v0.1.1](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.1) |
+| **0.1.0** | Nov 2025 | Initial release: core engine, mappings, CLI, tests | [v0.1.0](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.0) |
 
 ---
 
