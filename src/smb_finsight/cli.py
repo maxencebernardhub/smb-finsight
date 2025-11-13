@@ -19,6 +19,8 @@ Supported views
 - regular:    levels 0–2 (standard income statement)
 - detailed:   all template levels (0–3)
 - complete:   detailed + account-level rows inserted under level-3 'acc' rows.
+- sig:        Soldes Intermédiaires de Gestion (SIG) based on a dedicated mapping
+              template (e.g. data/mappings/sig_pcg.csv).
 
 The list of accounts (list_of_accounts CSV) is used both to:
 - validate that each accounting entry refers to a known account code;
@@ -38,8 +40,17 @@ from .views import apply_view_level_filter, build_complete_view
 def _build_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser for the CLI."""
     ap = argparse.ArgumentParser(
-        prog="smb-finsight",
-        description="Aggregate accounting_entries to Income Statement.",
+        prog="python -m smb_finsight.cli",
+        description=(
+            "SMB FinSight - Financial Dashboard & Analysis application for SMBs. "
+            "Reads accounting entries, aggregates them using a PCG-based mapping "
+            "template, and exports a normalized income statement."
+        ),
+    )
+    ap.add_argument(
+        "--version",
+        action="store_true",
+        help="Show the installed version of smb_finsight and exit.",
     )
     ap.add_argument(
         "--accounting_entries",
@@ -51,7 +62,9 @@ def _build_parser() -> argparse.ArgumentParser:
         required=False,
         help=(
             "Path to mapping template CSV file "
-            "(e.g. detailed_income_statement_pcg.csv)."
+            "For income statement views, use e.g. "
+            "data/mappings/detailed_income_statement_pcg.csv. "
+            "For the 'sig' view, use e.g. data/mappings/sig_pcg.csv."
         ),
     )
     ap.add_argument(
@@ -61,12 +74,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     ap.add_argument(
         "--view",
-        choices=["simplified", "regular", "detailed", "complete"],
+        choices=["simplified", "regular", "detailed", "complete", "sig"],
         default="detailed",
         help=(
             "Controls the level of detail of the income statement view. "
             "simplified: levels 0–1; regular: levels 0–2; "
-            "detailed: all template levels; complete: detailed + account-level lines."
+            "detailed: all template levels; complete: detailed + account-level lines; "
+            "sig: French SIG (Soldes Intermédiaires de Gestion) using a dedicated "
+            "mapping template such as data/mappings/sig_pcg.csv."
         ),
     )
     ap.add_argument(
@@ -79,29 +94,36 @@ def _build_parser() -> argparse.ArgumentParser:
             "Required for all views except --version."
         ),
     )
-    ap.add_argument(
-        "--version",
-        action="store_true",
-        help="Show the current version of SMB FinSight and exit.",
-    )
     return ap
 
 
 def main() -> None:
-    """Entry point for `python -m smb_finsight.cli`."""
+    """Entry point for the CLI module.
+
+    This function parses command-line arguments, dispatches to the core engine,
+    and writes the resulting income statement to the requested CSV file.
+    """
     parser = _build_parser()
     args = parser.parse_args()
 
-    # Simple case: only display the current version.
+    # Simple case: only display version and exit.
     if args.version:
         print(f"SMB FinSight version {__version__}")
         return
 
-    # Sanity checks: make sure all required paths are provided.
-    if not args.accounting_entries or not args.template or not args.output:
-        parser.print_help()
-        return
-
+    # Ensure required arguments are present when not in --version mode.
+    if not args.accounting_entries:
+        parser.error(
+            "--accounting_entries is required (path to CSV with accounting entries)"
+        )
+    if not args.template:
+        parser.error(
+            "--template is required (path to mapping template CSV, "
+            "e.g. data/mappings/detailed_income_statement_pcg.csv or "
+            "data/mappings/sig_pcg.csv for the 'sig' view)"
+        )
+    if not args.output:
+        parser.error("--output is required (path to output CSV file)")
     if not args.list_of_accounts:
         parser.error(
             "--list-of-accounts is required (path to accounts CSV, "
@@ -126,6 +148,8 @@ def main() -> None:
     out_base = aggregate(tx, tpl)
 
     # 6) Apply the selected view.
+    #    'complete' inserts account-level rows. All other views (including 'sig')
+    #    reuse apply_view_level_filter and rely entirely on the mapping template.
     if args.view == "complete":
         out = build_complete_view(
             out_base=out_base,

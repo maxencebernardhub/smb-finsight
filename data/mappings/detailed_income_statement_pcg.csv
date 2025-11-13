@@ -1,12 +1,12 @@
 display_order,id,name,type,level,accounts_to_include,accounts_to_exclude,formula,notes
-10,1,Ventes de marchandises,acc,3,707*;7097,,,
-20,2,Ventes de produits finis,acc,3,701*;7091,,,
-30,3,Ventes de produits intermédiaires,acc,3,702*;7092,,,
-40,4,Ventes de produits résiduels,acc,3,703*;7093,,,
-50,5,Travaux,acc,3,704*;7094,,,
-60,6,Etudes,acc,3,705*;7095,,,
-70,7,Prestations de services,acc,3,706*;7096,,,
-80,8,Produits des activités connexes,acc,3,708*;7098,,,
+10,1,Ventes de marchandises,acc,3,707*;7097*,,,
+20,2,Ventes de produits finis,acc,3,701*;7091*,,,
+30,3,Ventes de produits intermédiaires,acc,3,702*;7092*,,,
+40,4,Ventes de produits résiduels,acc,3,703*;7093*,,,
+50,5,Travaux,acc,3,704*;7094*,,,
+60,6,Etudes,acc,3,705*;7095*,,,
+70,7,Prestations de services,acc,3,706*;7096*,,,
+80,8,Produits des activités connexes,acc,3,708*;7098*,,,
 90,9,Autres rabais,acc,3,709*,7091*;7092*;7093*;7094*;7095*;7096*;7097*;7098*,,
 100,10,Autres ventes,acc,3,700*,,,
 110,11,Chiffre d'Affaires net,calc,2,,,=1+2+3+4+5+6+7+8+9+10,
@@ -115,9 +115,9 @@ display_order,id,name,type,level,accounts_to_include,accounts_to_exclude,formula
 1140,114,Valeurs comptables des éléments d'actif cédés,acc,3,675*,,,
 1150,115,Autres charges exceptionnelles,acc,3,678*;679*;670*;673*;676*;677*,,,
 1160,116,Dot. aux amort. - dép. et prov. - charges exceptionnelles,acc,3,687*,,,
-1170,117,Charges exceptionnelles,calc,1,,,=111+112++113+114+115+116,
+1170,117,Charges exceptionnelles,calc,1,,,=111+112+113+114+115+116,
 1180,118,RÉSULTAT EXCEPTIONNEL,calc,1,,,=110+117,
-1190,119,Autres,acc,3,79*;78*;68*,791*;796*;797*;781*;786*;787*;680*;682*;683*;684*;685*;688*;689*,,Autres comptes non pris en compte antérieurement
+1190,119,Autres,acc,3,79*;78*;68*,791*;796*;797*;781*;786*;787*;681*;686*;687*,,Autres comptes non pris en compte antérieurement
 1200,120,Impôt sur les bénéfices,acc,3,695*;696*;697*;698*;699*,,,
 1210,121,Participation des salariés aux résultats,acc,3,691*,,,
 1220,122,Autres,acc,3,690*;692*;693*;694*,,,Autres comptes non pris en compte antérieurement
