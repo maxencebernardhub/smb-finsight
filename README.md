@@ -15,7 +15,7 @@ It aggregates **accounting entries (accounts 6 & 7)** from a CSV file to automat
 - [Main Features](#-main-features)
 - [Project Structure](#-project-structure)
 - [Installation](#-installation)
-- [Input Files](#-input-files)
+- [Input Files](#input-files)
 - [CLI Usage](#-cli-usage)
 - [FinSight Sign Convention](#-finsight-sign-convention)
 - [Output Format](#-output-format)
@@ -33,11 +33,13 @@ It aggregates **accounting entries (accounts 6 & 7)** from a CSV file to automat
 - 🧮 Normalizes amounts (`amount = credit − debit`). 
 - 📊 Aggregates entries according to a **single unified mapping file**:  
   `detailed_income_statement_pcg.csv`.
-- 🧱 Supports **4 views**:  
+- 🧱 Supports **5 views**:  
   - **simplified** → levels ≤ 1  
   - **regular** → levels ≤ 2  
   - **detailed** → levels ≤ 3  
-  - **complete** → full mapping + automatic listing of individual account codes from the PCG  
+  - **complete** → full mapping + automatic listing of individual account codes from the PCG 
+  - **sig** → [French SIG (Soldes Intermédiaires de Gestion)](#sig-view-pcg) based on PCG
+- 🧾 SIG view uses a dedicated PCG mapping (`sig_pcg.csv`) fully compliant with FinSight's algebraic sign convention.
 - 🧰 Validates imported account codes using a user-provided **list_of_accounts** file (`pcg.csv`).
 - 💾 Exports hierarchical income statements with columns:  
   `display_order, id, level, name, type, amount` as a CSV file.
@@ -52,6 +54,7 @@ smb-finsight/
 ├── data/
 │   ├── mappings/
 │   │   ├── detailed_income_statement_pcg.csv
+│   │   ├── sig_pcg.csv
 │   │   └── legacy/
 │   │       ├── simplified_income_statement_pcg.csv
 │   │       └── regular_income_statement_pcg.csv
@@ -102,8 +105,7 @@ pip install -e ".[dev]"
 ```
 
 ---
-
-## 🖋️ Input Files
+## Input Files
 
 ### 1. `accounting_entries.csv`
 
@@ -162,6 +164,49 @@ python -m smb_finsight.cli   --accounting_entries examples/accounting_entries_la
 python -m smb_finsight.cli   --accounting_entries examples/accounting_entries_large.csv   --template data/mappings/detailed_income_statement_pcg.csv   --list-of-accounts data/accounts/pcg.csv   --view complete   --output examples/out_complete.csv
 ```
 
+### Example: SIG (Soldes Intermédiaires de Gestion)
+
+```bash
+python -m smb_finsight.cli \
+  --accounting_entries examples/accounting_entries_large.csv \
+  --template data/mappings/sig_pcg.csv \
+  --list-of-accounts data/accounts/pcg.csv \
+  --view sig \
+  --output examples/out_sig.csv
+  ```
+
+---
+
+## SIG view (PCG)
+
+SMB FinSight provides a full French-style SIG (Soldes Intermédiaires de Gestion)
+based on the PCG.
+
+- View: `sig`  
+- Mapping file: `data/mappings/sig_pcg.csv`  
+- Sign convention (FinSight):
+  - products (7*) are **positive**  
+  - charges (6*) are **negative**  
+  → all SIG subtotals are computed using **simple algebraic sums**.
+
+Key subtotals available:
+- Marge commerciale  
+- Marge de production  
+- Valeur ajoutée  
+- Excédent Brut d’Exploitation (EBE)  
+- Résultat d’exploitation  
+- Résultat financier  
+- Résultat courant avant impôts  
+- Résultat exceptionnel  
+- Résultat de l’exercice (net)
+
+The SIG result is identical to:
+- the result from the detailed view, and  
+- the raw sum of all 6* and 7* accounting entries.
+
+This consistency is enforced by test `test_sig_consistency.py`.
+
+
 ---
 
 ## 🔢 FinSight Sign Convention
@@ -202,6 +247,21 @@ Includes:
 - View filtering  
 - Account-code validation 
 
+### SIG consistency tests
+
+Two tests ensure the correctness of the SIG mapping:
+
+- `test_sig_consistency.py`
+  Ensures:  
+  **result(detailed) == result(sig) == raw sum of 6*/7***  
+  This guarantees perfect alignment between the SIG, the detailed income
+  statement, and the underlying accounting entries.
+
+- `test_sig_internal.py`  
+  Verifies internal correctness of key SIG subtotals  
+  (Marge commerciale, Marge de production, Valeur ajoutée) using
+  a synthetic dataset.
+
 ---
 
 ## 🤝 Contributing
@@ -227,17 +287,17 @@ Pull requests are welcome!
 - [x] Core aggregation engine (v0.1.0)
 - [x] CLI interface (`smb-finsight`)
 - [x] CI/CD pipeline (Ruff + Pytest)
-- [x] Adding inline comments and docstrings to improve code readability.
+- [x] Added inline comments and docstrings to improve code readability
 - [x] Account validation
 - [x] Mapping template (Simplified, Regular, Detailed and Complete view)
 - [x] Full PCG multi-level format
 - [x] SUM(; ) support 
+- [x] Added full 'Intermediate Management Balances' view (aka SIG in PCG)
 
 ### 🚧 In Progress
 - [ ] 
 
 ### 🧭 Planned
-- [ ] Generate Intermediate Management Balances (aka SIG in PCG) automatically.
 - [ ] Add **dates** and **periods**.
 - [ ] Add **projected** accounting entries.
 - [ ] Introduce **financial ratios**.
@@ -253,6 +313,7 @@ Pull requests are welcome!
 
 | Version | Date | Highlights | Tag |
 |----------|------|-------------|------|
+| **0.1.4** | Nov 2025 | Full SIG (PCG) view, improved reliability of detailed mapping | [v0.1.4](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.4) 
 | **0.1.3** | Nov 2025 | Unified mapping, new CLI, complete income statement view | [v0.1.3](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.3) |
 | **0.1.2** | Nov 2025 | Internal documentation update | [v0.1.2](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.2) |
 | **0.1.1** | Nov 2025 | Updated README (CI badge, contributing), CI improvements | [v0.1.1](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.1) |

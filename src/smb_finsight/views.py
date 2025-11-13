@@ -13,6 +13,8 @@ into different "views" of detail:
 - detailed:   all template levels (0–3)
 - complete:   same as detailed, but with account-level lines
               inserted under level-3 'acc' rows.
+- sig:        Soldes Intermédiaires de Gestion (SIG) based on a dedicated
+              mapping template (e.g. data/mappings/sig_pcg.csv).
 
 The aggregation itself is performed by `engine.aggregate`. This module operates
 on the resulting DataFrame and, for the 'complete' view, also uses the mapping
@@ -32,6 +34,7 @@ def apply_view_level_filter(out: pd.DataFrame, view: str) -> pd.DataFrame:
     - simplified: keep levels <= 1
     - regular:    keep levels <= 2
     - detailed:   keep all rows (no level filter)
+    - sig:        keep all rows (no level filter, relies on SIG mapping template)
 
     Steps:
       1) filter by view
@@ -40,7 +43,9 @@ def apply_view_level_filter(out: pd.DataFrame, view: str) -> pd.DataFrame:
       4) reorder columns: display_order, id, level, name, type, amount
 
     Note:
-      This helper is NOT used for the 'complete' view (which inserts level-4 children).
+      This helper is NOT used for the 'complete' view (which inserts level-4
+      children). All other views, including 'sig', rely entirely on the
+      mapping template and generic filtering logic.
     """
     # 1) Filtering by view
     if view == "simplified":
@@ -48,7 +53,8 @@ def apply_view_level_filter(out: pd.DataFrame, view: str) -> pd.DataFrame:
     elif view == "regular":
         df = out[out["level"] <= 2].copy()
     else:
-        # 'detailed' (or fallback) : no filtering
+        # 'detailed', 'sig', or any other non-simplified/non-regular view:
+        # no level-based filtering; rely entirely on the mapping template.
         df = out.copy()
 
     # 2) Sorting according to the original display_order (from the mapping/template)
@@ -72,37 +78,24 @@ def build_complete_view(
     template: Template,
     name_by_code: dict[str, str],
 ) -> pd.DataFrame:
-    """Build the 'complete' view, which adds account-level rows under level-3 entries.
+    """Return a 'complete' view with account-level rows inserted.
 
-    Starting from the detailed aggregated DataFrame, this function enriches
-    the result by inserting one line per individual account (code) that contributes
-    to each level-3 'acc' row in the mapping template.
+    The 'complete' view is defined as:
 
-    The output is therefore:
-        - All template rows (levels 0–3)
-        - Plus additional lines (level + 1) for each account code found in
-          `accounting_entries`, showing both its code and label.
+    - all rows of the 'detailed' view (i.e. all template rows, aggregated),
+    - for each level-3 'acc' row, we insert its underlying account codes
+      (from accounting entries) as level-4 rows.
 
-    Sequencing rule (strict, display-order driven):
-      - Iterate template rows sorted ONLY by their template display_order
-      (ignore level).
-      - For each printed line: display_order = max(template_do, current_do + 10).
-      - If the row is a level-3 'acc', insert its account children right after it:
-          child_k.display_order = parent_do + 10 * k  (k=1..n, sorted by account code)
-      - After a parent with children: current_do = last_child_do
-        Otherwise: current_do = parent_do
-      - This guarantees monotonic +10 steps and keeps totals (e.g., "Chiffre d'Affaires
-      net")
-        right after their detailed siblings, according to the template's display_order.
+    The resulting DataFrame preserves the hierarchical ordering:
 
-    Args:
-        out_base: Aggregated DataFrame produced by `engine.aggregate()`.
-        accounting_entries: Normalized accounting entries (columns: code, amount).
-        template: The mapping Template used for classification and formula resolution.
-        name_by_code: Mapping {account_code: account_label} from the chart of accounts.
+      level 0 : top-level aggregates
+      level 1 : major sub-aggregates
+      level 2 : intermediate aggregates (from the template)
+      level 3 : leaf 'acc' rows (from the template)
+      level 4 : individual accounts (from accounting entries) grouped
+                under their parent level-3 'acc' row.
 
-    Returns:
-        A new DataFrame including both the template rows and account-level rows.
+    All rows share the same columns: display_order, id, level, name, type, amount.
     """
 
     # 1) Base "detailed" view: all template rows and their amounts.

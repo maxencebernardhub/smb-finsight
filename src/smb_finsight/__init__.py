@@ -15,6 +15,7 @@ based on the French *Plan Comptable Général* (PCG).
 Modules:
 - `engine`: Core aggregation logic for income statement generation.
 - `mapping`: Handles PCG mapping templates and formula evaluation.
+- `views`: View aggregation (simplified, regular, detailed, complete, SIG).
 - `io`: Input/output utilities for reading accounting entries (CSV files).
 - `cli`: Command-line interface for batch execution.
 
@@ -22,6 +23,6 @@ Usage example:
     python -m smb_finsight.cli --help
 """
 
-__all__ = ["engine", "mapping", "io"]
+__all__ = ["engine", "mapping", "views", "io"]
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
