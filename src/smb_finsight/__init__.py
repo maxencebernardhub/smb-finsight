@@ -9,20 +9,27 @@ SMB FinSight
 A Python-based financial dashboard & analysis application for Small and
 Medium-sized Businesses (SMBs).
 
-It aggregates accounting entries (accounts 6 & 7) into normalized income statements
-based on the French *Plan Comptable Général* (PCG).
+The application aggregates accounting entries (Plan Comptable Général – PCG)
+into normalized income statement structures (simplified, regular, detailed,
+complete, and SIG), with full support for:
+
+- Mandatory accounting entry fields: date, code, description
+- Debit/credit or signed-amount formats
+- Fiscal-year configuration via `smb_finsight_config.toml`
+- Period selection (FY, YTD, MTD, last-month, last-fy, custom)
+- Accurate date-based filtering before aggregation
 
 Modules:
-- `engine`: Core aggregation logic for income statement generation.
+- `engine`: Core aggregation logic for income-statement generation.
 - `mapping`: Handles PCG mapping templates and formula evaluation.
-- `views`: View aggregation (simplified, regular, detailed, complete, SIG).
-- `io`: Input/output utilities for reading accounting entries (CSV files).
-- `cli`: Command-line interface for batch execution.
+- `views`: Output views (simplified, regular, detailed, complete, SIG).
+- `io`: Input utilities for reading normalized accounting entry CSVs.
+- `cli`: Command-line interface supporting period filtering and batch execution.
 
-Usage example:
+Usage:
     python -m smb_finsight.cli --help
 """
 
 __all__ = ["engine", "mapping", "views", "io"]
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"
