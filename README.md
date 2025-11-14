@@ -15,8 +15,10 @@ It aggregates **accounting entries (accounts 6 & 7)** from a CSV file to automat
 - [Main Features](#-main-features)
 - [Project Structure](#-project-structure)
 - [Installation](#-installation)
+- [Configuration](#configuration)
 - [Input Files](#input-files)
 - [CLI Usage](#-cli-usage)
+- [Sig View](#sig-view-pcg)
 - [FinSight Sign Convention](#-finsight-sign-convention)
 - [Output Format](#-output-format)
 - [Quick Tests](#-quick-tests)
@@ -33,6 +35,16 @@ It aggregates **accounting entries (accounts 6 & 7)** from a CSV file to automat
 - 🧮 Normalizes amounts (`amount = credit − debit`). 
 - 📊 Aggregates entries according to a **single unified mapping file**:  
   `detailed_income_statement_pcg.csv`.
+- **Fiscal year configuration** via `smb_finsight_config.toml`
+- **Period selection (NEW in v0.1.5)**:
+  - `--period fy` → full fiscal year
+  - `--period ytd` → year-to-date
+  - `--period mtd` → month-to-date
+  - `--period last-month` → previous calendar month
+  - `--period last-fy` → previous fiscal year
+  - custom: `--from-date YYYY-MM-DD` / `--to-date YYYY-MM-DD`
+- Automatic filtering of accounting entries based on selected period
+- Display of applied period and number of entries kept
 - 🧱 Supports **5 views**:  
   - **simplified** → levels ≤ 1  
   - **regular** → levels ≤ 2  
@@ -46,11 +58,25 @@ It aggregates **accounting entries (accounts 6 & 7)** from a CSV file to automat
 
 ---
 
-## 📁 Project Structure
+## 📁 Project Structure (updated for v0.1.5)
 
 ```
 smb-finsight/
-│
+├── smb_finsight_config.toml # Fiscal year configuration (NEW). Example:
+│       [fiscal_year]
+│       start_date = "2025-01-01"
+│       end_date = "2025-12-31"
+├── src/
+│   └── smb_finsight/
+│       ├── __init__.py
+│       ├── cli.py # CLI with new --period / --from-date / --to-date flags
+│       ├── io.py # Accounting entry loader (date + description required)
+│       ├── periods.py # Period engine: fy, ytd, mtd, last-month, custom (NEW)
+│       ├── config.py # Loads fiscal year config (NEW in 0.1.5)
+│       ├── mapping.py # Mapping templates handler
+│       ├── engine.py # Core aggregation engine
+│       ├── views.py # All output views (simplified → complete)
+│       └── accounts.py # PCG accounts loader + validator
 ├── data/
 │   ├── mappings/
 │   │   ├── detailed_income_statement_pcg.csv
@@ -59,28 +85,25 @@ smb-finsight/
 │   │       ├── simplified_income_statement_pcg.csv
 │   │       └── regular_income_statement_pcg.csv
 │   └── accounts/
-│       └── pcg.csv
-│
+│       └── pcg.csv # List of accounts
 ├── examples/
-│   ├── accounting_entries.csv
+│   ├── accounting_entries_large_with_description.csv # Updated to include date + description
+│   ├── accounting_entries_small.csv
 │   ├── accounting_entries_large.csv
-│   ├── out_detailed.csv
-│   └── out_complete.csv
-│
-├── src/
-│   └── smb_finsight/
-│       ├── __init__.py
-│       ├── cli.py
-│       ├── io.py
-│       ├── mapping.py
-│       ├── engine.py
-│       ├── views.py
-│       └── accounts.py
-│
+│   ├── out_xxx.csv* # tous les fichiers de sortie
+├── tests/
+│   ├── test_periods.py # NEW
+│   ├── test_engine_core.py
+│   ├── test_mapping_template.py
+│   ├── test_views_and_ordering.py
+│   ├── test_sig_consistency.py
+│   ├── test_sig_internal.py
 └── pyproject.toml
 ```
 
-🗂️ Legacy mappings (simplified, regular) are preserved under /data/mappings/legacy/ for reference only.
+Note: example CSV files in /examples/ are continuously updated to match the required input format (date + description). They are used in tests and CLI examples.
+
+🗂️ Legacy mappings files remain available in data/mappings/legacy/ for anyone who wants to generate simplified or regular PCG statements without the unified mapping.
 
 ---
 
@@ -105,21 +128,73 @@ pip install -e ".[dev]"
 ```
 
 ---
-## Input Files
 
-### 1. `accounting_entries.csv`
+## Configuration
 
-```csv
-date,account,debit,credit
-2024-12-31,62201,533.25,0
-2024-12-31,75402,0,844.65
+**NEW in v0.1.5**
+
+SMB FinSight uses a TOML configuration file to define the current fiscal year.
+
+### File: `smb_finsight_config.toml`
+
+```toml
+[fiscal_year]
+start_date = "2025-01-01"
+end_date = "2025-12-31"
 ```
 
-Behavior:
+This fiscal year is used when:
+- no period is specified (`--period fy`)
+- a custom period omits `--from-date` or `--to-date`
+- computing YTD or MTD (clamped inside FY)
+- generating “last-month” or “last-fy”
 
-- `amount = credit − debit`
-- Class 6 → negative  
-- Class 7 → positive
+Without this file, the CLI cannot run any FY/YTD/MTD/last-month/last-fy period selection.
+If the config file is missing or invalid, the CLI will raise a clear error.
+
+
+---
+## Input Files
+
+### 1. `accounting_entries.csv` (required)
+
+The input CSV must contain **both a date and a description** for each entry.
+
+Two input formats are supported:
+
+#### 1) Debit/credit format
+
+```csv
+date,code,description,debit,credit
+2025-01-02,622000,Office rent,1000.00,0.00
+2025-01-05,706000,Consulting services,0.00,2500.00
+```
+
+#### 2) Signed amount format
+
+```csv
+date,code,description,amount
+2025-01-10,623400,Software subscription,-49.99
+```
+
+- `description` (or `label`) → free text  
+- `amount` is always internally computed as **credit – debit**
+  - Expenses (6xxx accounts) normally result in negative amounts  
+  - Revenues (7xxx accounts) normally result in positive amounts
+
+➡️ *This format is now enforced starting from **v0.1.5***.
+
+### ✔ Required columns summary (v0.1.5+)
+
+| Column        | Required | Format           | Notes                              |
+|---------------|----------|------------------|------------------------------------|
+| `date`        | Yes      | YYYY-MM-DD       | Used for fiscal and period logic   |
+| `code`        | Yes      | text / integer   | Must match `pcg.csv`               |
+| `description` | Yes      | text             | Free text, used for readability    |
+| `debit`       | Optional | number           | Used if `amount` not provided      |
+| `credit`      | Optional | number           | Used if `amount` not provided      |
+| `amount`      | Optional | number           | Signed amount; overrides debit/credit |
+
 
 ---
 
@@ -128,10 +203,10 @@ Behavior:
 This file **must** list all valid account codes (PCG or custom user chart of accounts):
 
 ```csv
-account,name
+account_number,name
 701000,Ventes de produits finis
 706000,Prestations de services
-62201,Hono…
+622001,Honoraires
 …
 ```
 
@@ -144,40 +219,182 @@ Used to:
 
 ---
 
+### 3. Mapping templates (PCG)
+
+Mapping templates define how each account (6xxx / 7xxx) contributes to the
+different lines of the income statement.
+
+Two CSV templates exist:
+
+#### 1) Detailed income statement
+
+```csv
+id,level,name,code_range
+100,0,REVENUE,
+110,1,Sales of goods,70*
+111,2,Sales of finished products,701*;702*
+...
+```
+- `level 0` = top categories  
+- `level 1` = regular view  
+- `level 2` = detailed  
+- `level 3` = parent of account-level rows  
+- `level 4` (added automatically in view=complete)
+
+Example:
+level 0  → REVENUE
+  level 1    → Sales
+    level 2      → Sales of finished products
+      level 3        → 701*;702*
+        level 4          → individual accounts (auto-generated in “complete” view)
+
+
+#### 2) SIG (Soldes Intermédiaires de Gestion)
+
+Same structure as above, but specific French SIG definitions
+
+➡️ **SMB FinSight aggregates amounts by selecting rows matching each `code_range`.**
+
+
+---
+
 ## 🧮 CLI Usage
 
 ### Base command
 
 ```bash
-python -m smb_finsight.cli     --accounting_entries <path>     --template data/mappings/detailed_income_statement_pcg.csv     --list-of-accounts data/accounts/pcg.csv     --view <simplified|regular|detailed|complete>     --output <output.csv>
+python -m smb_finsight.cli \
+    --accounting-entries <path/to/entries.csv> \
+    --list-of-accounts <path/to/accounts.csv> \
+    --template <path/to/mapping.csv> \
+    --view <simplified|regular|detailed|complete|sig> \
+    --output <output.csv> \
+    [--period fy|ytd|mtd|last-month|last-fy] \
+    [--from-date YYYY-MM-DD] \
+    [--to-date YYYY-MM-DD]
+```
+
+### 📦 CLI Quick Examples (v0.1.5+)
+
+Here are ready-to-run commands demonstrating the most common use cases.
+
+#### 1) Full fiscal year (FY)
+
+```bash
+python -m smb_finsight.cli \
+    --accounting-entries examples/accounting_entries_large.csv \
+    --list-of-accounts data/accounts/pcg.csv \
+    --template data/mappings/detailed_income_statement_pcg.csv \
+    --view regular \
+    --period fy \
+    --output out_fy.csv
+```
+
+#### 2) Last month only
+
+```bash
+python -m smb_finsight.cli \
+    --accounting-entries examples/accounting_entries_large.csv \
+    --list-of-accounts data/accounts/pcg.csv \
+    --template data/mappings/detailed_income_statement_pcg.csv \
+    --view detailed \
+    --period last-month \
+    --output out_last_month.csv
+```
+
+#### 3) Custom period
+
+```bash
+python -m smb_finsight.cli \
+    --accounting-entries examples/accounting_entries_large.csv \
+    --list-of-accounts data/accounts/pcg.csv \
+    --template data/mappings/detailed_income_statement_pcg.csv \
+    --from-date 2025-03-01 \
+    --to-date 2025-04-15 \
+    --view simplified \
+    --output out_custom.csv
 ```
 
 ### Example (detailed view)
 
 ```bash
-python -m smb_finsight.cli   --accounting_entries examples/accounting_entries_large.csv   --template data/mappings/detailed_income_statement_pcg.csv   --list-of-accounts data/accounts/pcg.csv   --view detailed   --output examples/out_detailed.csv
+python -m smb_finsight.cli \
+  --accounting-entries examples/accounting_entries_large.csv \
+  --template data/mappings/detailed_income_statement_pcg.csv \
+  --list-of-accounts data/accounts/pcg.csv \
+  --view detailed \
+  --output examples/out_detailed.csv
 ```
 
 ### Example (complete view)
 
 ```bash
-python -m smb_finsight.cli   --accounting_entries examples/accounting_entries_large.csv   --template data/mappings/detailed_income_statement_pcg.csv   --list-of-accounts data/accounts/pcg.csv   --view complete   --output examples/out_complete.csv
+python -m smb_finsight.cli \
+  --accounting-entries examples/accounting_entries_large.csv \
+  --template data/mappings/detailed_income_statement_pcg.csv \
+  --list-of-accounts data/accounts/pcg.csv \
+  --view complete \
+  --output examples/out_complete.csv
 ```
 
 ### Example: SIG (Soldes Intermédiaires de Gestion)
 
 ```bash
 python -m smb_finsight.cli \
-  --accounting_entries examples/accounting_entries_large.csv \
+  --accounting-entries examples/accounting_entries_large.csv \
   --template data/mappings/sig_pcg.csv \
   --list-of-accounts data/accounts/pcg.csv \
   --view sig \
   --output examples/out_sig.csv
-  ```
+```
+
+### ⏱️ Period selection (NEW in v0.1.5)
+
+SMB FinSight can generate income statements for a specific time period.
+
+#### Predefined periods
+
+```bash
+--period fy          # full fiscal year (from config)
+--period ytd         # year to date
+--period mtd         # month to date
+--period last-month  # previous calendar month
+--period last-fy     # previous fiscal year
+```
+
+
+#### Custom periods
+
+```bash
+--from-date 2025-03-01
+--to-date 2025-06-30
+```
+
+#### Priority rules:
+
+1) If `--period` is provided → it overrides `from-date` / `to-date`  
+2) Else custom from/to dates apply  
+3) Else → default to fiscal year  
+
+When running, the CLI prints:
+
+```bash
+Applied period: Month to date (2025-11-01 → 2025-11-23)
+Entries kept after period filter: 42
+```
+
+### CLI output example after period filtering
+
+When running with date-based filters, the CLI prints:
+
+```bash
+Applied period: Last month (2025-10-01 → 2025-10-31)
+Entries kept after period filter: 18
+```
 
 ---
 
-## SIG view (PCG)
+## SIG View (PCG)
 
 SMB FinSight provides a full French-style SIG (Soldes Intermédiaires de Gestion)
 based on the PCG.
@@ -233,6 +450,7 @@ display_order,id,level,name,type,amount
 
 ## 🧪 Quick Tests
 
+Run all automated tests and static checks:
 ```bash
 pytest -q
 ruff check src tests
@@ -253,7 +471,7 @@ Two tests ensure the correctness of the SIG mapping:
 
 - `test_sig_consistency.py`
   Ensures:  
-  **result(detailed) == result(sig) == raw sum of 6*/7***  
+  **result(detailed) == result(sig) == raw sum of all 6* and 7* entries** 
   This guarantees perfect alignment between the SIG, the detailed income
   statement, and the underlying accounting entries.
 
@@ -261,6 +479,7 @@ Two tests ensure the correctness of the SIG mapping:
   Verifies internal correctness of key SIG subtotals  
   (Marge commerciale, Marge de production, Valeur ajoutée) using
   a synthetic dataset.
+
 
 ---
 
@@ -283,22 +502,29 @@ Pull requests are welcome!
 
 ## 🚀 Roadmap
 
-### ✅ Completed
-- [x] Core aggregation engine (v0.1.0)
-- [x] CLI interface (`smb-finsight`)
-- [x] CI/CD pipeline (Ruff + Pytest)
-- [x] Added inline comments and docstrings to improve code readability
-- [x] Account validation
-- [x] Mapping template (Simplified, Regular, Detailed and Complete view)
-- [x] Full PCG multi-level format
-- [x] SUM(; ) support 
-- [x] Added full 'Intermediate Management Balances' view (aka SIG in PCG)
+### ✅ Completed (as of v0.1.5)
+- [x] Full PCG mapping engine (levels 0 → 3)
+- [x] Complete income statement view (level 4 account details)
+- [x] SIG (Soldes Intermédiaires de Gestion) view
+- [x] List-of-accounts validation with error detection
+- [x] Handling of debit/credit or signed-amount input formats
+- [x] Mandatory accounting entry fields: `date`, `code`, `description`
+- [x] Fiscal year configuration via `smb_finsight_config.toml`
+- [x] Period selection:
+  - [x] FY (full fiscal year)
+  - [x] YTD (year-to-date)
+  - [x] MTD (month-to-date)
+  - [x] last-month
+  - [x] last-fy
+  - [x] custom from/to dates
+- [x] Period-based filtering of accounting entries
+- [x] Accurate aggregation and recalculation after filtering
+- [x] Full test suite (20 tests) including period logic
 
 ### 🚧 In Progress
 - [ ] 
 
 ### 🧭 Planned
-- [ ] Add **dates** and **periods**.
 - [ ] Add **projected** accounting entries.
 - [ ] Introduce **financial ratios**.
 - [ ] Extend compatibility to **ASPE (Canada)**.
@@ -313,6 +539,7 @@ Pull requests are welcome!
 
 | Version | Date | Highlights | Tag |
 |----------|------|-------------|------|
+| **0.1.5** | Nov 2025 | Fiscal-year config, period selection (FY/YTD/MTD/last-month/custom), date+description enforced | [v0.1.5](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.5) |
 | **0.1.4** | Nov 2025 | Full SIG (PCG) view, improved reliability of detailed mapping | [v0.1.4](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.4) 
 | **0.1.3** | Nov 2025 | Unified mapping, new CLI, complete income statement view | [v0.1.3](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.3) |
 | **0.1.2** | Nov 2025 | Internal documentation update | [v0.1.2](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.2) |
