@@ -1,52 +1,43 @@
 import pandas as pd
+import pytest
 
-from smb_finsight.engine import aggregate
 from smb_finsight.io import read_accounting_entries
-from smb_finsight.mapping import Template
 
 
 def test_io_sign_normalization_debit_credit(tmp_path):
-    """read_accounting_entries should compute amount = credit - debit."""
+    """read_accounting_entries should compute amount = credit - debit
+    with dates/descriptions."""
     p = tmp_path / "ae.csv"
     p.write_text(
-        "code,debit,credit\n"
-        "62201,533.25,0\n"  # expense → amount = -533.25
-        "75402,0,844.65\n"  # revenue → amount = +844.65
+        "date,code,description,debit,credit\n"
+        "2025-01-01,62201,Postage fees,533.25,0\n"  # expense → amount = -533.25
+        "2025-01-02,75402,Ancillary income,0,844.65\n"  # revenue → amount = +844.65
     )
+
     df = read_accounting_entries(str(p))
-    assert list(df.columns) == ["code", "amount"]
 
-    # Cast code to string to be robust against numeric parsing
-    codes = df["code"].astype(str)
+    # colonnes normalisées
+    assert list(df.columns) == ["date", "code", "description", "amount"]
 
-    mask_charge = codes == "62201"
-    mask_prod = codes == "75402"
+    # types
+    assert pd.api.types.is_datetime64_any_dtype(df["date"])
+    assert df["amount"].dtype.kind == "f"
 
-    # Sanity checks to avoid empty selections
-    assert mask_charge.any()
-    assert mask_prod.any()
-
-    row_charge = float(df.loc[mask_charge, "amount"].iloc[0])
-    row_prod = float(df.loc[mask_prod, "amount"].iloc[0])
-
-    assert row_charge == -533.25
-    assert row_prod == 844.65
+    # signe des montants
+    assert df.loc[0, "amount"] == pytest.approx(-533.25)
+    assert df.loc[1, "amount"] == pytest.approx(844.65)
 
 
-def test_engine_aggregate_with_detailed_template():
-    """Aggregate should populate a structured DataFrame using the detailed mapping."""
-    tx = pd.DataFrame(
-        [
-            {"code": "706000", "amount": 1000.0},  # services (revenue)
-            {"code": "781000", "amount": 500.0},  # operating write-backs (revenue)
-        ]
+def test_io_sign_normalization_amount_column(tmp_path):
+    """read_accounting_entries should accept a pre-computed signed 'amount' column."""
+    p = tmp_path / "ae_amount.csv"
+    p.write_text(
+        "date,code,description,amount\n"
+        "2025-02-01,706000,Consulting services,+1000.00\n"
+        "2025-02-02,622000,Rent,-500.00\n"
     )
-    tpl = Template.from_csv("data/mappings/detailed_income_statement_pcg.csv")
-    out = aggregate(tx, tpl)
 
-    # Expected columns present
-    for col in ["level", "display_order", "id", "name", "type", "amount"]:
-        assert col in out.columns
+    df = read_accounting_entries(str(p))
 
-    # A simple sanity check on amounts (exact totals depend on mapping structure)
-    assert out["amount"].max() >= 1500.0
+    assert list(df.columns) == ["date", "code", "description", "amount"]
+    assert df["amount"].tolist() == [pytest.approx(1000.0), pytest.approx(-500.0)]

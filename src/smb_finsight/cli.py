@@ -9,9 +9,11 @@ The CLI orchestrates the main pipeline:
 1) read accounting entries from a CSV file,
 2) load a PCG-based mapping template,
 3) load and apply the user-maintained list of accounts (chart of accounts),
-4) aggregate amounts into income-statement rows,
-5) transform the result into one of the supported views,
-6) write the final statement to a CSV file.
+4) select a reporting period (fiscal year, YTD, MTD, last month, custom, …)
+   and filter accounting entries based on their date,
+5) aggregate amounts into income-statement rows,
+6) transform the result into one of the supported views,
+7) write the final statement to a CSV file.
 
 Supported views
 ---------------
@@ -25,15 +27,48 @@ Supported views
 The list of accounts (list_of_accounts CSV) is used both to:
 - validate that each accounting entry refers to a known account code;
 - provide labels for account-level rows in the 'complete' view.
+
+Period selection
+----------------
+The CLI supports several ways to select the reporting period:
+
+- --period fy          : full fiscal year (as defined in the TOML config),
+- --period ytd         : year to date (from fiscal year start to today),
+- --period mtd         : month to date (from 1st of current month to today),
+- --period last-month  : previous calendar month (clamped inside the FY),
+- --period last-fy     : previous fiscal year.
+
+Custom periods can be defined via:
+
+- --from-date YYYY-MM-DD
+- --to-date   YYYY-MM-DD
+
+Priority rules:
+
+1) If --period is provided, it takes precedence over --from-date / --to-date.
+2) Else, if --from-date or --to-date is provided, a custom period is used:
+   - missing from-date → fiscal year start,
+   - missing to-date   → fiscal year end.
+3) Else, the full fiscal year is used by default.
+
+Regardless of the chosen period, the CLI filters accounting entries based on
+their "date" column, then prints the applied period and the number of entries
+kept before running the aggregation engine.
+
+The list of accounts (list_of_accounts CSV) is used both to:
+- validate that each accounting entry refers to a known account code;
+- provide labels for account-level rows in the 'complete' view.
 """
 
 import argparse
 
 from . import __version__
 from .accounts import filter_unknown_accounts, load_list_of_accounts
+from .config import load_fiscal_year
 from .engine import aggregate
 from .io import read_accounting_entries
 from .mapping import Template
+from .periods import determine_period_from_args, filter_entries_by_period
 from .views import apply_view_level_filter, build_complete_view
 
 
@@ -68,6 +103,31 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     ap.add_argument(
+        "--period",
+        choices=["fy", "ytd", "mtd", "last-month", "last-fy"],
+        help=(
+            "Predefined reporting period. "
+            "One of: fy, ytd, mtd, last-month, last-fy. "
+            "If not provided, the full fiscal year from config is used."
+        ),
+    )
+    ap.add_argument(
+        "--from-date",
+        dest="from_date",
+        help=(
+            "Custom period start date (YYYY-MM-DD). If provided without "
+            "--to-date, the fiscal year end_date from config is used."
+        ),
+    )
+    ap.add_argument(
+        "--to-date",
+        dest="to_date",
+        help=(
+            "Custom period end date (YYYY-MM-DD). If provided without "
+            "--from-date, the fiscal year start_date from config is used."
+        ),
+    )
+    ap.add_argument(
         "--output",
         required=False,
         help="Path to output CSV file.",
@@ -98,10 +158,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    """Entry point for the CLI module.
+    """Entry point for the SMB FinSight CLI.
 
-    This function parses command-line arguments, dispatches to the core engine,
-    and writes the resulting income statement to the requested CSV file.
+    This function parses command-line arguments, loads the chart of accounts
+    and accounting entries, applies the fiscal-year / period selection
+    (FY, YTD, MTD, last month, last FY, or custom from/to dates), runs the core
+    aggregation engine and view transformation, then writes the resulting income
+    statement to the requested CSV file and prints a short summary on stdout.
     """
     parser = _build_parser()
     args = parser.parse_args()
@@ -135,19 +198,32 @@ def main() -> None:
     known_codes = set(accounts_df["account_number"])
     name_by_code = dict(zip(accounts_df["account_number"], accounts_df["name"]))
 
-    # 2) Read and normalize accounting entries (code, amount).
+    # 2) Read and normalize accounting entries (date, code, description, amount).
     tx_raw = read_accounting_entries(args.accounting_entries)
 
-    # 3) Filter out entries whose account code is unknown.
-    tx = filter_unknown_accounts(tx_raw, known_codes)
+    # 3) Determine reporting period from config + CLI and filter entries.
+    fiscal_year = load_fiscal_year()  # reads smb_finsight_config.toml by default
+    period = determine_period_from_args(args, fiscal_year)
+    tx_period = filter_entries_by_period(tx_raw, period)
 
-    # 4) Load the mapping template.
+    print(
+        f"Applied period: {period.label} "
+        f"({period.start.isoformat()} → {period.end.isoformat()})"
+    )
+    print(f"Entries kept after period filter: {len(tx_period)}")
+    if len(tx_period) == 0:
+        print("Warning: no accounting entries fall inside the selected period.")
+
+    # 4) Filter out entries whose account code is unknown.
+    tx = filter_unknown_accounts(tx_period, known_codes)
+
+    # 5) Load the mapping template.
     tpl = Template.from_csv(args.template)
 
-    # 5) Aggregate via the core engine.
+    # 6) Aggregate via the core engine.
     out_base = aggregate(tx, tpl)
 
-    # 6) Apply the selected view.
+    # 7) Apply the selected view.
     #    'complete' inserts account-level rows. All other views (including 'sig')
     #    reuse apply_view_level_filter and rely entirely on the mapping template.
     if args.view == "complete":
@@ -160,7 +236,7 @@ def main() -> None:
     else:
         out = apply_view_level_filter(out_base, args.view)
 
-    # 7) Write the output CSV.
+    # 8) Write the output CSV.
     out.to_csv(args.output, index=False)
     print(f"Wrote {args.output} ({len(out)} rows)")
 

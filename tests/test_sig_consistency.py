@@ -10,7 +10,9 @@ def test_sig_equals_detailed_and_raw():
     Test that the SIG view, the detailed view, and the raw sum of 6*/7* accounts
     all produce the same net result.
     """
-    entries = read_accounting_entries("examples/accounting_entries_large.csv")
+    entries = read_accounting_entries(
+        "examples/accounting_entries_large_with_description.csv"
+    )
 
     tpl_detailed = Template.from_csv("data/mappings/detailed_income_statement_pcg.csv")
     tpl_sig = Template.from_csv("data/mappings/sig_pcg.csv")
