@@ -37,7 +37,7 @@ currency = "EUR"
 #
 # Example (for a Canadian company under ASPE):
 #   standard_config_file = "config/standard_ca_aspe.toml"
-standard_config_file = ""
+standard_config_file = "config/standard_fr_pcg.toml"
 
 # -------------------------------------------------------------------
 # Data files (generic, not standard-specific)
