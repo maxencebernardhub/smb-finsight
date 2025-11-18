@@ -1,0 +1,288 @@
+# -------------------------------------------------------------------
+# SMB FinSight - Measures & ratios rules
+# France / PCG
+# -------------------------------------------------------------------
+
+[meta]
+standard    = "FR_PCG"
+version     = "0.1.6"
+description = "Mesures et ratios financiers basés sur les variables canoniques du PCG."
+
+# -------------------------------------------------------------------
+# Derived measures
+# -------------------------------------------------------------------
+
+[measures.gross_margin]
+label   = "Marge brute"
+formula = "revenue - cost_of_goods_sold"
+unit    = "amount"
+notes   = "Marge brute en valeur absolue (CA net - coût d'achat des marchandises vendues / consommations)."
+
+[measures.gross_margin_pct]
+label   = "Marge brute (%)"
+formula = "(gross_margin / revenue) * 100"
+unit    = "percent"
+notes   = "Marge brute rapportée au chiffre d'affaires."
+
+[measures.value_added_pct]
+label   = "Valeur ajoutée (%)"
+formula = "(value_added / revenue) * 100"
+unit    = "percent"
+notes   = "Valeur ajoutée rapportée au chiffre d'affaires."
+
+[measures.ebe_margin_pct]
+label   = "EBE (%)"
+formula = "(ebe / revenue) * 100"
+unit    = "percent"
+notes   = "EBE (Excédent Brut d'Exploitation) rapporté au chiffre d'affaires."
+
+[measures.operating_margin_pct]
+label   = "Résultat d'exploitation (%)"
+formula = "(operating_income / revenue) * 100"
+unit    = "percent"
+notes   = "Résultat d'exploitation rapporté au chiffre d'affaires."
+
+[measures.net_margin_pct]
+label   = "Résultat net (%)"
+formula = "(net_income / revenue) * 100"
+unit    = "percent"
+notes   = "Résultat net rapporté au chiffre d'affaires."
+
+[measures.external_charges_pct]
+label   = "Charges externes / CA (%)"
+formula = "(external_charges / revenue) * 100"
+unit    = "percent"
+notes   = "Charges externes rapportées au chiffre d'affaires."
+
+[measures.personnel_expenses_pct]
+label   = "Charges de personnel / CA (%)"
+formula = "(personnel_expenses / revenue) * 100"
+unit    = "percent"
+notes   = "Charges de personnel rapportées au chiffre d'affaires."
+
+[measures.revenue_per_fte]
+label   = "CA par salarié"
+formula = "revenue / average_headcount"
+unit    = "amount"
+notes   = "Chiffre d'affaires divisé par l'effectif moyen (ETP)."
+
+[measures.value_added_per_fte]
+label   = "VA par salarié"
+formula = "value_added / average_headcount"
+unit    = "amount"
+notes   = "Valeur ajoutée divisée par l'effectif moyen (ETP)."
+
+# --- CAF (Cash-flow) ------------------------------------------------
+
+[measures.caf]
+label   = "Capacité d'autofinancement (CAF)"
+formula = "net_income + depreciation_amortization"
+unit    = "amount"
+notes   = "CAF simplifiée : Résultat net + Dotations aux amortissements. Peut être affinée ultérieurement."
+
+[measures.caf_margin_pct]
+label   = "CAF / CA (%)"
+formula = "(caf / revenue) * 100"
+unit    = "percent"
+notes   = "CAF rapportée au chiffre d'affaires."
+
+[measures.caf_to_ebe]
+label   = "CAF / EBE"
+formula = "caf / ebe"
+unit    = "ratio"
+notes   = "Mesure la conversion de l'EBE en CAF."
+
+# --- Capital employed & returns -------------------------------------
+
+[measures.capital_employed]
+label   = "Capitaux engagés"
+formula = "total_equity + financial_debt - cash_and_equivalents"
+unit    = "amount"
+notes   = "Approximation des capitaux engagés : Capitaux propres + Dettes financières - Trésorerie."
+
+[measures.roce_pct]
+label   = "ROCE (%)"
+formula = "(operating_income / capital_employed) * 100"
+unit    = "percent"
+notes   = "Rentabilité des capitaux engagés (Return On Capital Employed)."
+
+[measures.roe_pct]
+label   = "ROE (%)"
+formula = "(net_income / total_equity) * 100"
+unit    = "percent"
+notes   = "Rentabilité des capitaux propres (Return On Equity)."
+
+[measures.roa_pct]
+label   = "ROA (%)"
+formula = "(net_income / total_assets) * 100"
+unit    = "percent"
+notes   = "Rentabilité économique des actifs (Return On Assets)."
+
+# --- Solvency & leverage --------------------------------------------
+
+[measures.equity_ratio_pct]
+label   = "Autonomie financière (%)"
+formula = "(total_equity / total_assets) * 100"
+unit    = "percent"
+notes   = "Poids des capitaux propres dans le total de l'actif (autonomie financière)."
+
+[measures.debt_to_equity]
+label   = "Endettement (Dettes financières / Capitaux propres)"
+formula = "financial_debt / total_equity"
+unit    = "ratio"
+notes   = "Dettes financières rapportées aux capitaux propres."
+
+[measures.net_debt]
+label   = "Endettement net"
+formula = "financial_debt - cash_and_equivalents"
+unit    = "amount"
+notes   = "Dette nette : Dettes financières - Trésorerie et équivalents."
+
+[measures.gearing]
+label   = "Gearing (Dette nette / Capitaux propres)"
+formula = "net_debt / total_equity"
+unit    = "ratio"
+notes   = "Dette nette rapportée aux capitaux propres."
+
+[measures.interest_coverage]
+label   = "Couverture des intérêts (EBE / Intérêts)"
+formula = "ebe / interest_expense"
+unit    = "ratio"
+notes   = "Capacité de l'entreprise à couvrir ses charges d'intérêts avec l'EBE."
+
+# --- Working capital & rotation ratios ------------------------------
+
+[measures.dso_days]
+label   = "DSO (Délai de paiement clients)"
+formula = "(accounts_receivable / revenue) * period_days"
+unit    = "days"
+notes   = "Délai moyen de recouvrement des créances clients."
+
+[measures.dpo_days]
+label   = "DPO (Délai de paiement fournisseurs)"
+formula = "(accounts_payable / cost_of_goods_sold) * period_days"
+unit    = "days"
+notes   = "Délai moyen de paiement des fournisseurs."
+
+[measures.dio_days]
+label   = "DIO (Durée de rotation des stocks)"
+formula = "(inventory / cost_of_goods_sold) * period_days"
+unit    = "days"
+notes   = "Durée moyenne de stockage (rotation des stocks)."
+
+# -------------------------------------------------------------------
+# Ratios - BASIC level
+# -------------------------------------------------------------------
+
+[ratios.basic.gross_margin_pct]
+label   = "Marge brute (%)"
+formula = "gross_margin_pct"
+unit    = "percent"
+
+[ratios.basic.ebe_margin_pct]
+label   = "EBE (%)"
+formula = "ebe_margin_pct"
+unit    = "percent"
+
+[ratios.basic.operating_margin_pct]
+label   = "Résultat d'exploitation (%)"
+formula = "operating_margin_pct"
+unit    = "percent"
+
+[ratios.basic.net_margin_pct]
+label   = "Résultat net (%)"
+formula = "net_margin_pct"
+unit    = "percent"
+
+[ratios.basic.value_added_pct]
+label   = "Valeur ajoutée (%)"
+formula = "value_added_pct"
+unit    = "percent"
+
+# -------------------------------------------------------------------
+# Ratios - ADVANCED level
+# -------------------------------------------------------------------
+
+[ratios.advanced.external_charges_pct]
+label   = "Charges externes / CA (%)"
+formula = "external_charges_pct"
+unit    = "percent"
+
+[ratios.advanced.personnel_expenses_pct]
+label   = "Charges de personnel / CA (%)"
+formula = "personnel_expenses_pct"
+unit    = "percent"
+
+[ratios.advanced.revenue_per_fte]
+label   = "CA par salarié"
+formula = "revenue_per_fte"
+unit    = "amount"
+
+[ratios.advanced.value_added_per_fte]
+label   = "VA par salarié"
+formula = "value_added_per_fte"
+unit    = "amount"
+
+[ratios.advanced.caf_margin_pct]
+label   = "CAF / CA (%)"
+formula = "caf_margin_pct"
+unit    = "percent"
+
+[ratios.advanced.caf_to_ebe]
+label   = "CAF / EBE"
+formula = "caf_to_ebe"
+unit    = "ratio"
+
+[ratios.advanced.roce_pct]
+label   = "ROCE (%)"
+formula = "roce_pct"
+unit    = "percent"
+
+[ratios.advanced.roe_pct]
+label   = "ROE (%)"
+formula = "roe_pct"
+unit    = "percent"
+
+[ratios.advanced.roa_pct]
+label   = "ROA (%)"
+formula = "roa_pct"
+unit    = "percent"
+
+# -------------------------------------------------------------------
+# Ratios - FULL level
+# -------------------------------------------------------------------
+
+[ratios.full.equity_ratio_pct]
+label   = "Autonomie financière (%)"
+formula = "equity_ratio_pct"
+unit    = "percent"
+
+[ratios.full.debt_to_equity]
+label   = "Endettement (Dettes financières / Capitaux propres)"
+formula = "debt_to_equity"
+unit    = "ratio"
+
+[ratios.full.gearing]
+label   = "Gearing (Dette nette / Capitaux propres)"
+formula = "gearing"
+unit    = "ratio"
+
+[ratios.full.interest_coverage]
+label   = "Couverture des intérêts (EBE / Intérêts)"
+formula = "interest_coverage"
+unit    = "ratio"
+
+[ratios.full.dso_days]
+label   = "DSO (Délai moyen clients)"
+formula = "dso_days"
+unit    = "days"
+
+[ratios.full.dpo_days]
+label   = "DPO (Délai moyen fournisseurs)"
+formula = "dpo_days"
+unit    = "days"
+
+[ratios.full.dio_days]
+label   = "DIO (Rotation des stocks)"
+formula = "dio_days"
+unit    = "days"
