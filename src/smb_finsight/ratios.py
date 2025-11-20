@@ -115,9 +115,6 @@ def _safe_eval_expr(expr: str, variables: Mapping[str, float]) -> float:
         if isinstance(node, ast.Expression):
             return _eval(node.body)
 
-        if isinstance(node, ast.Num):  # Python <3.8
-            return float(node.n)  # type: ignore[attr-defined]
-
         if isinstance(node, ast.Constant):  # Python 3.8+
             if isinstance(node.value, (int, float)):
                 return float(node.value)
