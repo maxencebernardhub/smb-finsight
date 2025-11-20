@@ -22,7 +22,7 @@ end_date   = "2025-12-31"
 #   "FR_PCG"
 #   "CA_ASPE"
 #   "US_GAAP"
-#   "IFRS"./
+#   "IFRS"
 standard = "FR_PCG"
 
 # Optional reporting currency (informational, for display).
@@ -45,7 +45,7 @@ standard_config_file = "config/standard_fr_pcg.toml"
 [paths]
 # Accounting entries (general ledger / journal) file.
 # Relative to the project root or absolute path.
-paths.accounting_entries = "data/input/accounting_entries.csv"
+accounting_entries = "data/input/accounting_entries.csv"
 
 # -------------------------------------------------------------------
 # Ratios & KPIs configuration (generic)
@@ -68,15 +68,15 @@ default_level = "basic"
 # All fields below are optional. If a value is missing, any ratio that
 # depends on it will simply not be computed (it will be reported as N/A).
 
-# total_assets         = 0.0  # Total Assets
-# total_equity         = 0.0  # Total Equity
-# financial_debt       = 0.0  # Financial debt (short + long term)
-# cash_and_equivalents = 0.0  # Cash and cash equivalents
-# accounts_receivable  = 0.0  # Trade receivables
-# accounts_payable     = 0.0  # Trade payables
-# inventory            = 0.0  # Inventory
-# working_capital      = 0.0  # Working capital (optional)
-# interest_expense     = 0.0  # Interest expense on financial debt
+total_assets         = 158045.05  # Total Assets
+total_equity         = 50000.00  # Total Equity
+financial_debt       = 25486.58  # Financial debt (short + long term)
+cash_and_equivalents = 103615.84  # Cash and cash equivalents
+accounts_receivable  = 35819.25  # Trade receivables
+accounts_payable     = 27695.62  # Trade payables
+inventory            = 2486.69  # Inventory
+working_capital      = 84635.35  # Working capital (optional)
+interest_expense     = 248.69  # Interest expense on financial debt
 
 # -------------------------------------------------------------------
 # Optional inputs - Human resources
@@ -84,7 +84,7 @@ default_level = "basic"
 [inputs.hr]
 # Average headcount (or FTE) over the period.
 # Used for productivity ratios (revenue per FTE, VA per FTE, etc.).
-# average_headcount = 0.0
+average_headcount = 52.0
 
 # -------------------------------------------------------------------
 # Optional inputs - Period parameters

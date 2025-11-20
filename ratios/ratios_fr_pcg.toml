@@ -14,9 +14,9 @@ description = "Mesures et ratios financiers basés sur les variables canoniques 
 
 [measures.gross_margin]
 label   = "Marge brute"
-formula = "revenue - cost_of_goods_sold"
+formula = "revenue + cost_of_goods_sold"
 unit    = "amount"
-notes   = "Marge brute en valeur absolue (CA net - coût d'achat des marchandises vendues / consommations)."
+notes   = "Marge brute en valeur absolue (CA net + coût d'achat des marchandises vendues / consommations, en charges négatives)."
 
 [measures.gross_margin_pct]
 label   = "Marge brute (%)"
@@ -50,15 +50,15 @@ notes   = "Résultat net rapporté au chiffre d'affaires."
 
 [measures.external_charges_pct]
 label   = "Charges externes / CA (%)"
-formula = "(external_charges / revenue) * 100"
+formula = "(-external_charges / revenue) * 100"
 unit    = "percent"
-notes   = "Charges externes rapportées au chiffre d'affaires."
+notes   = "Charges externes rapportées au chiffre d'affaires, en valeur absolue."
 
 [measures.personnel_expenses_pct]
 label   = "Charges de personnel / CA (%)"
-formula = "(personnel_expenses / revenue) * 100"
+formula = "(-personnel_expenses / revenue) * 100"
 unit    = "percent"
-notes   = "Charges de personnel rapportées au chiffre d'affaires."
+notes   = "Charges de personnel rapportées au chiffre d'affaires, en valeur absolue."
 
 [measures.revenue_per_fte]
 label   = "CA par salarié"
@@ -76,9 +76,9 @@ notes   = "Valeur ajoutée divisée par l'effectif moyen (ETP)."
 
 [measures.caf]
 label   = "Capacité d'autofinancement (CAF)"
-formula = "net_income + depreciation_amortization"
+formula = "net_income - depreciation_amortization"
 unit    = "amount"
-notes   = "CAF simplifiée : Résultat net + Dotations aux amortissements. Peut être affinée ultérieurement."
+notes   = "CAF simplifiée: résultat net ajusté des dotations aux amortissements et provisions d'exploitation. Ne tient pas compte de l'ensemble des produits et charges calculés (reprises, autres dotations, etc.)."
 
 [measures.caf_margin_pct]
 label   = "CAF / CA (%)"
@@ -160,15 +160,15 @@ notes   = "Délai moyen de recouvrement des créances clients."
 
 [measures.dpo_days]
 label   = "DPO (Délai de paiement fournisseurs)"
-formula = "(accounts_payable / cost_of_goods_sold) * period_days"
+formula = "(accounts_payable / -cost_of_goods_sold) * period_days"
 unit    = "days"
-notes   = "Délai moyen de paiement des fournisseurs."
+notes   = "Délai moyen de paiement des fournisseurs (coût des ventes pris en valeur absolue)."
 
 [measures.dio_days]
 label   = "DIO (Durée de rotation des stocks)"
-formula = "(inventory / cost_of_goods_sold) * period_days"
+formula = "(inventory / -cost_of_goods_sold) * period_days"
 unit    = "days"
-notes   = "Durée moyenne de stockage (rotation des stocks)."
+notes   = "Durée moyenne de stockage (rotation des stocks, coût des ventes en valeur absolue)."
 
 # -------------------------------------------------------------------
 # Ratios - BASIC level
@@ -180,7 +180,7 @@ formula = "gross_margin_pct"
 unit    = "percent"
 
 [ratios.basic.ebe_margin_pct]
-label   = "EBE (%)"
+label   = "Excédent Brut d'Exploitation (EBE) (%)"
 formula = "ebe_margin_pct"
 unit    = "percent"
 
@@ -234,17 +234,17 @@ formula = "caf_to_ebe"
 unit    = "ratio"
 
 [ratios.advanced.roce_pct]
-label   = "ROCE (%)"
+label   = "Rentabilité des Capitaux Employés (ROCE) (%)"
 formula = "roce_pct"
 unit    = "percent"
 
 [ratios.advanced.roe_pct]
-label   = "ROE (%)"
+label   = "Rendement des Capitaux Propres (ROE) (%)"
 formula = "roe_pct"
 unit    = "percent"
 
 [ratios.advanced.roa_pct]
-label   = "ROA (%)"
+label   = "Rentabilité des Actifs (ROA) (%)"
 formula = "roa_pct"
 unit    = "percent"
 

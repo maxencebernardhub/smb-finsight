@@ -3,22 +3,26 @@
 # Licensed under the MIT License. See LICENSE file for details.
 
 """
-Mapping layer for SMB FinSight.
+Mapping utilities for SMB FinSight.
 
-This module defines the structures and helpers needed to map raw accounting
-entries (accounts 6 & 7) into income-statement rows, based on a CSV template.
+This module defines the structures and logic used to interpret mapping
+CSV files that describe how raw accounting entries should be aggregated
+into higher-level financial statements (Income Statement, SIG, etc.).
 
-Key concepts
-------------
-- RowDef: one row in the output income statement (account bucket or formula).
-- Template: a collection of RowDef items, loaded from CSV, able to:
-    * map an account code to row IDs (via include/exclude patterns),
-    * evaluate formulas that reference row IDs (e.g. '=1+2', '=SUM(4,5)').
+A mapping file defines:
+- the list of rows to display (RowDef),
+- which accounts to include/exclude in each row,
+- how calculated rows depend on other rows,
+- and optionally which rows represent canonical financial measures
+  (e.g., "revenue", "gross_margin", "ebe", "net_income").
 
-Patterns
---------
-- Patterns like '70*' mean "any account starting with '70'".
-- Exact patterns like '707' mean "account exactly equal to '707'".
+Canonical measures are used later by the engine to build a unified set
+of financial metrics that feed the ratio/KPI computation engine.
+
+This module exposes:
+- RowDef:     Representation of a single mapping row.
+- Template:   Container for all rows of a mapping file, with helpers
+              for row lookup and canonical measure extraction.
 """
 
 from dataclasses import dataclass
@@ -41,7 +45,9 @@ class RowDef:
         level: Hierarchical level (0 = top, 1..N = nested).
         include: Semicolon-separated patterns of accounts to include.
         exclude: Semicolon-separated patterns of accounts to exclude.
-        formula: Formula string for 'calc' rows (e.g. '=1+2', '=SUM(4,5)').
+        formula: Formula string for 'calc' rows (e.g. '=1+2', '=SUM(4;5)').
+        canonical_measure: Optional canonical measure name used to feed
+            derived financial metrics and ratios (e.g. 'revenue', 'ebe').
     """
 
     display_order: int
@@ -52,6 +58,7 @@ class RowDef:
     include: str
     exclude: str
     formula: str
+    canonical_measure: str = ""
 
 
 def _to_patterns(s: Optional[str]) -> list[str]:
@@ -113,6 +120,10 @@ class Template:
         the columns required to build RowDef instances:
         display_order, id, name, type, level, accounts_to_include,
         accounts_to_exclude, formula.
+
+        Optionally, it may also contain a 'canonical_measure' column used to
+        tag specific rows as canonical financial measures (e.g. 'revenue',
+        'gross_margin', 'ebe', 'net_income').
         """
         self.rows: list[RowDef] = []
         for _, r in df.iterrows():
@@ -136,10 +147,22 @@ class Template:
                     formula=str(
                         r.get("formula", "") if pd.notna(r.get("formula", "")) else ""
                     ),
+                    canonical_measure=str(
+                        r.get("canonical_measure", "")
+                        if pd.notna(r.get("canonical_measure", ""))
+                        else ""
+                    ),
                 )
             )
         # Fast lookup by row id, used during formula evaluation.
         self._by_id = {r.id: r for r in self.rows}
+
+    def canonical_rows(self) -> dict[str, RowDef]:
+        """Return a mapping from canonical_measure name to RowDef.
+
+        Only rows with a non-empty canonical_measure are included.
+        """
+        return {r.canonical_measure: r for r in self.rows if r.canonical_measure}
 
     @staticmethod
     def from_csv(path: str) -> "Template":
@@ -215,8 +238,8 @@ class Template:
 
         # Support expressions such as:
         #   =A-B
-        #   =SUM(1,2,3)
-        #   =SUM(1,2,3)-10
+        #   =SUM(1;2;3)
+        #   =SUM(1;2;3)-10
         def repl_token(token: str) -> str:
             """Replace a token (potential row id) by its numeric value.
 
