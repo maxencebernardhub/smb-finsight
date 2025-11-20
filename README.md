@@ -4,7 +4,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/maxencebernardhub/smb-finsight?color=blue)](https://github.com/maxencebernardhub/smb-finsight/releases)
 
 **SMB FinSight** is a Python-based financial dashboard & analysis application designed for **small and medium-sized businesses**.  
-It aggregates **accounting entries (accounts 6 & 7)** from a CSV file to automatically produce **normalized income statements** (simplified or regular) based on the French *Plan Comptable Général* (PCG).
+It aggregates **accounting entries (PCG: accounts 6 & 7; other standards will define their own mappings)** from a CSV file to automatically produce **normalized income statements** (simplified or regular) based on the French *Plan Comptable Général* (PCG).
 
 💡 Ideal for freelancers, entrepreneurs, CFOs, CEOs of SMBs, accountants or analysts who want to automate financial KPIs and income statement generation using simple CSV exports.
 
@@ -12,13 +12,15 @@ It aggregates **accounting entries (accounts 6 & 7)** from a CSV file to automat
 
 ## 📚 Table of Contents
 
-- [Main Features](#-main-features)
-- [Project Structure](#-project-structure)
+- [Main Features](#️-main-features)
+- [Supported Accounting Standards](#-supported-accounting-standards-v016)
+- [Project Structure](#-project-structure-updated-for-v016)
 - [Installation](#-installation)
-- [Configuration](#configuration)
+- [Configuration](#configuration-updated-for-v016)
 - [Input Files](#input-files)
 - [CLI Usage](#-cli-usage)
-- [Sig View](#sig-view-pcg)
+- [Financial Ratios & KPIs](#-financial-ratios--kpis-new-in-v016)
+- [Secondary Statement; SIG (FR PCG)](#-secondary-statement-sig-fr-pcg)
 - [FinSight Sign Convention](#-finsight-sign-convention)
 - [Output Format](#-output-format)
 - [Quick Tests](#-quick-tests)
@@ -31,11 +33,10 @@ It aggregates **accounting entries (accounts 6 & 7)** from a CSV file to automat
 
 ## ⚙️ Main Features
 
-- 📂 Reads accounting entries (`code`, `debit`, `credit`) from CSV file.  
+- 📂 Reads accounting entries (`date`,`code`,`description`,`debit`,`credit`) from CSV file.  
 - 🧮 Normalizes amounts (`amount = credit − debit`). 
-- 📊 Aggregates entries according to a **single unified mapping file**:  
-  `detailed_income_statement_pcg.csv`.
-- **Fiscal year configuration** via `smb_finsight_config.toml`
+- 📊 Aggregates entries according to **unified mapping files**.
+- **Configuration** via `smb_finsight_config.toml`
 - **Period selection (NEW in v0.1.5)**:
   - `--period fy` → full fiscal year
   - `--period ytd` → year-to-date
@@ -45,65 +46,82 @@ It aggregates **accounting entries (accounts 6 & 7)** from a CSV file to automat
   - custom: `--from-date YYYY-MM-DD` / `--to-date YYYY-MM-DD`
 - Automatic filtering of accounting entries based on selected period
 - Display of applied period and number of entries kept
-- 🧱 Supports **5 views**:  
+- 🧱 Supports **4 views**:  
   - **simplified** → levels ≤ 1  
   - **regular** → levels ≤ 2  
   - **detailed** → levels ≤ 3  
-  - **complete** → full mapping + automatic listing of individual account codes from the PCG 
-  - **sig** → [French SIG (Soldes Intermédiaires de Gestion)](#sig-view-pcg) based on PCG
-- 🧾 SIG view uses a dedicated PCG mapping (`sig_pcg.csv`) fully compliant with FinSight's algebraic sign convention.
-- 🧰 Validates imported account codes using a user-provided **list_of_accounts** file (`pcg.csv`).
+  - **complete** → full mapping + automatic listing of individual account codes 
 - 💾 Exports hierarchical income statements with columns:  
   `display_order, id, level, name, type, amount` as a CSV file.
+- 🔢 **Financial ratios & KPIs engine (NEW in v0.1.6)**  
+  - 3 levels: `basic`, `advanced`, `full`  
+  - Fully configurable via standard-specific TOML rule sets  
+  - Canonical financial variables automatically computed from statements  
+- 🗂️ **Multi-standard architecture (NEW in v0.1.6)**  
+  - Supports multiple accounting frameworks (FR PCG for now. CA ASPE, US GAAP… upcoming)  
+  - Each standard provides:
+    - its own mapping files  
+    - its own ratio rules  
+    - optional secondary statements (e.g., SIG for PCG)
+- ⚙️ **Configurable display mode** (`table`, `csv`, `both`) via CLI or config file  
+- 📄 **Generated CSV output is timestamped and stored automatically under `data/output/`**
 
 ---
 
-## 📁 Project Structure (updated for v0.1.5)
+## 📐 Supported Accounting Standards (v0.1.6)
+
+SMB FinSight currently supports:
+
+| Standard | Status | Details |
+|---------|--------|---------|
+| **FR PCG** | ✅ Fully supported | Income statement, SIG, canonical variables, full ratio set |
+| **CA ASPE** | 🚧 Planned | Mapping + ratios planned for future version |
+| **US GAAP / IFRS** | 🚧 Planned | Will rely on secondary statements or a single mapping |
+
+Each standard defines:
+- its *own mapping files*
+- its *own canonical variables*
+- its *own ratio rules*
+- optionally, its *own secondary statement*
+
+
+---
+
+## 📁 Project Structure (updated for v0.1.6)
 
 ```
 smb-finsight/
-├── smb_finsight_config.toml # Fiscal year configuration (NEW). Example:
-│       [fiscal_year]
-│       start_date = "2025-01-01"
-│       end_date = "2025-12-31"
+├── smb_finsight_config.toml             # Global app configuration
+├── pyproject.toml
+├── config/
+│   ├── standard_fr_pcg.toml             # Standard-specific mappings & rules
+│   ├── standard_ca_aspe.toml            # (future)
+│   └── standard_us_gaap.toml            # (future)
+├── data/
+│   ├── input/                           # User-provided accounting entries
+│   │   └── accounting_entries.csv
+│   ├── output/                          # Generated CSV outputs
+│   └── reference/
+│       └── fr_pcg.csv                   # List of valid PCG accounts
+├── mapping/
+│   ├── income_statement_fr_pcg.csv
+│   └── sig_fr_pcg.csv
+├── ratios/
+│   └── ratios_fr_pcg.toml               # All ratios/KPIs rules for PCG
 ├── src/
 │   └── smb_finsight/
 │       ├── __init__.py
-│       ├── cli.py # CLI with new --period / --from-date / --to-date flags
-│       ├── io.py # Accounting entry loader (date + description required)
-│       ├── periods.py # Period engine: fy, ytd, mtd, last-month, custom (NEW)
-│       ├── config.py # Loads fiscal year config (NEW in 0.1.5)
-│       ├── mapping.py # Mapping templates handler
-│       ├── engine.py # Core aggregation engine
-│       ├── views.py # All output views (simplified → complete)
-│       └── accounts.py # PCG accounts loader + validator
-├── data/
-│   ├── mappings/
-│   │   ├── detailed_income_statement_pcg.csv
-│   │   ├── sig_pcg.csv
-│   │   └── legacy/
-│   │       ├── simplified_income_statement_pcg.csv
-│   │       └── regular_income_statement_pcg.csv
-│   └── accounts/
-│       └── pcg.csv # List of accounts
-├── examples/
-│   ├── accounting_entries_large_with_description.csv # Updated to include date + description
-│   ├── accounting_entries_small.csv
-│   ├── accounting_entries_large.csv
-│   ├── out_xxx.csv* # tous les fichiers de sortie
+│       ├── accounts.py
+│       ├── cli.py
+│       ├── config.py
+│       ├── engine.py
+│       ├── io.py
+│       ├── mapping.py
+│       ├── ratios.py                    # NEW core ratios engine
+│       └── views.py
 ├── tests/
-│   ├── test_periods.py # NEW
-│   ├── test_engine_core.py
-│   ├── test_mapping_template.py
-│   ├── test_views_and_ordering.py
-│   ├── test_sig_consistency.py
-│   ├── test_sig_internal.py
-└── pyproject.toml
 ```
 
-Note: example CSV files in /examples/ are continuously updated to match the required input format (date + description). They are used in tests and CLI examples.
-
-🗂️ Legacy mappings files remain available in data/mappings/legacy/ for anyone who wants to generate simplified or regular PCG statements without the unified mapping.
 
 ---
 
@@ -129,29 +147,74 @@ pip install -e ".[dev]"
 
 ---
 
-## Configuration
+## Configuration (updated for v0.1.6)
 
-**NEW in v0.1.5**
+### Configuration architecture summary
 
-SMB FinSight uses a TOML configuration file to define the current fiscal year.
+SMB FinSight loads configuration in this order:
 
-### File: `smb_finsight_config.toml`
+1. **smb_finsight_config.toml** → global settings  
+2. **config/standard_<standard>.toml** → standard-specific rules  
+3. **mapping/** → mapping CSV files declared in the standard file  
+4. **ratios/** → ratio rules declared in the standard file  
+
+The CLI never loads mapping or ratios directly.
+
+
+### 1. Global configuration (`smb_finsight_config.toml`)
+
+This file defines:
+
+- the selected accounting standard  
+- fiscal year boundaries  
+- display settings  
+- optional balance-sheet and HR variables  
+
+Example (FR PCG):
 
 ```toml
+standard = "FR_PCG"
+
 [fiscal_year]
 start_date = "2025-01-01"
 end_date = "2025-12-31"
+
+[display]
+mode = "table"
+ratio_decimals = 2
+
+[balance_sheet]
+total_assets = 150000
+total_equity = 45000
+capital_employed = 80000
+financial_debt = 25000
+
+[hr]
+average_fte = 52
 ```
 
-This fiscal year is used when:
-- no period is specified (`--period fy`)
-- a custom period omits `--from-date` or `--to-date`
-- computing YTD or MTD (clamped inside FY)
-- generating “last-month” or “last-fy”
+### 2. Standard-specific configuration (`config/standard_fr_pcg.toml`)
 
-Without this file, the CLI cannot run any FY/YTD/MTD/last-month/last-fy period selection.
-If the config file is missing or invalid, the CLI will raise a clear error.
+Each accounting standard provides:
+- its own income-statement mapping
+- optional secondary mapping (SIG for PCG)
+- its own ratio rules
 
+Example (excerpt):
+
+```toml
+[paths.mapping]
+primary_mapping_file = "mapping/income_statement_fr_pcg.csv"
+label_primary_statement = "Compte de résultat (FR PCG)"
+
+secondary_mapping_file = "mapping/sig_fr_pcg.csv"
+label_secondary_statement = "Soldes Intermédiaires de Gestion (SIG)"
+
+[paths.ratios]
+rules_file = "ratios/ratios_fr_pcg.toml"
+```
+
+This two-level configuration makes SMB FinSight fully multi-standard.
 
 ---
 ## Input Files
@@ -189,18 +252,25 @@ date,code,description,amount
 | Column        | Required | Format           | Notes                              |
 |---------------|----------|------------------|------------------------------------|
 | `date`        | Yes      | YYYY-MM-DD       | Used for fiscal and period logic   |
-| `code`        | Yes      | text / integer   | Must match `pcg.csv`               |
+| `code`        | Yes      | text / integer   | Must match `fr_pcg.csv`               |
 | `description` | Yes      | text             | Free text, used for readability    |
 | `debit`       | Optional | number           | Used if `amount` not provided      |
 | `credit`      | Optional | number           | Used if `amount` not provided      |
 | `amount`      | Optional | number           | Signed amount; overrides debit/credit |
 
 
+⚠️ Starting from v0.1.6, all other inputs (mapping files, ratios rules,
+account lists, standards) are loaded exclusively through TOML configuration
+and no longer passed via CLI arguments.
+
 ---
 
-### 2. `pcg.csv` (required)
+### 2. `chart_of_accounts.csv` (required for each standard)
 
-This file **must** list all valid account codes (PCG or custom user chart of accounts):
+This file **must** list all valid account codes.
+
+For FR PCG: file is fr_pcg.csv.
+Other standards provide their own chart of accounts.
 
 ```csv
 account_number,name
@@ -219,22 +289,24 @@ Used to:
 
 ---
 
-### 3. Mapping templates (PCG)
+### 3. Mapping templates
 
 Mapping templates define how each account (6xxx / 7xxx) contributes to the
-different lines of the income statement.
+different lines of the statement.
 
 Two CSV templates exist:
 
 #### 1) Detailed income statement
 
 ```csv
-id,level,name,code_range
-100,0,REVENUE,
-110,1,Sales of goods,70*
-111,2,Sales of finished products,701*;702*
+display_order,id,name,type,level,accounts_to_include,accounts_to_exclude,formula,canonical_measure,notes
+10,1,Ventes de marchandises,acc,3,707000;709700,,,
+20,11,Chiffre d'affaires net,calc,2,,,=1+2,revenue,
 ...
 ```
+SMB FinSight uses `accounts_to_include` / `accounts_to_exclude` instead of legacy `code_range`.  
+
+
 - `level 0` = top categories  
 - `level 1` = regular view  
 - `level 2` = detailed  
@@ -249,11 +321,12 @@ level 0  → REVENUE
         level 4          → individual accounts (auto-generated in “complete” view)
 
 
-#### 2) SIG (Soldes Intermédiaires de Gestion)
+#### 2) Secondary Statement: `SIG` (FR PCG)
 
 Same structure as above, but specific French SIG definitions
 
-➡️ **SMB FinSight aggregates amounts by selecting rows matching each `code_range`.**
+➡️ SMB FinSight aggregates amounts by selecting rows based on 
+`accounts_to_include` / `accounts_to_exclude`.
 
 
 ---
@@ -264,89 +337,52 @@ Same structure as above, but specific French SIG definitions
 
 ```bash
 python -m smb_finsight.cli \
-    --accounting-entries <path/to/entries.csv> \
-    --list-of-accounts <path/to/accounts.csv> \
-    --template <path/to/mapping.csv> \
-    --view <simplified|regular|detailed|complete|sig> \
-    --output <output.csv> \
-    [--period fy|ytd|mtd|last-month|last-fy] \
-    [--from-date YYYY-MM-DD] \
-    [--to-date YYYY-MM-DD]
+  --scope statements|all_statements|ratios|all \
+  --view simplified|regular|detailed|complete \
+  --ratios-level basic|advanced|full \
+  --display-mode table|csv|both \
+  [--period fy|ytd|mtd|last-month|last-fy] \
+  [--from-date YYYY-MM-DD] \
+  [--to-date YYYY-MM-DD] \
+  [--output OUTPUT_DIR]
 ```
 
-### 📦 CLI Quick Examples (v0.1.5+)
+If you do not specify `--output`, CSVs are written automatically to: 
+`data/output/<timestamped-files>.csv` with timestamped filenames.
+The accounting standard, mapping files and ratio rules are now loaded
+automatically from the configuration files under `/config/`.
+
+### 📦 CLI Quick Examples (v0.1.6+)
 
 Here are ready-to-run commands demonstrating the most common use cases.
 
-#### 1) Full fiscal year (FY)
+#### 1) Income statement (regular view)
 
 ```bash
 python -m smb_finsight.cli \
-    --accounting-entries examples/accounting_entries_large.csv \
-    --list-of-accounts data/accounts/pcg.csv \
-    --template data/mappings/detailed_income_statement_pcg.csv \
+    --scope statements \
     --view regular \
-    --period fy \
-    --output out_fy.csv
+    --display-mode table
 ```
 
-#### 2) Last month only
+#### 2) All statements (income statement + SIG)
 
 ```bash
 python -m smb_finsight.cli \
-    --accounting-entries examples/accounting_entries_large.csv \
-    --list-of-accounts data/accounts/pcg.csv \
-    --template data/mappings/detailed_income_statement_pcg.csv \
+    --scope all_statements \
     --view detailed \
-    --period last-month \
-    --output out_last_month.csv
+    --display-mode both
 ```
 
-#### 3) Custom period
+#### 3) Ratios (full level)
 
 ```bash
 python -m smb_finsight.cli \
-    --accounting-entries examples/accounting_entries_large.csv \
-    --list-of-accounts data/accounts/pcg.csv \
-    --template data/mappings/detailed_income_statement_pcg.csv \
-    --from-date 2025-03-01 \
-    --to-date 2025-04-15 \
-    --view simplified \
-    --output out_custom.csv
+    --scope ratios \
+    --ratios-level full \
+    --display-mode table
 ```
 
-### Example (detailed view)
-
-```bash
-python -m smb_finsight.cli \
-  --accounting-entries examples/accounting_entries_large.csv \
-  --template data/mappings/detailed_income_statement_pcg.csv \
-  --list-of-accounts data/accounts/pcg.csv \
-  --view detailed \
-  --output examples/out_detailed.csv
-```
-
-### Example (complete view)
-
-```bash
-python -m smb_finsight.cli \
-  --accounting-entries examples/accounting_entries_large.csv \
-  --template data/mappings/detailed_income_statement_pcg.csv \
-  --list-of-accounts data/accounts/pcg.csv \
-  --view complete \
-  --output examples/out_complete.csv
-```
-
-### Example: SIG (Soldes Intermédiaires de Gestion)
-
-```bash
-python -m smb_finsight.cli \
-  --accounting-entries examples/accounting_entries_large.csv \
-  --template data/mappings/sig_pcg.csv \
-  --list-of-accounts data/accounts/pcg.csv \
-  --view sig \
-  --output examples/out_sig.csv
-```
 
 ### ⏱️ Period selection (NEW in v0.1.5)
 
@@ -394,13 +430,65 @@ Entries kept after period filter: 18
 
 ---
 
-## SIG View (PCG)
+## 📊 Financial Ratios & KPIs (NEW in v0.1.6)
+
+SMB FinSight now computes a full set of ratios and KPIs from both:
+
+- the income statement  
+- the secondary statement (e.g., SIG for PCG)  
+- optional balance-sheet variables from `smb_finsight_config.toml`  
+
+### Canonical Financial Measures (computed before ratios)
+
+Examples (FR PCG):
+
+- revenue  
+- gross_margin  
+- operating_income  
+- net_income  
+- external_charges  
+- personnel_expenses  
+- financial_debt  
+- cash_and_equivalents  
+- total_assets  
+- total_equity  
+- average_fte  
+...
+
+Before computing ratios, SMB FinSight merges all canonical measures coming 
+from the income statement, the secondary statement (e.g. SIG), and optional 
+balance-sheet variables. This guarantees complete coverage for all ratio levels.
+
+ℹ️ If certain ratios appear as `NaN`, it means one of their required canonical measures
+was not provided in `smb_finsight_config.toml` (e.g., total_assets, total_equity, 
+average_fte…).
+
+### Ratio levels:
+- **basic** → margins, value added, operating income  
+- **advanced** → ROA, ROE, ROCE, CAF, external charges %, personnel expenses %  
+- **full** → liquidity & rotation KPIs (DSO, DPO, DIO), gearing, interest coverage, equity ratio  
+
+### Ratio rule engine
+Rules are defined in the following file: `ratios/ratios_<standard>.toml`
+
+Example (PCG):
+
+```toml
+[basic.gross_margin_pct]
+formula = "(gross_margin / revenue) * 100"
+unit = "percent"
+label = "Marge brute (%)"
+```
+
+---
+
+## 🟦 Secondary Statement: SIG (FR PCG)
+
 
 SMB FinSight provides a full French-style SIG (Soldes Intermédiaires de Gestion)
 based on the PCG.
 
-- View: `sig`  
-- Mapping file: `data/mappings/sig_pcg.csv`  
+- Mapping file: `/mapping/sig_fr_pcg.csv`  
 - Sign convention (FinSight):
   - products (7*) are **positive**  
   - charges (6*) are **negative**  
@@ -417,12 +505,20 @@ Key subtotals available:
 - Résultat exceptionnel  
 - Résultat de l’exercice (net)
 
+Key SIG subtotals such as Marge commerciale, Valeur ajoutée or EBE
+also populate canonical variables used by the ratio engine.
+
 The SIG result is identical to:
 - the result from the detailed view, and  
-- the raw sum of all 6* and 7* accounting entries.
+- the raw sum of all 6* and 7* accounting entries
+(assuming no exceptional entries outside classes 6 and 7).
 
 This consistency is enforced by test `test_sig_consistency.py`.
 
+➡️ SIG is specific to French PCG.  
+Other accounting standards may define a different secondary statement or none at all.
+
+SIG is loaded automatically if secondary_mapping_file is defined in the standard’s TOML configuration.
 
 ---
 
@@ -436,6 +532,12 @@ This consistency is enforced by test `test_sig_consistency.py`.
 Formula rule:  
 `Result = Revenues + Expenses`
 
+This sign convention is applied consistently across all:
+- mappings
+- derived canonical measures
+- financial ratios
+- SIG subtotals
+
 ---
 
 ## 📤 Output Format
@@ -445,6 +547,22 @@ All generated CSVs follow the **same column order**:
 ```csv
 display_order,id,level,name,type,amount
 ```
+
+Generated CSV filenames follow this pattern:
+
+- income_statement_YYYY-MM-DD-HHMMSS.csv
+- secondary_statement_YYYY-MM-DD-HHMMSS.csv
+- ratios_YYYY-MM-DD-HHMMSS.csv
+
+Files are saved under `data/output/` unless `--output` overrides this.
+
+When using --display-mode both, the table is printed to the console and a CSV is exported simultaneously.
+
+Example (`--display-mode both`):
+
+- Display table in the console
+- Export CSV to data/output/
+
 
 ---
 
@@ -456,6 +574,8 @@ pytest -q
 ruff check src tests
 ruff format --check src tests
 ```
+
+The full test suite currently includes **13 tests** and all must pass before contributing.
 
 Includes:
 
@@ -480,6 +600,18 @@ Two tests ensure the correctness of the SIG mapping:
   (Marge commerciale, Marge de production, Valeur ajoutée) using
   a synthetic dataset.
 
+### Ratio tests
+
+The ratio engine is validated by `tests/test_ratios.py`, covering:
+- derived measures
+- safe expression evaluation
+- basic/advanced/full cumulative levels
+
+Quick command to test ratios:
+
+```bash
+python -m smb_finsight.cli --scope ratios --ratios-level full --display-mode table
+```
 
 ---
 
@@ -502,14 +634,14 @@ Pull requests are welcome!
 
 ## 🚀 Roadmap
 
-### ✅ Completed (as of v0.1.5)
+### ✅ Completed (as of v0.1.6)
 - [x] Full PCG mapping engine (levels 0 → 3)
 - [x] Complete income statement view (level 4 account details)
-- [x] SIG (Soldes Intermédiaires de Gestion) view
+- [x] Secondary statement
 - [x] List-of-accounts validation with error detection
 - [x] Handling of debit/credit or signed-amount input formats
 - [x] Mandatory accounting entry fields: `date`, `code`, `description`
-- [x] Fiscal year configuration via `smb_finsight_config.toml`
+- [x] Application Configuration via `smb_finsight_config.toml`
 - [x] Period selection:
   - [x] FY (full fiscal year)
   - [x] YTD (year-to-date)
@@ -519,17 +651,21 @@ Pull requests are welcome!
   - [x] custom from/to dates
 - [x] Period-based filtering of accounting entries
 - [x] Accurate aggregation and recalculation after filtering
-- [x] Full test suite (20 tests) including period logic
+- [x] Multi-standard configuration architecture  
+- [x] Standard-specific ratio engine  
+- [x] Standard-specific mapping structure  
+- [x] Standard-specific secondary statements  
+- [x] Unified CLI flags  
+- [x] Output directory and timestamped exports  
+- [x] Full test suite (13 tests)
 
 ### 🚧 In Progress
-- [ ] 
+- [ ] Improved CAF calculation (align formula with PCG cash-flow logic)
 
 ### 🧭 Planned
 - [ ] Add **projected** accounting entries.
-- [ ] Introduce **financial ratios**.
 - [ ] Extend compatibility to **ASPE (Canada)**.
 - [ ] Extend compatibility to **US GAAP / IFRS**.
-- [ ] Improve CLI options (output formats, filters)
 - [ ] Add **database** feature (save **history** / **current** accounting entries)
 - [ ] Add interactive visual reports.  
 
@@ -539,6 +675,7 @@ Pull requests are welcome!
 
 | Version | Date | Highlights | Tag |
 |----------|------|-------------|------|
+| **0.1.6** | Nov 2025 | Ratios engine, multi-standard support, PCG canonical variables, new CLI, config overhaul | [v0.1.6](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.6) |
 | **0.1.5** | Nov 2025 | Fiscal-year config, period selection (FY/YTD/MTD/last-month/custom), date+description enforced | [v0.1.5](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.5) |
 | **0.1.4** | Nov 2025 | Full SIG (PCG) view, improved reliability of detailed mapping | [v0.1.4](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.4) 
 | **0.1.3** | Nov 2025 | Unified mapping, new CLI, complete income statement view | [v0.1.3](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.3) |

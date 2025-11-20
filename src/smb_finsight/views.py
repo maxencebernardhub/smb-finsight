@@ -5,20 +5,23 @@
 """
 View utilities for SMB FinSight.
 
-This module contains helpers that transform the aggregated income statement
-into different "views" of detail:
+This module contains helpers that transform aggregated financial statements
+into different "views" of detail. The underlying statement can be an income
+statement, a "French SIG", or any other structure defined by a mapping template.
+The view helpers only work with generic columns such as level, id, name,
+type, amount and do not depend on a specific accounting standard.
 
-- simplified: levels 0–1 (very aggregated)
-- regular:    levels 0–2 (standard income statement)
-- detailed:   all template levels (0–3)
-- complete:   same as detailed, but with account-level lines
-              inserted under level-3 'acc' rows.
-- sig:        Soldes Intermédiaires de Gestion (SIG) based on a dedicated
-              mapping template (e.g. data/mappings/sig_pcg.csv).
+The main views are:
 
-The aggregation itself is performed by `engine.aggregate`. This module operates
-on the resulting DataFrame and, for the 'complete' view, also uses the mapping
-template and the chart of accounts (list of accounts).
+- simplified: levels 0–1 (very aggregated),
+- regular:    levels 0–2 (standard level of detail),
+- detailed:   all template levels (no additional filtering),
+- complete:   same as detailed, but with account-level lines inserted
+              under level-3 'acc' rows.
+
+The aggregation itself is performed by ``engine.aggregate``. This module
+operates on the resulting DataFrames and prepares them for display or CSV
+export.
 """
 
 from collections import defaultdict
@@ -26,26 +29,30 @@ from collections import defaultdict
 import pandas as pd
 
 from .mapping import Template
+from .ratios import RatioResult
 
 
 def apply_view_level_filter(out: pd.DataFrame, view: str) -> pd.DataFrame:
     """Return a view-specific slice with harmonized display_order and columns.
 
-    - simplified: keep levels <= 1
-    - regular:    keep levels <= 2
-    - detailed:   keep all rows (no level filter)
-    - sig:        keep all rows (no level filter, relies on SIG mapping template)
+    The ``view`` parameter is a detail-level hint:
+
+    - "simplified": keep rows with level <= 1,
+    - "regular":    keep rows with level <= 2,
+    - any other value (e.g. "detailed", standard-specific views): keep all
+      rows without applying any level-based filter and rely entirely on the
+      mapping template.
 
     Steps:
-      1) filter by view
-      2) sort by the *template* display_order (ascending)
+      1) filter by view (when applicable),
+      2) sort by the template display_order (ascending),
       3) renumber display_order to 10, 20, 30, ...
-      4) reorder columns: display_order, id, level, name, type, amount
+      4) reorder columns: display_order, id, level, name, type, amount.
 
     Note:
-      This helper is NOT used for the 'complete' view (which inserts level-4
-      children). All other views, including 'sig', rely entirely on the
-      mapping template and generic filtering logic.
+      This helper is NOT used for the 'complete' view (which inserts account-
+      level children). All other views rely entirely on the mapping template
+      and the generic filtering logic.
     """
     # 1) Filtering by view
     if view == "simplified":
@@ -53,7 +60,7 @@ def apply_view_level_filter(out: pd.DataFrame, view: str) -> pd.DataFrame:
     elif view == "regular":
         df = out[out["level"] <= 2].copy()
     else:
-        # 'detailed', 'sig', or any other non-simplified/non-regular view:
+        # "detailed" or any other non-simplified/non-regular view:
         # no level-based filtering; rely entirely on the mapping template.
         df = out.copy()
 
@@ -200,7 +207,7 @@ def build_complete_view(
 
     df = pd.DataFrame(rows_out)
     # IMPORTANT : we don't change the order of the rows that the function created.
-    # We simppy renumber display_order to 10,20,30... and reorder the columns.
+    # We simply renumber display_order to 10,20,30... and reorder the columns.
     return _finalize_view(df)
 
 
@@ -224,10 +231,75 @@ def _reorder_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _finalize_view(df: pd.DataFrame) -> pd.DataFrame:
-    """Sorting (if necessary), sequential renumbering of display_order,
-    column order."""
+    """Sequential renumbering of display_order and column ordering.
+    This helper assumes that the DataFrame rows are already in the desired
+    display order. It simply renumbers display_order (10, 20, 30, ...)
+    and applies a standard column order for exports.
+    """
     # We keep the CURRENT order of the lines (df) as the display order,
     # then we renumber display_order 10, 20, 30...
     df = _renumber_display_order(df, start=10, step=10)
     df = _reorder_columns(df)
     return df
+
+
+def ratios_to_dataframe(ratios: list[RatioResult], decimals: int) -> pd.DataFrame:
+    """
+    Convert a list of RatioResult objects into a pandas DataFrame.
+
+    This helper is responsible for structuring ratio/KPI results in a way
+    that is easy to display or export (for example in the CLI layer).
+
+    The resulting DataFrame has the following columns:
+        - key:   Internal ratio identifier (e.g. "gross_margin_pct").
+        - label: Human-readable label to display.
+        - value: Numeric value, rounded to the requested number of decimals,
+                 or NaN if the ratio could not be computed.
+        - unit:  Unit hint ("percent", "amount", "ratio", "days", etc.).
+        - level: Logical level ("basic", "advanced", "full", or custom).
+        - notes: Optional description or comment.
+
+    Args:
+        ratios:
+            List of RatioResult instances as returned by the ratios engine.
+        decimals:
+            Number of decimal places to use when rounding numeric values.
+
+    Returns:
+        A pandas DataFrame containing one row per ratio, sorted first by
+        level (basic, advanced, full, then others) and then by key.
+    """
+    if not ratios:
+        return pd.DataFrame(columns=["key", "label", "value", "unit", "level", "notes"])
+
+    # Define an ordering for known levels so that "basic" comes first, etc.
+    level_order = {"basic": 0, "advanced": 1, "full": 2}
+
+    rows: list[dict[str, object]] = []
+    for r in ratios:
+        if r.value is None:
+            value = float("nan")
+        else:
+            value = round(r.value, decimals)
+
+        rows.append(
+            {
+                "key": r.key,
+                "label": r.label,
+                "value": value,
+                "unit": r.unit,
+                "level": r.level,
+                "notes": r.notes,
+            }
+        )
+
+    df = pd.DataFrame(rows)
+
+    # Sort by level (using the predefined order) and then by key for stability.
+    df["__level_order__"] = df["level"].map(lambda lv: level_order.get(lv, 99))
+    df = df.sort_values(["__level_order__", "key"], kind="stable").drop(
+        columns=["__level_order__"]
+    )
+
+    # Ensure a stable column order
+    return df[["key", "label", "value", "unit", "level", "notes"]]

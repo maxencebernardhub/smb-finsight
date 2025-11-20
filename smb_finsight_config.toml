@@ -1,3 +1,108 @@
+# -------------------------------------------------------------------
+# SMB FinSight - Main configuration file
+# -------------------------------------------------------------------
+# Notes:
+# - Only [fiscal_year] is strictly required.
+# - All other sections and keys are optional.
+# - Any standard-specific configuration (mappings, ratios packs, etc.)
+#   will be loaded from a standard-specific config file, not here.
+# -------------------------------------------------------------------
+
 [fiscal_year]
+# Default fiscal year used when no custom period is provided.
 start_date = "2025-01-01"
 end_date   = "2025-12-31"
+
+# -------------------------------------------------------------------
+# Accounting standard
+# -------------------------------------------------------------------
+[accounting]
+# Main accounting standard used by the company.
+# Supported values (proposal):
+#   "FR_PCG"
+#   "CA_ASPE"
+#   "US_GAAP"
+#   "IFRS"
+standard = "FR_PCG"
+
+# Optional reporting currency (informational, for display).
+currency = "EUR"
+
+# Optional path to a standard-specific config file.
+# If empty, SMB FinSight will use the built-in default config
+# for the selected accounting standard.
+#
+# Example (for a French company):
+#   standard_config_file = "config/standard_fr_pcg.toml"
+#
+# Example (for a Canadian company under ASPE):
+#   standard_config_file = "config/standard_ca_aspe.toml"
+standard_config_file = "config/standard_fr_pcg.toml"
+
+# -------------------------------------------------------------------
+# Data files (generic, not standard-specific)
+# -------------------------------------------------------------------
+[paths]
+# Accounting entries (general ledger / journal) file.
+# Relative to the project root or absolute path.
+accounting_entries = "data/input/accounting_entries.csv"
+
+# -------------------------------------------------------------------
+# Ratios & KPIs configuration (generic)
+# -------------------------------------------------------------------
+[ratios]
+# Enable or disable ratio and KPI computation.
+enabled = true
+
+# Default level of detail when displaying ratios in the CLI.
+# Possible values (proposal):
+#   "basic"
+#   "advanced"
+#   "full"
+default_level = "basic"
+
+# -------------------------------------------------------------------
+# Optional inputs - Balance sheet
+# -------------------------------------------------------------------
+[inputs.balance_sheet]
+# All fields below are optional. If a value is missing, any ratio that
+# depends on it will simply not be computed (it will be reported as N/A).
+
+total_assets         = 158045.05  # Total Assets
+total_equity         = 50000.00  # Total Equity
+financial_debt       = 25486.58  # Financial debt (short + long term)
+cash_and_equivalents = 103615.84  # Cash and cash equivalents
+accounts_receivable  = 35819.25  # Trade receivables
+accounts_payable     = 27695.62  # Trade payables
+inventory            = 2486.69  # Inventory
+working_capital      = 84635.35  # Working capital (optional)
+interest_expense     = 248.69  # Interest expense on financial debt
+
+# -------------------------------------------------------------------
+# Optional inputs - Human resources
+# -------------------------------------------------------------------
+[inputs.hr]
+# Average headcount (or FTE) over the period.
+# Used for productivity ratios (revenue per FTE, VA per FTE, etc.).
+average_headcount = 52.0
+
+# -------------------------------------------------------------------
+# Optional inputs - Period parameters
+# -------------------------------------------------------------------
+[inputs.period]
+# Number of days in the analysed period (for DSO/DPO/DIO, etc.).
+# Default could be 365 for a full year or adjusted to the period.
+period_days = 365
+
+# -------------------------------------------------------------------
+# Display options (generic)
+# -------------------------------------------------------------------
+[display]
+# Default output mode for tables:
+#   "table" -> console table (ASCII / Markdown-like)
+#   "csv"   -> CSV export
+#   "both"  -> console + CSV file
+mode = "table"
+
+# Number of decimals for ratio percentage display.
+ratio_decimals = 1

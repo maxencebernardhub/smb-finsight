@@ -1,0 +1,35 @@
+# -------------------------------------------------------------------
+# SMB FinSight - Standard-specific configuration
+# France / PCG
+# -------------------------------------------------------------------
+
+[paths.mapping]
+# Mapping from FR PCG chart of accounts to the French income statement.
+income_statement = "../mapping/income_statement_fr_pcg.csv"
+
+# Optional secondary statement mapping.
+# For FR PCG this corresponds to the French SIG (intermediate management balances),
+# but for other standards this may represent a different secondary statement.
+secondary_mapping = "../mapping/sig_fr_pcg.csv"
+
+# Optional: chart of accounts reference file for FR PCG.
+# Can be used later for validation or enrichment.
+chart_of_accounts = "../data/reference/fr_pcg.csv"
+
+[statements]
+# Human-readable label for the primary statement (income statement).
+primary_label = "Compte de résultat (FR PCG)"
+
+# Human-readable label for the optional secondary statement.
+# For FR PCG this is the SIG (Soldes Intermédiaires de Gestion).
+secondary_label = "Soldes intermédiaires de gestion (SIG)"
+
+
+[ratios]
+# Main ratios rules pack for FR PCG.
+# This file will define formulas using canonical measures
+# (revenue, gross_margin, ebitda, net_income, etc.).
+rules_file = "../ratios/ratios_fr_pcg.toml"
+
+# Optional company-specific ratios pack (can extend or override the main pack).
+#custom_rules_file = ""
