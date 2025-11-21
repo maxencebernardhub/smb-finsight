@@ -15,7 +15,7 @@ Medium-sized Businesses (SMBs), providing:
 - a configurable financial ratios & KPIs engine,
 - a unified CLI for statements and ratios.
 
-Version: 0.1.6
+Version: 0.2.0
 
 Usage:
     python -m smb_finsight.cli --help
@@ -23,4 +23,4 @@ Usage:
 
 __all__ = ["engine", "mapping", "views", "io"]
 
-__version__ = "0.1.6"
+__version__ = "0.2.0"
