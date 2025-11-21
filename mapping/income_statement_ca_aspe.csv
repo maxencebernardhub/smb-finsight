@@ -22,7 +22,7 @@ display_order,id,name,type,level,accounts_to_include,accounts_to_exclude,formula
 340,35,Marketplace selling fees (Amazon/Shopify),acc,3,58*,,,cost_of_goods_sold,Seller fees linked to product sales (Amazon + Shopify; etc.)
 350,36,Other direct costs,acc,3,59*,,,cost_of_goods_sold,Miscellaneous direct production-related costs
 400,20,Cost of goods sold (COGS),calc,2,,,=21+22+23+24+25+26+27+28+29+31+32+33+34+35+36,cost_of_goods_sold,Total cost of goods sold
-400,30,Gross profit,calc,1,,,=10+20,gross_margin,Gross profit (revenue + COGS)
+500,30,Gross profit,calc,1,,,=10+20,gross_margin,Gross profit (revenue + COGS)
 510,41,Salaries and benefits,acc,3,630*,,,personnel_expenses,Wages; benefits; payroll taxes
 520,42,Contractors & subcontractors,acc,3,631*,,,external_charges,External consultants; freelancers
 530,43,Advertising & marketing,acc,3,601*,,,external_charges,Ads; promotions; digital marketing

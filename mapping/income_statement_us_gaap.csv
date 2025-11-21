@@ -1,0 +1,55 @@
+display_order,id,name,type,level,accounts_to_include,accounts_to_exclude,formula,canonical_measure,notes
+10,1,Product revenue,acc,3,400*;401*;403*;404*;405*;406*;407*;408*,,,revenue,Sales of tangible products (US GAAP: product revenue)
+20,2,Service revenue,acc,3,41*,,,revenue,Sales of services (US GAAP: service revenue)
+30,3,Subscription revenue,acc,3,402*,,,revenue,"Subscriptions, SaaS and other recurring service revenue"
+40,4,Other operating revenue,acc,3,42*;43*;44*;45*;46*;48*;49*,,,revenue,Miscellaneous operating revenue not classified elsewhere
+50,5,Rental revenue,acc,3,47*,,,revenue,Rental and leasing revenue from operating activities
+60,6,Sales returns and allowances,acc,3,409*,,,revenue,"Reductions of revenue for discounts, returns and allowances (negative amounts)"
+100,10,Net revenue,calc,2,,,=1+2+3+4+5+6,revenue,"Net operating revenue after discounts, returns and allowances"
+210,21,Cost of goods purchased,acc,3,500*,,,cost_of_goods_sold,Purchased goods held for resale (inventory purchases)
+220,22,Direct materials,acc,3,501*,,,cost_of_goods_sold,Purchased raw materials and components used in production
+230,23,Direct labor,acc,3,503*,,,cost_of_goods_sold,Direct labor costs directly attributable to production
+240,24,Manufacturing subcontracting,acc,3,507*,,,cost_of_goods_sold,Amounts paid to third parties for manufacturing or production
+250,25,Inventory adjustments (COGS),acc,3,509*,,,cost_of_goods_sold,Inventory change impacting cost of goods sold (negative if inventory increases)
+260,26,Other cost of goods sold,acc,3,502*;504*;505*;506*;508*,,,cost_of_goods_sold,Other costs of goods sold related to materials and supplies
+270,27,Inbound freight and shipping on purchases,acc,3,51*,,,cost_of_goods_sold,Inbound freight and shipping related to purchased goods
+280,28,Warehousing & distribution (cost of sales),acc,3,52*,,,cost_of_goods_sold,Warehousing and distribution costs directly tied to cost of sales
+290,29,Production supplies & packaging,acc,3,53*,,,cost_of_goods_sold,"Packaging, labels and production-related supplies"
+300,31,Manufacturing overhead,acc,3,54*,,,cost_of_goods_sold,Production-related overhead costs (indirect manufacturing costs)
+310,32,Product handling & delivery (cost of sales),acc,3,55*,,,cost_of_goods_sold,Delivery and handling costs for goods sold (cost of sales)
+320,33,Royalties & production fees,acc,3,56*,,,cost_of_goods_sold,Royalties and licensing fees tied to product sales
+330,34,Warranty costs (COGS),acc,3,57*,,,cost_of_goods_sold,Estimated costs of warranties and after-sale guarantees
+340,35,Marketplace selling fees (Amazon/Shopify etc.),acc,3,58*,,,cost_of_goods_sold,Online marketplace and platform selling fees linked to product sales
+350,36,Other direct costs (cost of sales),acc,3,59*,,,cost_of_goods_sold,Other direct costs directly related to production and sales
+400,20,Cost of goods sold (COGS),calc,2,,,=21+22+23+24+25+26+27+28+29+31+32+33+34+35+36,cost_of_goods_sold,Total cost of goods sold
+500,30,Gross profit,calc,1,,,=10+20,gross_margin,Revenue minus cost of goods sold (gross profit)
+510,41,Salaries; wages & benefits,acc,3,630*,,,personnel_expenses,"Salaries, wages, bonuses, employer payroll taxes and benefits"
+520,42,Contractors & subcontractors (OpEx),acc,3,631*,,,external_charges,"External consultants, freelancers and subcontracted services (operating expenses)"
+530,43,Advertising & marketing,acc,3,601*,,,external_charges,"Advertising, promotion and marketing expenses (including digital marketing)"
+540,44,Office expenses & supplies,acc,3,604*,,,external_charges,"Office supplies, small equipment and general office-related expenses"
+550,45,Rent & lease expenses,acc,3,606*,,,external_charges,"Rent and lease expense for offices, retail space and warehouses"
+560,46,Utilities,acc,3,605*,,,external_charges,"Electricity, water, heating, internet and telecom services"
+570,47,Professional & consulting fees,acc,3,607*,,,external_charges,"Legal, audit, accounting and other professional service fees"
+580,48,Insurance,acc,3,608*,,,external_charges,"Insurance premiums for business, property and liability coverage"
+590,49,Travel; meals & entertainment,acc,3,610*,,,external_charges,"Business travel expenses, lodging, meals and related costs"
+600,50,Vehicle expenses,acc,3,612*,,,external_charges,"Fuel, maintenance, insurance and other vehicle-related operating costs"
+610,51,Bank charges & payment processing fees,acc,3,609*,,,external_charges,"Bank charges, merchant fees and other payment processing fees"
+620,52,Bad debt expense,acc,3,613*,,,external_charges,"Expense related to doubtful accounts and expected credit losses"
+630,53,General supplies & miscellaneous operating expenses,acc,3,600*;602*;603*;611*;614*;615*;616*;617*;618*;619*,,,external_charges,"Miscellaneous operating expenses and supplies not classified elsewhere"
+640,54,IT & cloud subscriptions,acc,3,623*;624*;625*;626*;627*;628*;629*,,,external_charges,"IT services, software licences, SaaS and cloud subscriptions"
+650,55,Repairs & maintenance,acc,3,632*;633*;634*;635*;636*;637*;638*;639*,,,external_charges,"Repairs, maintenance and cleaning for premises and equipment"
+660,56,Other operating expenses,acc,3,64*;65*;66*;67*;68*;69*,,,external_charges,Other operating expenses not classified in the categories above
+670,60,Depreciation & amortization,acc,3,620*;621*;622*,,,depreciation_amortization,"Depreciation and amortization of property, plant & equipment and intangible assets"
+700,70,Total operating expenses,calc,1,,,=41+42+43+44+45+46+47+48+49+50+51+52+53+54+55+56+60,total_operating_expenses,Sum of all operating expenses included in operating income
+800,80,Operating income,calc,0,,,=30+70,operating_income,Operating income before interest and income taxes (EBIT)
+900,90,Interest and other financial income,acc,3,70*,,,financial_income,Interest income and other financial income
+910,91,Interest expense and finance costs,acc,3,710*;711*;712*;713*;714*;715*;716*;717*;718*,,,financial_expenses,"Interest expense, financing costs and related loan charges"
+920,92,Foreign exchange gain (loss),acc,3,719*,,,financial_expenses,Unrealized and realized gains or losses on foreign currency transactions
+930,93,Other financial gains (losses),acc,3,72*;73*;74*;75*;76*;77*;78*;79*,,,financial_expenses,Other financial gains or losses not classified elsewhere
+940,94,Net financial result,calc,1,,,=90+91+92+93,financial_result,Net result of financial income and expenses
+1000,100,Income before income taxes,calc,0,,,=80+94,total_operating_income,Income before income taxes (pre-tax income)
+1100,110,Current income tax expense,acc,3,800*;801*;803*;804*;805*;806*;807*;808*;809*,,,income_tax_expense,Current period income tax expense
+1110,111,Deferred income tax expense,acc,3,802*,,,income_tax_expense,Deferred income tax expense (or benefit)
+1120,112,Other income tax expense,acc,3,81*;82*;83*;84*;85*;86*;87*;88*;89*,,,income_tax_expense,Other income tax-related expenses and adjustments
+1200,120,Total income tax expense,calc,1,,,=110+111+112,income_tax_expense,"Total income tax expense (current, deferred and other)"
+1300,130,Net income,calc,0,,,=100+120,net_income,Net income for the period after income taxes

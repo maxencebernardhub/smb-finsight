@@ -1,0 +1,29 @@
+# -------------------------------------------------------------------
+# SMB FinSight - Standard-specific configuration
+# United States / US GAAP
+# -------------------------------------------------------------------
+
+[paths.mapping]
+# Primary income statement mapping under US GAAP
+income_statement = "../mapping/income_statement_us_gaap.csv"
+
+# No secondary statement at this stage (can be added later if needed)
+secondary_mapping = ""
+
+# Optional: chart of accounts reference file for US GAAP.
+# This file can be extended/customized by the user.
+chart_of_accounts = "../data/reference/us_gaap.csv"
+
+[statements]
+# Human-readable label for the primary statement (income statement).
+primary_label = "Income Statement (US GAAP)"
+
+# No secondary statement label for now.
+secondary_label = ""
+
+[ratios]
+# Main ratios rules pack for US GAAP.
+rules_file = "../ratios/ratios_us_gaap.toml"
+
+# Optional company-specific ratios pack (can extend or override the main pack).
+#custom_rules_file = ""

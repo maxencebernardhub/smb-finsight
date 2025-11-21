@@ -4,15 +4,19 @@
 [![Latest Release](https://img.shields.io/github/v/release/maxencebernardhub/smb-finsight?color=blue)](https://github.com/maxencebernardhub/smb-finsight/releases)
 
 **SMB FinSight** is a Python-based financial dashboard & analysis application designed for **small and medium-sized businesses**.  
-It converts raw accounting entries into **standardized financial statements** and **KPIs**, using fully configurable, standard-specific mapping rules (PCG, ASPE, others to come).
+It converts raw accounting entries into **standardized financial statements** and **KPIs**, using fully configurable, standard-specific mapping rules (French PCG, Canadian ASPE, US GAAP and IFRS).
 
 The application supports:
-- multi-standard accounting (FR PCG and CA ASPE in v0.2.0)
+- multi-standard accounting (FR PCG, CA ASPE, US GAAP and IFRS)
 - normalized income statement generation (simplified → complete)
 - optional secondary statements (e.g., French SIG)
 - a unified financial-ratio engine (basic / advanced / full levels)
 - flexible period selection (FY, YTD, MTD, last-month, custom)
 - automatic CSV exports in a consistent hierarchical format
+
+As of version **0.2.5**, SMB FinSight supports **four full accounting standards**:  
+**French PCG**, **Canadian ASPE**, **US GAAP**, and **IFRS** — all mapped into a unified canonical financial model allowing perfectly comparable KPIs and ratios across jurisdictions.
+
 
 💡 Ideal for freelancers, entrepreneurs, CFOs, analysts, and accountants who want **clean, reproducible financial statements and KPIs** from simple CSV extracts — without relying on heavy accounting software.
 
@@ -21,8 +25,8 @@ The application supports:
 ## 📚 Table of Contents
 
 - [Main Features](#️-main-features)
-- [Supported Accounting Standards (v0.2.0)](#-supported-accounting-standards-v020)
-- [Project Structure](#-project-structure-updated-for-v020)
+- [Supported Accounting Standards (v0.2.5)](#-supported-accounting-standards-v025)
+- [Project Structure](#-project-structure-updated-for-v025)
 - [Installation](#-installation)
 - [Configuration](#configuration)
 - [Input Files](#input-files)
@@ -65,26 +69,44 @@ The application supports:
   - 3 levels: `basic`, `advanced`, `full`  
   - Fully configurable via standard-specific TOML rule sets  
   - Canonical financial variables automatically computed from statements  
-- 🗂️ **Multi-standard architecture (NEW in v0.2.0)**  
-  - Supports multiple accounting frameworks (FR PCG and CA ASPE; US GAAP / IFRS upcoming)  
+- 🗂️ **Multi-standard architecture and engine**  
+  - Supports multiple accounting frameworks (FR PCG, CA ASPE, US GAAP and IFRS)  
   - Each standard provides:
     - its own mapping files  
     - its own ratio rules  
     - optional secondary statements (e.g., SIG for PCG)
+- Full cross-standard compatibility: CLI commands, ratios, period selection and exports all work identically across every accounting standard
 - ⚙️ **Configurable display mode** (`table`, `csv`, `both`) via CLI or config file  
 - 📄 **Generated CSV output is timestamped and stored automatically under `data/output/`**
 
 ---
 
-## 📐 Supported Accounting Standards (v0.2.0)
+## 📐 Supported Accounting Standards (v0.2.5)
 
-SMB FinSight currently supports:
+SMB FinSight natively supports **four accounting standards**, each mapped to a unified internal structure (“canonical measures”) so that ratios, aggregations and CLI behavior remain perfectly consistent across jurisdictions.
 
-| Standard | Status | Details |
-|---------|--------|---------|
-| **FR PCG** | ✅ Fully supported | Income statement, SIG, canonical variables, full ratio set |
-| **CA ASPE** | ✅ Fully supported | Income statement, ratios, CA ASPE–specific chart of accounts and sample entries |
-| **US GAAP / IFRS** | 🚧 Planned | Will rely on secondary statements or a single mapping in a future release |
+### 🇫🇷 French GAAP (PCG)
+- Full P&L mapping  
+- SIG (Soldes Intermédiaires de Gestion)  
+- Dedicated chart of accounts (`fr_pcg.csv`)  
+- Ratios pack adapted to French presentation
+
+### 🇨🇦 Canadian ASPE
+- Complete P&L mapping (nature of expense method)  
+- Chart of accounts (`ca_aspe.csv`)  
+- Full ratios compatibility  
+
+### 🇺🇸 US GAAP
+- Complete P&L mapping (nature of expense method)  
+- US GAAP-friendly labels  
+- Dedicated chart of accounts (`us_gaap.csv`)  
+- Compatible with all KPI & ratio packs  
+
+### 🌍 IFRS
+- Complete IFRS P&L (nature of expense method)  
+- IFRS-compliant labels (Operating profit, Profit before tax, Profit for the period)  
+- Dedicated chart of accounts (`ifrs.csv`)  
+- All ratios and derived measures fully supported  
 
 Each standard defines:
 - its *own mapping files*
@@ -92,10 +114,22 @@ Each standard defines:
 - its *own ratio rules*
 - optionally, its *own secondary statement*
 
+### Unified canonical model
+Regardless of the standard, SMB FinSight produces:
+- `revenue`  
+- `cost_of_goods_sold`  
+- `gross_margin`  
+- `total_operating_expenses`  
+- `operating_income`  
+- `financial_result`  
+- `income_tax_expense`  
+- `net_income` (IFRS: “Profit for the period”)
+
+This ensures **perfect comparability** between French PCG, ASPE, US GAAP and IFRS outputs.
 
 ---
 
-## 📁 Project Structure (updated for v0.2.0)
+## 📁 Project Structure (updated for v0.2.5)
 
 ```
 smb-finsight/
@@ -104,22 +138,31 @@ smb-finsight/
 ├── config/
 │   ├── standard_fr_pcg.toml             # Standard-specific mappings & rules (FR PCG)
 │   ├── standard_ca_aspe.toml            # Standard-specific mappings & rules (CA ASPE)
-│   └── standard_us_gaap.toml            # (future)
+│   ├── standard_us_gaap.toml            # Standard-specific mappings & rules (US GAAP)
+│   └── standard_ifrs.toml               # Standard-specific mappings & rules (IFRS)
 ├── data/
 │   ├── input/                           # User-provided accounting entries (examples)
 │   │   ├── accounting_entries_fr_pcg.csv
-│   │   └── accounting_entries_ca_aspe.csv
+│   │   ├── accounting_entries_ca_aspe.csv
+│   │   ├── accounting_entries_us_gaap.csv
+│   │   └── accounting_entries_ifrs.csv
 │   ├── output/                          # Generated CSV outputs
 │   └── reference/
 │       ├── fr_pcg.csv                   # List of valid PCG accounts
-│       └── ca_aspe.csv                  # Generic CA ASPE chart of accounts template
+│       ├── ca_aspe.csv                  # Generic CA ASPE chart of accounts template
+│       ├── us_gaap.csv                  # Generic US GAAP chart of accounts template
+│       └── ifrs.csv                     # Generic IFRS chart of accounts template
 ├── mapping/
 │   ├── income_statement_fr_pcg.csv      # Income statement mapping for FR PCG
 │   ├── sig_fr_pcg.csv                   # SIG (soldes intermédiaires de gestion) mapping for FR PCG
-│   └── income_statement_ca_aspe.csv     # Income statement mapping for CA ASPE
+│   ├── income_statement_ca_aspe.csv     # Income statement mapping for CA ASPE
+│   ├── income_statement_us_gaap.csv     # Income statement mapping for US GAAP
+│   └── income_statement_ifrs.csv        # Income statement mapping for IFRS
 ├── ratios/
 │   ├── ratios_fr_pcg.toml               # All ratios/KPIs rules for FR PCG
-│   └── ratios_ca_aspe.toml              # All ratios/KPIs rules for CA ASPE
+│   ├── ratios_ca_aspe.toml              # All ratios/KPIs rules for CA ASPE
+│   ├── ratios_us_gaap.toml              # All ratios/KPIs rules for US GAAP
+│   └── ratios_ifrs.toml                 # All ratios/KPIs rules for IFRS
 ├── src/
 │   └── smb_finsight/
 │       ├── __init__.py
@@ -182,7 +225,7 @@ This file defines:
 - display settings  
 - optional balance-sheet and HR variables  
 
-Example (FR PCG):
+#### Example (FR PCG):
 
 ```toml
 standard = "FR_PCG"
@@ -203,6 +246,17 @@ financial_debt = 25000
 
 [hr]
 average_fte = 52
+```
+
+#### Example: Using the IFRS standard
+
+```toml
+[accounting]
+standard = "IFRS"
+standard_config_file = "config/standard_ifrs.toml"
+
+[paths]
+accounting_entries = "data/input/accounting_entries_ifrs.csv"
 ```
 
 ### 2. Standard-specific configuration (`config/standard_fr_pcg.toml`)
@@ -587,7 +641,7 @@ ruff check src tests
 ruff format --check src tests
 ```
 
-The full test suite currently includes **13 tests** and all must pass before contributing.
+The full test suite currently includes **22 tests** and all must pass before contributing.
 
 Includes:
 
@@ -596,6 +650,9 @@ Includes:
 - SUM(; ; ) syntax  
 - View filtering  
 - Account-code validation 
+- CA ASPE  
+- US GAAP  
+- IFRS
 
 ### SIG consistency tests
 
@@ -658,23 +715,22 @@ Pull requests are welcome!
 - [x] Full test suite (13 tests)
 
 ### 🚧 In Progress
-- [ ] US GAAP / IFRS mapping foundations
+- [ ] Add database/history module (store past & current accounting entries)
 
 ### 🧭 Planned
-- [ ] Extend compatibility to **US GAAP / IFRS**.
-- [ ] Add **database** feature (save **history** / **current** accounting entries)
 - [ ] Improve Console UI/UX
 - [ ] Add **projected** accounting entries.
 - [ ] Add interactive visual dashboards.
 - [ ] Web UI / lightweight desktop app
 - [ ] Add Cash Flow
-- [ ] Add AI
+- [ ] Add AI-assisted insights
 ---
 
 ## 🕒 Version History
 
 | Version | Date | Highlights | Tag |
 |----------|------|-------------|------|
+| **0.2.5** | Nov 2025 | Added US GAAP + IFRS support, updated mappings, COA, ratios, full test suites | [v0.2.5](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.2.5) |
 | **0.2.0** | Nov 2025 | Added full CA ASPE support (mapping, ratios, CA ASPE COA, sample entries) | [v0.2.0](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.2.0) |
 | **0.1.6** | Nov 2025 | Ratios engine, multi-standard support, PCG canonical variables, new CLI, config overhaul | [v0.1.6](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.6) |
 | **0.1.5** | Nov 2025 | Fiscal-year config, period selection (FY/YTD/MTD/last-month/custom), date+description enforced | [v0.1.5](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.5) |
