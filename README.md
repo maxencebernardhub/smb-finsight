@@ -646,41 +646,29 @@ Pull requests are welcome!
 
 ## 🚀 Roadmap
 
-### ✅ Completed (as of v0.1.6)
-- [x] Full PCG mapping engine (levels 0 → 3)
-- [x] Complete income statement view (level 4 account details)
-- [x] Secondary statement
-- [x] List-of-accounts validation with error detection
-- [x] Handling of debit/credit or signed-amount input formats
-- [x] Mandatory accounting entry fields: `date`, `code`, `description`
-- [x] Application Configuration via `smb_finsight_config.toml`
-- [x] Period selection:
-  - [x] FY (full fiscal year)
-  - [x] YTD (year-to-date)
-  - [x] MTD (month-to-date)
-  - [x] last-month
-  - [x] last-fy
-  - [x] custom from/to dates
-- [x] Period-based filtering of accounting entries
-- [x] Accurate aggregation and recalculation after filtering
-- [x] Multi-standard configuration architecture  
-- [x] Standard-specific ratio engine  
-- [x] Standard-specific mapping structure  
-- [x] Standard-specific secondary statements  
-- [x] Unified CLI flags  
-- [x] Output directory and timestamped exports  
+### ✅ Completed (as of v0.2.0)
+- [x] Full support for **FR PCG** (income statement + SIG + ratios)
+- [x] Full support for **CA ASPE** (mapping, ratios, COA, sample entries)
+- [x] Multi-standard architecture with standard-specific mapping & ratios
+- [x] Complete ratio engine (basic / advanced / full levels)
+- [x] Period engine (FY, YTD, MTD, last-month, custom)
+- [x] Hierarchical statement rendering (simplified → complete)
+- [x] CLI overhaul and consistent outputs
+- [x] Normalized canonical measures across standards
 - [x] Full test suite (13 tests)
 
 ### 🚧 In Progress
-- [ ] Improved CAF calculation (align formula with PCG cash-flow logic)
+- [ ] US GAAP / IFRS mapping foundations
 
 ### 🧭 Planned
-- [ ] Add **projected** accounting entries.
-- [ ] Extend compatibility to **ASPE (Canada)**.
 - [ ] Extend compatibility to **US GAAP / IFRS**.
 - [ ] Add **database** feature (save **history** / **current** accounting entries)
-- [ ] Add interactive visual reports.  
-
+- [ ] Improve Console UI/UX
+- [ ] Add **projected** accounting entries.
+- [ ] Add interactive visual dashboards.
+- [ ] Web UI / lightweight desktop app
+- [ ] Add Cash Flow
+- [ ] Add AI
 ---
 
 ## 🕒 Version History
