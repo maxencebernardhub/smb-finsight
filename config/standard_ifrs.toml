@@ -1,0 +1,29 @@
+# -------------------------------------------------------------------
+# SMB FinSight - Standard-specific configuration
+# International / IFRS
+# -------------------------------------------------------------------
+
+[paths.mapping]
+# Primary income statement mapping under IFRS.
+income_statement = "../mapping/income_statement_ifrs.csv"
+
+# No secondary statement at this stage (can be added later if needed).
+secondary_mapping = ""
+
+# Optional: chart of accounts reference file for IFRS (generic template).
+# This file can be extended/customized by the user.
+chart_of_accounts = "../data/reference/ifrs.csv"
+
+[statements]
+# Human-readable label for the primary statement (income statement).
+primary_label = "Statement of Profit or Loss (IFRS)"
+
+# No secondary statement label for now.
+secondary_label = ""
+
+[ratios]
+# Main ratios rules pack for IFRS.
+rules_file = "../ratios/ratios_ifrs.toml"
+
+# Optional company-specific ratios pack (can extend or override the main pack).
+#custom_rules_file = ""
