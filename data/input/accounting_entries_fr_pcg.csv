@@ -1,0 +1,127 @@
+date,code,description,debit,credit
+2024-12-31,706000,Google Ads,20000.0,0.0
+2025-01-01,666100,Advertising campaign – social media,965.03,0.0
+2025-01-04,606000,Team lunch with client,1815.93,0.0
+2025-01-05,709400,Support package – yearly plan,0.0,3200.23
+2025-01-05,771000,Maintenance contract renewal,0.0,4468.17
+2025-01-06,123456,Ad-hoc service engagement billed,0.0,654.09
+2025-01-08,669000,Hardware maintenance and repairs,623.55,0.0
+2025-01-10,768000,Workshop and training session income,0.0,4849.44
+2025-01-16,706000,Professional services – implementation project,0.0,3013.36
+2025-01-23,613000,Training course for staff,4363.73,0.0
+2025-01-24,709300,Consulting services invoiced to client,0.0,2647.54
+2025-01-25,709600,License fee for software product,0.0,1557.84
+2025-01-29,624000,Professional services – consulting,1038.39,0.0
+2025-01-31,676000,Professional services – consulting,1440.63,0.0
+2025-02-02,606000,Advertising campaign – social media,1393.18,0.0
+2025-02-05,628000,Advertising campaign – social media,4542.45,0.0
+2025-02-06,691000,Travel expenses – client meeting,1496.12,0.0
+2025-02-08,609400,Cloud hosting and storage costs,416.52,0.0
+2025-02-10,616000,Hardware maintenance and repairs,2188.13,0.0
+2025-02-10,637000,Advertising campaign – social media,950.03,0.0
+2025-02-11,664000,Travel expenses – client meeting,3580.56,0.0
+2025-02-14,669000,Team lunch with client,3673.37,0.0
+2025-02-17,709100,License fee for software product,0.0,3185.35
+2025-02-20,691000,Travel expenses – client meeting,4086.53,0.0
+2025-02-20,770000,Maintenance contract renewal,0.0,1824.41
+2025-02-21,773000,Recurring SaaS subscription revenue,0.0,1606.06
+2025-02-22,626000,Hardware maintenance and repairs,151.89,0.0
+2025-02-22,751000,Maintenance contract renewal,0.0,4756.04
+2025-02-24,999999,Change request – extra development days,0.0,3329.49
+2025-02-25,626000,Hardware maintenance and repairs,3548.94,0.0
+2025-03-05,668000,Training course for staff,3009.6,0.0
+2025-03-09,710000,Professional services – implementation project,0.0,431.05
+2025-03-11,606000,Rent and utilities for office,4051.57,0.0
+2025-03-15,666100,Software subscription – monthly fee,350.0,0.0
+2025-03-19,603000,Team lunch with client,2624.34,0.0
+2025-03-21,666100,Software subscription – monthly fee,641.99,0.0
+2025-03-22,701000,Ad-hoc service engagement billed,0.0,3025.52
+2025-03-25,709200,Maintenance contract renewal,0.0,1687.95
+2025-03-26,608000,Rent and utilities for office,4322.36,0.0
+2025-04-03,653000,Team lunch with client,3867.79,0.0
+2025-04-07,758000,Professional services – implementation project,0.0,3661.55
+2025-04-11,771000,Maintenance contract renewal,0.0,822.17
+2025-04-14,611000,Rent and utilities for office,2166.33,0.0
+2025-04-14,626000,Office supplies purchase,4652.0,0.0
+2025-04-17,631000,Office supplies purchase,740.49,0.0
+2025-04-18,709300,Consulting services invoiced to client,0.0,2982.45
+2025-04-19,762000,Professional services – implementation project,0.0,3135.33
+2025-05-02,623000,Professional services – consulting,175.82,0.0
+2025-05-06,751000,Maintenance contract renewal,0.0,372.01
+2025-05-06,773000,Recurring SaaS subscription revenue,0.0,3866.29
+2025-05-14,668000,Software subscription – monthly fee,4746.98,0.0
+2025-05-14,701000,Change request – extra development days,0.0,1330.96
+2025-05-15,638000,Professional services – consulting,364.61,0.0
+2025-05-15,671000,Cloud hosting and storage costs,4170.59,0.0
+2025-05-20,703000,Consulting services invoiced to client,0.0,1903.97
+2025-05-22,608000,Team lunch with client,747.57,0.0
+2025-05-22,626000,Office supplies purchase,3554.96,0.0
+2025-05-22,779000,Change request – extra development days,0.0,4337.57
+2025-05-25,635000,Office supplies purchase,1284.0,0.0
+2025-05-26,687000,Software subscription – monthly fee,1589.36,0.0
+2025-06-02,770000,Ad-hoc service engagement billed,0.0,1182.55
+2025-06-06,633000,Team lunch with client,3886.91,0.0
+2025-06-09,709200,License fee for software product,0.0,4441.7
+2025-06-10,687000,Cloud hosting and storage costs,205.57,0.0
+2025-06-10,706000,Success fee on completed project,0.0,2595.46
+2025-06-10,773000,Recurring SaaS subscription revenue,0.0,279.93
+2025-06-18,706000,Success fee on completed project,0.0,2736.35
+2025-06-30,681100,Hardware maintenance and repairs,1800.0,0.0
+2025-07-02,709700,Maintenance contract renewal,0.0,4851.05
+2025-07-05,677000,Training course for staff,3078.67,0.0
+2025-07-10,695000,Travel expenses – client meeting,1660.39,0.0
+2025-07-13,709700,Maintenance contract renewal,0.0,1491.58
+2025-07-21,660000,Cloud hosting and storage costs,3057.35,0.0
+2025-07-25,608000,Hardware maintenance and repairs,2828.32,0.0
+2025-07-27,761000,Maintenance contract renewal,0.0,4935.09
+2025-07-29,653000,Software subscription – monthly fee,1033.64,0.0
+2025-08-02,669000,Rent and utilities for office,337.51,0.0
+2025-08-10,616000,Rent and utilities for office,4551.14,0.0
+2025-08-19,666000,Advertising campaign – social media,1973.95,0.0
+2025-08-22,691000,Advertising campaign – social media,894.09,0.0
+2025-08-24,781000,Professional services – implementation project,0.0,2307.55
+2025-09-01,778000,Workshop and training session income,0.0,2387.46
+2025-09-05,709500,Professional services – implementation project,0.0,4479.4
+2025-09-15,607000,Professional services – consulting,822.29,0.0
+2025-09-15,611000,Travel expenses – client meeting,4050.2,0.0
+2025-09-16,605000,Software subscription – monthly fee,2567.42,0.0
+2025-09-27,695000,Hardware maintenance and repairs,3789.98,0.0
+2025-09-30,701000,Ad-hoc service engagement billed,0.0,12000.0
+2025-09-30,791000,Workshop and training session income,0.0,1863.49
+2025-10-01,602000,Office supplies purchase,3658.59,0.0
+2025-10-01,687000,Office supplies purchase,1101.08,0.0
+2025-10-03,605000,Travel expenses – client meeting,1020.12,0.0
+2025-10-03,605000,Travel expenses – client meeting,4020.88,0.0
+2025-10-03,781000,Ad-hoc service engagement billed,0.0,2756.22
+2025-10-06,758000,Recurring SaaS subscription revenue,0.0,2719.74
+2025-10-08,761000,Maintenance contract renewal,0.0,4613.28
+2025-10-09,999999,Consulting services invoiced to client,0.0,973.52
+2025-10-10,710000,License fee for software product,0.0,1484.27
+2025-10-10,779000,Consulting services invoiced to client,0.0,4152.25
+2025-10-16,778000,Maintenance contract renewal,0.0,2637.53
+2025-10-17,608000,Team lunch with client,4700.52,0.0
+2025-10-22,633000,Rent and utilities for office,1556.0,0.0
+2025-10-22,776000,Change request – extra development days,0.0,419.03
+2025-10-23,709200,Success fee on completed project,0.0,3205.91
+2025-10-25,653000,Cloud hosting and storage costs,4829.88,0.0
+2025-10-31,709300,Change request – extra development days,0.0,3815.89
+2025-11-01,637000,Advertising campaign – social media,2228.75,0.0
+2025-11-01,653000,Travel expenses – client meeting,3436.95,0.0
+2025-11-05,615000,Office supplies purchase,848.05,0.0
+2025-11-06,666100,Advertising campaign – social media,488.04,0.0
+2025-11-12,676000,Hardware maintenance and repairs,957.85,0.0
+2025-11-13,707000,License fee for software product,0.0,2494.29
+2025-11-17,758000,Support package – yearly plan,0.0,533.48
+2025-11-22,750000,Success fee on completed project,0.0,4028.18
+2025-11-23,618000,Cloud hosting and storage costs,1592.97,0.0
+2025-11-24,612000,Advertising campaign – social media,220.22,0.0
+2025-12-03,709700,Success fee on completed project,0.0,3872.61
+2025-12-04,771000,Change request – extra development days,0.0,1659.66
+2025-12-09,750000,Workshop and training session income,0.0,584.06
+2025-12-10,709100,Support package – yearly plan,0.0,77.33
+2025-12-15,713000,Recurring SaaS subscription revenue,0.0,2501.13
+2025-12-18,677000,Training course for staff,3936.62,0.0
+2025-12-26,669000,Team lunch with client,2081.4,0.0
+2025-12-31,603000,Rent and utilities for office,273.88,0.0
+2025-12-31,695000,Office supplies purchase,2000.0,0.0
+

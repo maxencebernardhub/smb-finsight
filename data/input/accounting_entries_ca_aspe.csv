@@ -1,0 +1,173 @@
+date,code,description,debit,credit
+2024-12-31,6010,Google Ads,20000.0,0.0
+2025-01-01,6010,Advertising campaign – social media,965.03,0.0
+2025-01-04,6100,Team lunch with client,1815.93,0.0
+2025-01-05,4020,Support package – yearly plan,0.0,3200.23
+2025-01-05,4100,Maintenance contract renewal,0.0,4468.17
+2025-01-06,4110,Ad-hoc service engagement billed,0.0,654.09
+2025-01-08,6320,Hardware maintenance and repairs,623.55,0.0
+2025-01-10,4190,Workshop and training session income,0.0,4849.44
+2025-01-16,4110,Professional services – implementation project,0.0,3013.36
+2025-01-20,6400,Training course for staff,3511.83,0.0
+2025-01-21,6230,Cloud hosting and storage costs,1651.69,0.0
+2025-01-23,6230,Software subscription – monthly fee,2115.29,0.0
+2025-01-25,4000,License fee for software product,0.0,2793.03
+2025-01-26,6010,Advertising campaign – social media,3950.08,0.0
+2025-01-29,6070,Professional services – consulting,1038.39,0.0
+2025-01-30,6230,Software subscription – monthly fee,1151.36,0.0
+2025-01-31,4100,Maintenance contract renewal,0.0,3512.81
+2025-02-02,6060,Rent and utilities for office,1393.18,0.0
+2025-02-03,4190,Workshop and training session income,0.0,1299.34
+2025-02-04,4110,Professional services – implementation project,0.0,1248.35
+2025-02-05,6010,Advertising campaign – social media,4542.45,0.0
+2025-02-07,4100,Maintenance contract renewal,0.0,4492.92
+2025-02-10,6010,Advertising campaign – social media,950.03,0.0
+2025-02-11,4190,Workshop and training session income,0.0,4262.67
+2025-02-14,4100,Maintenance contract renewal,0.0,3227.29
+2025-02-19,6010,Advertising campaign – social media,4682.31,0.0
+2025-02-20,4190,Workshop and training session income,0.0,4264.54
+2025-02-22,6320,Hardware maintenance and repairs,151.89,0.0
+2025-02-22,4100,Maintenance contract renewal,0.0,3329.49
+2025-02-24,4000,License fee for software product,0.0,1606.06
+2025-02-25,6320,Hardware maintenance and repairs,3548.94,0.0
+2025-02-28,4100,Maintenance contract renewal,0.0,3327.19
+2025-03-01,6230,Software subscription – monthly fee,4705.99,0.0
+2025-03-03,4190,Workshop and training session income,0.0,2362.01
+2025-03-04,4100,Maintenance contract renewal,0.0,2468.82
+2025-03-05,4100,Maintenance contract renewal,0.0,2844.46
+2025-03-06,4900,Success fee on completed project,0.0,1061.85
+2025-03-07,4000,License fee for software product,0.0,3648.32
+2025-03-09,4110,Professional services – implementation project,0.0,3866.29
+2025-03-11,6060,Rent and utilities for office,4051.57,0.0
+2025-03-15,4020,Support package – yearly plan,0.0,1956.06
+2025-03-17,6010,Advertising campaign – social media,3277.53,0.0
+2025-03-19,6060,Rent and utilities for office,2624.34,0.0
+2025-03-22,6010,Advertising campaign – social media,3591.52,0.0
+2025-03-26,6085,Team lunch with client,4322.36,0.0
+2025-03-29,4100,Maintenance contract renewal,0.0,2985.63
+2025-03-31,4190,Workshop and training session income,0.0,3832.36
+2025-04-02,6320,Hardware maintenance and repairs,3220.82,0.0
+2025-04-04,4100,Maintenance contract renewal,0.0,4687.13
+2025-04-05,6100,Travel expenses – client meeting,4373.14,0.0
+2025-04-07,6070,Professional services – consulting,1864.39,0.0
+2025-04-10,4190,Workshop and training session income,0.0,4199.03
+2025-04-12,6020,Office supplies purchase,4141.01,0.0
+2025-04-14,6020,Office supplies purchase,4414.15,0.0
+2025-04-15,4010,Product sales,0.0,2585.28
+2025-04-17,6020,Office supplies purchase,740.49,0.0
+2025-04-18,4110,Consulting services invoiced to client,0.0,2177.83
+2025-04-20,6100,Travel expenses – client meeting,905.9,0.0
+2025-04-22,4190,Workshop and training session income,0.0,1452.62
+2025-04-25,6230,Software subscription – monthly fee,3832.46,0.0
+2025-04-28,6070,Professional services – consulting,3231.19,0.0
+2025-04-30,4190,Workshop and training session income,0.0,1420.88
+2025-05-02,6230,Software subscription – monthly fee,4090.74,0.0
+2025-05-04,6400,Training course for staff,3500.95,0.0
+2025-05-06,4100,Maintenance contract renewal,0.0,4144.79
+2025-05-08,6320,Hardware maintenance and repairs,3568.38,0.0
+2025-05-10,6100,Travel expenses – client meeting,2830.86,0.0
+2025-05-12,4190,Workshop and training session income,0.0,3731.56
+2025-05-15,6320,Hardware maintenance and repairs,364.61,0.0
+2025-05-18,6010,Advertising campaign – social media,4523.55,0.0
+2025-05-20,4190,Workshop and training session income,0.0,4335.22
+2025-05-22,6020,Office supplies purchase,3554.96,0.0
+2025-05-22,6085,Team lunch with client,747.57,0.0
+2025-05-25,6020,Office supplies purchase,1284.0,0.0
+2025-05-26,6400,Training course for staff,3147.69,0.0
+2025-05-28,4110,Professional services – implementation project,0.0,3576.75
+2025-05-31,4110,Ad-hoc service engagement billed,0.0,1703.12
+2025-06-02,6060,Rent and utilities for office,1518.76,0.0
+2025-06-04,6230,Cloud hosting and storage costs,3799.86,0.0
+2025-06-06,6020,Office supplies purchase,3493.26,0.0
+2025-06-07,6100,Travel expenses – client meeting,1923.01,0.0
+2025-06-09,4190,Workshop and training session income,0.0,2924.02
+2025-06-11,6230,Software subscription – monthly fee,1080.11,0.0
+2025-06-14,6010,Advertising campaign – social media,4725.03,0.0
+2025-06-16,4190,Workshop and training session income,0.0,4402.84
+2025-06-18,6100,Travel expenses – client meeting,3573.41,0.0
+2025-06-20,6400,Training course for staff,4026.55,0.0
+2025-06-22,6070,Professional services – consulting,4561.64,0.0
+2025-06-25,6230,Cloud hosting and storage costs,3524.11,0.0
+2025-06-27,6100,Travel expenses – client meeting,4572.89,0.0
+2025-06-30,4190,Workshop and training session income,0.0,1593.08
+2025-07-02,6010,Advertising campaign – social media,2228.75,0.0
+2025-07-04,4190,Workshop and training session income,0.0,4443.12
+2025-07-07,4100,Maintenance contract renewal,0.0,4633.81
+2025-07-09,6320,Hardware maintenance and repairs,3205.52,0.0
+2025-07-11,6020,Office supplies purchase,4780.01,0.0
+2025-07-13,4100,Maintenance contract renewal,0.0,2756.22
+2025-07-15,6060,Rent and utilities for office,3181.96,0.0
+2025-07-18,6100,Team lunch with client,3618.79,0.0
+2025-07-20,6530,Cloud hosting and storage costs,4829.88,0.0
+2025-07-22,6230,Software subscription – monthly fee,1033.64,0.0
+2025-07-25,6085,Team lunch with client,2828.32,0.0
+2025-07-27,6400,Training course for staff,4197.16,0.0
+2025-07-29,6010,Advertising campaign – social media,3745.38,0.0
+2025-07-31,4190,Workshop and training session income,0.0,4468.24
+2025-08-03,6060,Rent and utilities for office,1595.2,0.0
+2025-08-05,6230,Software subscription – monthly fee,3968.88,0.0
+2025-08-07,6020,Office supplies purchase,2953.33,0.0
+2025-08-10,6100,Travel expenses – client meeting,2621.35,0.0
+2025-08-12,4190,Workshop and training session income,0.0,4129.11
+2025-08-15,6010,Advertising campaign – social media,2467.84,0.0
+2025-08-17,6230,Software subscription – monthly fee,1165.72,0.0
+2025-08-20,6400,Training course for staff,3669.39,0.0
+2025-08-22,6320,Hardware maintenance and repairs,1421.97,0.0
+2025-08-25,4190,Workshop and training session income,0.0,2402.8
+2025-08-28,6020,Office supplies purchase,2764.29,0.0
+2025-08-31,6070,Professional services – consulting,3599.73,0.0
+2025-09-02,6010,Advertising campaign – social media,4318.55,0.0
+2025-09-05,4110,Professional services – implementation project,0.0,2307.55
+2025-09-08,6230,Software subscription – monthly fee,4757.35,0.0
+2025-09-10,6060,Rent and utilities for office,3915.65,0.0
+2025-09-12,6400,Training course for staff,2315.61,0.0
+2025-09-15,6070,Professional services – consulting,822.29,0.0
+2025-09-16,6020,Office supplies purchase,3658.59,0.0
+2025-09-18,6100,Travel expenses – client meeting,4221.26,0.0
+2025-09-20,4190,Workshop and training session income,0.0,2230.07
+2025-09-22,6010,Advertising campaign – social media,3438.65,0.0
+2025-09-25,6230,Software subscription – monthly fee,1811.03,0.0
+2025-09-27,6320,Hardware maintenance and repairs,3938.45,0.0
+2025-09-30,4190,Workshop and training session income,0.0,3987.28
+2025-10-01,6020,Office supplies purchase,3658.59,0.0
+2025-10-03,6100,Travel expenses – client meeting,1020.12,0.0
+2025-10-03,6100,Travel expenses – client meeting,4020.88,0.0
+2025-10-05,6230,Cloud hosting and storage costs,4047.76,0.0
+2025-10-07,6060,Rent and utilities for office,2832.52,0.0
+2025-10-10,4000,License fee for software product,0.0,4152.25
+2025-10-12,6400,Training course for staff,2701.14,0.0
+2025-10-15,6530,Cloud hosting and storage costs,4642.0,0.0
+2025-10-17,6085,Team lunch with client,4700.52,0.0
+2025-10-20,6230,Software subscription – monthly fee,3352.97,0.0
+2025-10-22,6060,Rent and utilities for office,1556.0,0.0
+2025-10-25,6320,Hardware maintenance and repairs,3078.73,0.0
+2025-10-27,6010,Advertising campaign – social media,3168.45,0.0
+2025-10-30,4190,Workshop and training session income,0.0,3081.89
+2025-10-31,4110,Change request – extra development days,0.0,1581.52
+2025-11-01,6320,Hardware maintenance and repairs,1327.29,0.0
+2025-11-03,6230,Cloud hosting and storage costs,2826.77,0.0
+2025-11-05,6020,Office supplies purchase,4328.39,0.0
+2025-11-08,6100,Travel expenses – client meeting,3207.58,0.0
+2025-11-10,6230,Software subscription – monthly fee,4754.15,0.0
+2025-11-12,6010,Advertising campaign – social media,2017.93,0.0
+2025-11-15,4190,Workshop and training session income,0.0,4346.41
+2025-11-18,6060,Rent and utilities for office,1660.34,0.0
+2025-11-20,6400,Training course for staff,2215.89,0.0
+2025-11-22,4900,Success fee on completed project,0.0,1659.66
+2025-11-25,6230,Software subscription – monthly fee,3233.46,0.0
+2025-11-27,6100,Travel expenses – client meeting,3386.7,0.0
+2025-11-30,4190,Workshop and training session income,0.0,3038.71
+2025-12-01,6010,Advertising campaign – social media,3196.91,0.0
+2025-12-03,4000,License fee for software product,0.0,2637.53
+2025-12-05,6320,Hardware maintenance and repairs,4196.99,0.0
+2025-12-08,6230,Software subscription – monthly fee,3039.47,0.0
+2025-12-09,4100,Success fee on completed project,0.0,279.93
+2025-12-12,6060,Rent and utilities for office,1658.23,0.0
+2025-12-15,4020,Recurring SaaS subscription revenue,0.0,973.52
+2025-12-18,6020,Office supplies purchase,2214.64,0.0
+2025-12-20,6100,Travel expenses – client meeting,4738.37,0.0
+2025-12-22,6400,Training course for staff,2846.75,0.0
+2025-12-24,6230,Software subscription – monthly fee,2481.9,0.0
+2025-12-27,6010,Advertising campaign – social media,4403.67,0.0
+2025-12-29,6530,Cloud hosting and storage costs,2011.53,0.0
+2025-12-31,6020,Office supplies purchase,273.88,0.0
