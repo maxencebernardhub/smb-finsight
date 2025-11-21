@@ -23,7 +23,7 @@ end_date   = "2025-12-31"
 #   "CA_ASPE"
 #   "US_GAAP"
 #   "IFRS"
-standard = "US_GAAP"
+standard = "IFRS"
 
 # Optional reporting currency (informational, for display).
 currency = "USD"
@@ -37,7 +37,7 @@ currency = "USD"
 #
 # Example (for a Canadian company under ASPE):
 #   standard_config_file = "config/standard_ca_aspe.toml"
-standard_config_file = "config/standard_us_gaap.toml"
+standard_config_file = "config/standard_ifrs.toml"
 
 # -------------------------------------------------------------------
 # Data files (generic, not standard-specific)
@@ -45,7 +45,7 @@ standard_config_file = "config/standard_us_gaap.toml"
 [paths]
 # Accounting entries (general ledger / journal) file.
 # Relative to the project root or absolute path.
-accounting_entries = "data/input/accounting_entries_us_gaap.csv"
+accounting_entries = "data/input/accounting_entries_ifrs.csv"
 
 # -------------------------------------------------------------------
 # Ratios & KPIs configuration (generic)
