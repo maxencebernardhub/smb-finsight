@@ -7,9 +7,9 @@ Command-Line Interface (CLI) for SMB FinSight.
 
 This module wires together the main building blocks of SMB FinSight:
 
-- global configuration (fiscal year, paths, display options),
+- global configuration (fiscal year, database, display options),
 - standard-specific configuration (mapping templates, ratios rules),
-- accounting entries I/O,
+- accounting entries import & database access,
 - aggregation engine (statements),
 - ratios/KPIs engine,
 - view helpers (detail levels and tabular rendering).
@@ -77,8 +77,6 @@ TOML configuration (e.g. ``config/standard_fr_pcg.toml``) which defines:
 The following CLI arguments can override paths defined in the TOML
 configuration without modifying the configuration files:
 
-- ``--accounting-entries``:
-    Override the accounting entries CSV path.
 - ``--income-statement-mapping``:
     Override the primary statement mapping CSV path.
 - ``--secondary-mapping``:
@@ -88,6 +86,12 @@ configuration without modifying the configuration files:
 
 These overrides only affect the current CLI run and leave the TOML
 configuration unchanged.
+
+Accounting entries are now always read from the application database.
+To feed the database from a CSV file, use the ``--import`` argument of
+the CLI. The CSV is normalized and stored in the database before the
+dashboard is computed.
+
 
 
 Scopes: what to render
@@ -319,10 +323,11 @@ from typing import Optional
 from . import __version__
 from .accounts import filter_unknown_accounts, load_list_of_accounts
 from .config import load_app_config
+from .db import has_entries, import_entries, init_database, load_entries
 from .engine import aggregate, build_canonical_measures
 from .io import read_accounting_entries
 from .mapping import Template
-from .periods import determine_period_from_args, filter_entries_by_period
+from .periods import determine_period_from_args
 from .ratios import compute_derived_measures, compute_ratios
 from .views import (
     apply_view_level_filter,
@@ -349,6 +354,7 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Show the installed version of smb_finsight and exit.",
     )
+
     ap.add_argument(
         "--config",
         dest="config_path",
@@ -358,15 +364,18 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
 
-    # Path overrides (optional, override TOML config)
+    # Optional import: feed the database from a CSV file before running the dashboard
     ap.add_argument(
-        "--accounting-entries",
-        dest="accounting_entries",
+        "--import",
+        dest="import_path",
+        metavar="CSV_PATH",
         help=(
-            "Override the accounting entries CSV path defined in the main "
-            "configuration file."
+            "Import accounting entries from the given CSV file into the "
+            "database before running the dashboard."
         ),
     )
+
+    # Path overrides (optional, override TOML config for mappings and chart of accounts)
     ap.add_argument(
         "--income-statement-mapping",
         dest="income_statement_mapping",
@@ -375,6 +384,7 @@ def _build_parser() -> argparse.ArgumentParser:
             "the standard-specific configuration."
         ),
     )
+
     ap.add_argument(
         "--secondary-mapping",
         dest="secondary_mapping",
@@ -383,6 +393,7 @@ def _build_parser() -> argparse.ArgumentParser:
             "standard-specific configuration."
         ),
     )
+
     ap.add_argument(
         "--chart-of-accounts",
         dest="chart_of_accounts",
@@ -486,10 +497,12 @@ def main() -> None:
     """Entry point for the SMB FinSight CLI.
 
     This function parses command-line arguments, loads the application and
-    standard-specific configuration, reads the chart of accounts and the
-    accounting entries, applies the fiscal period selection, aggregates
-    primary and optional secondary statements, optionally computes ratios/KPIs,
-    and finally renders the selected scope as console tables and/or CSV files.
+    standard-specific configuration, initializes the database, optionally
+    imports accounting entries from a CSV file into the database, reads the
+    chart of accounts, loads accounting entries for the selected period from
+    the database, aggregates primary and optional secondary statements,
+    optionally computes ratios/KPIs, and finally renders the selected scope
+    as console tables and/or CSV files.
     """
     parser = _build_parser()
     args = parser.parse_args()
@@ -507,19 +520,34 @@ def main() -> None:
 
     std_cfg = config.standard_config
 
-    # 2) Resolve paths with optional CLI overrides
-    accounting_entries_path: Optional[Path] = (
-        Path(args.accounting_entries)
-        if args.accounting_entries
-        else config.accounting_entries_path
-    )
+    # 2) Initialize the database (create file and schema if needed)
+    init_database(config.database)
 
-    if accounting_entries_path is None:
-        parser.error(
-            "No accounting entries path configured. "
-            "Either set it in the main config or provide --accounting-entries."
+    # After init_database(config.database)
+    if not args.import_path and not has_entries(config.database):
+        print("Warning: database is empty — use --import to load accounting entries.")
+
+    # 3) Optional import from CSV into the database
+    if args.import_path:
+        csv_path = Path(args.import_path)
+        if not csv_path.is_file():
+            parser.error(f"CSV file for --import not found: {csv_path}")
+
+        print(f"Importing accounting entries from {csv_path} into the database...")
+        df_import = read_accounting_entries(csv_path)
+        stats = import_entries(
+            df_import,
+            config.database,
+            source_type="csv",
+            source_label=str(csv_path),
+        )
+        print(
+            f"Imported batch #{stats.batch_id}: "
+            f"{stats.rows_inserted} entries, "
+            f"{stats.duplicates_detected} potential duplicates."
         )
 
+    # 4) Resolve paths with optional CLI overrides for mappings and chart of accounts
     primary_mapping_path: Optional[Path] = (
         Path(args.income_statement_mapping)
         if args.income_statement_mapping
@@ -549,28 +577,30 @@ def main() -> None:
             "Either set it in the standard config or provide --chart-of-accounts."
         )
 
-    # 3) Load the user-maintained chart of accounts.
+    # 5) Load the user-maintained chart of accounts.
     accounts_df = load_list_of_accounts(chart_of_accounts_path)
     known_codes = set(accounts_df["account_number"])
     name_by_code = dict(zip(accounts_df["account_number"], accounts_df["name"]))
 
-    # 4) Read and normalize accounting entries.
-    tx_raw = read_accounting_entries(accounting_entries_path)
-
-    # 5) Determine reporting period and filter entries.
+    # 6) Determine reporting period.
     period = determine_period_from_args(args, config.fiscal_year)
-    tx_period = filter_entries_by_period(tx_raw, period)
+
+    # 7) Load accounting entries for the selected period from the database.
+    tx_raw = load_entries(config.database, period.start, period.end)
 
     print(
         f"Applied period: {period.label} "
         f"({period.start.isoformat()} → {period.end.isoformat()})"
     )
-    print(f"Entries kept after period filter: {len(tx_period)}")
-    if len(tx_period) == 0:
-        print("Warning: no accounting entries fall inside the selected period.")
+    print(f"Entries retrieved from database for period: {len(tx_raw)}")
+    if len(tx_raw) == 0:
+        print(
+            "Warning: no accounting entries were found in the database for "
+            "the selected period."
+        )
 
-    # 6) Filter out entries whose account code is unknown.
-    tx = filter_unknown_accounts(tx_period, known_codes)
+    # 8) Filter out entries whose account code is unknown.
+    tx = filter_unknown_accounts(tx_raw, known_codes)
 
     # Evaluate which parts of the pipeline are needed based on scope.
     scope = args.scope

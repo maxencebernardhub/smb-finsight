@@ -40,12 +40,17 @@ currency = "USD"
 standard_config_file = "config/standard_ifrs.toml"
 
 # -------------------------------------------------------------------
-# Data files (generic, not standard-specific)
+# Database
 # -------------------------------------------------------------------
-[paths]
-# Accounting entries (general ledger / journal) file.
-# Relative to the project root or absolute path.
-accounting_entries = "data/input/accounting_entries_ifrs.csv"
+[database]
+# Database engine used by SMB FinSight.
+# For now, only "sqlite" is supported.
+engine = "sqlite"
+
+# Relative path to the SQLite database file.
+# It will be resolved relative to the directory of this config file.
+path = "data/db/smb_finsight.sqlite"
+
 
 # -------------------------------------------------------------------
 # Ratios & KPIs configuration (generic)

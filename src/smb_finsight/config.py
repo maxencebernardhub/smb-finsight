@@ -22,6 +22,8 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - fallback for older Python
     import tomli as tomllib  # type: ignore[import]
 
+from .db import DatabaseConfig
+
 
 @dataclass(frozen=True)
 class FiscalYear:
@@ -59,17 +61,17 @@ class AppConfig:
     This aggregates:
     - the fiscal year definition,
     - the main accounting standard and currency,
-    - the accounting entries file path,
+    - the database configuration (where entries are stored),
     - the standard-specific configuration (mappings, ratios rules),
     - optional inputs for balance sheet, HR and period parameters,
-    - global ratios options.
+    - global ratios options,
     - display options for tables and ratios.
     """
 
     fiscal_year: FiscalYear
     standard: str
     currency: str
-    accounting_entries_path: Path
+    database: DatabaseConfig
     standard_config: StandardConfig
     balance_sheet_inputs: dict[str, float]
     hr_inputs: dict[str, float]
@@ -232,22 +234,60 @@ def _parse_standard_config(
 
 def load_app_config(config_path: Optional[str] = None) -> AppConfig:
     """
-    Load the full SMB FinSight configuration from the given TOML file.
+    Load the SMB FinSight application configuration from a TOML file.
 
-    This reads:
-    - the fiscal year,
-    - accounting standard and currency,
-    - paths for accounting entries,
-    - standard-specific configuration (mappings, ratios rules),
-    - optional inputs (balance sheet, HR, period),
-    - global ratios options.
+    The configuration aggregates all global settings required by the engine,
+    database layer and CLI. Since version 0.3.0, SMB FinSight no longer reads
+    accounting entries directly from CSV files defined in the config.
+    Instead, *all* financial data is stored in and retrieved from the
+    application database (see section [database]).
 
-    Args:
-        config_path: Path to the main TOML configuration file. If None,
-            "smb_finsight_config.toml" is used in the current working directory.
+    Expected top-level sections in the TOML file
+    --------------------------------------------
+    [fiscal_year]
+        Defines the fiscal year start date (month/day).
 
-    Returns:
-        An AppConfig instance.
+    [accounting]
+        Defines the accounting standard (e.g. "FR_PCG", "CA_ASPE") and
+        the presentation currency.
+
+    [database]
+        Defines the database engine and the SQLite file path.
+        This is now mandatory: SMB FinSight always uses the database as
+        the single source of truth for accounting entries.
+
+    [inputs.balance_sheet]
+        Optional manual inputs to enrich calculated ratios.
+
+    [inputs.hr]
+        Optional human-resources inputs for per-employee KPIs.
+
+    [inputs.period]
+        Optional override of the default number of days in the period.
+
+    [ratios]
+        Global ratio options (enable/disable, default detail level, etc.).
+
+    [display]
+        Display options for the CLI table formatting.
+
+    Notes
+    -----
+    - The former [paths] section and its `accounting_entries` setting were
+      removed in 0.3.0. Data import must now be done explicitly via the CLI
+      using the '--import' argument.
+    - All file paths in the TOML are resolved relative to the directory of
+      the TOML file itself.
+
+    Parameters
+    ----------
+    path : Path
+        Path to the TOML configuration file.
+
+    Returns
+    -------
+    AppConfig
+        Parsed and validated application configuration.
     """
     if config_path is None:
         config_file = Path("smb_finsight_config.toml").resolve()
@@ -277,15 +317,16 @@ def load_app_config(config_path: Optional[str] = None) -> AppConfig:
         base_dir=base_dir,
     )
 
-    # 3) Paths section
-    paths_section = raw.get("paths") or {}
-    if not isinstance(paths_section, Mapping):
-        paths_section = {}
+    # 3) Database section
+    database_section = raw.get("database") or {}
+    if not isinstance(database_section, Mapping):
+        database_section = {}
 
-    accounting_entries_raw = paths_section.get(
-        "accounting_entries", "data/input/accounting_entries.csv"
-    )
-    accounting_entries_path = (base_dir / str(accounting_entries_raw)).resolve()
+    db_engine = str(database_section.get("engine") or "sqlite")
+    db_path_raw = database_section.get("path") or "data/db/smb_finsight.sqlite"
+    db_path = (base_dir / str(db_path_raw)).resolve()
+
+    database_config = DatabaseConfig(engine=db_engine, path=db_path)
 
     # 4) Inputs: balance sheet, HR, period
     inputs_section = raw.get("inputs") or {}
@@ -358,7 +399,7 @@ def load_app_config(config_path: Optional[str] = None) -> AppConfig:
         fiscal_year=fiscal_year,
         standard=standard,
         currency=currency,
-        accounting_entries_path=accounting_entries_path,
+        database=database_config,
         standard_config=standard_config,
         balance_sheet_inputs=balance_sheet_inputs,
         hr_inputs=hr_inputs,
