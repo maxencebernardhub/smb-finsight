@@ -4,7 +4,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/maxencebernardhub/smb-finsight?color=blue)](https://github.com/maxencebernardhub/smb-finsight/releases)
 
 **SMB FinSight** is a Python-based financial dashboard & analysis application designed for **small and medium-sized businesses**.  
-It converts raw accounting entries into **standardized financial statements** and **KPIs**, using fully configurable, standard-specific mapping rules (French PCG, Canadian ASPE, US GAAP and IFRS).
+It converts raw accounting entries stored in the local database (fed via CSV imports) into **standardized financial statements** and **KPIs**, using fully configurable, standard-specific mapping rules (French PCG, Canadian ASPE, US GAAP and IFRS).
 
 The application supports:
 - multi-standard accounting (FR PCG, CA ASPE, US GAAP and IFRS)
@@ -14,7 +14,9 @@ The application supports:
 - flexible period selection (FY, YTD, MTD, last-month, custom)
 - automatic CSV exports in a consistent hierarchical format
 
-As of version **0.2.5**, SMB FinSight supports **four full accounting standards**:  
+Since version **0.3.0**, SMB FinSight uses a local SQLite database as the single source of truth for all accounting entries. CSV files can still be imported using the `--import` CLI argument, but the dashboard always reads from the database.
+
+Since version **0.2.5**, SMB FinSight supports **four full accounting standards**:  
 **French PCG**, **Canadian ASPE**, **US GAAP**, and **IFRS** — all mapped into a unified canonical financial model allowing perfectly comparable KPIs and ratios across jurisdictions.
 
 
@@ -25,8 +27,8 @@ As of version **0.2.5**, SMB FinSight supports **four full accounting standards*
 ## 📚 Table of Contents
 
 - [Main Features](#️-main-features)
-- [Supported Accounting Standards (v0.2.5)](#-supported-accounting-standards-v025)
-- [Project Structure](#-project-structure-updated-for-v025)
+- [Supported Accounting Standards](#-supported-accounting-standards)
+- [Project Structure](#-project-structure-updated-for-v030)
 - [Installation](#-installation)
 - [Configuration](#configuration)
 - [Input Files](#input-files)
@@ -45,7 +47,7 @@ As of version **0.2.5**, SMB FinSight supports **four full accounting standards*
 
 ## ⚙️ Main Features
 
-- 📂 Reads accounting entries (`date`,`code`,`description`,`debit`,`credit`) from CSV file.  
+- 📂 Imports accounting entries from CSV files into the database using the `--import` CLI argument. 
 - 🧮 Normalizes amounts (`amount = credit − debit`). 
 - 📊 Aggregates entries according to **unified mapping files**.
 - **Configuration** via `smb_finsight_config.toml`
@@ -78,10 +80,16 @@ As of version **0.2.5**, SMB FinSight supports **four full accounting standards*
 - Full cross-standard compatibility: CLI commands, ratios, period selection and exports all work identically across every accounting standard
 - ⚙️ **Configurable display mode** (`table`, `csv`, `both`) via CLI or config file  
 - 📄 **Generated CSV output is timestamped and stored automatically under `data/output/`**
+- 🗄️ Database-backed storage (new in v0.3.0)
+  - All accounting entries are now stored in a local SQLite database
+  - The financial dashboard always uses the database as the single source of truth
+  - CSV files are no longer read directly during analysis.
+  - CSV files can be imported at any time via the `--import` CLI argument
+  - Duplicate detection is built-in, with suspected duplicates routed to a dedicated table
 
 ---
 
-## 📐 Supported Accounting Standards (v0.2.5)
+## 📐 Supported Accounting Standards
 
 SMB FinSight natively supports **four accounting standards**, each mapped to a unified internal structure (“canonical measures”) so that ratios, aggregations and CLI behavior remain perfectly consistent across jurisdictions.
 
@@ -129,7 +137,7 @@ This ensures **perfect comparability** between French PCG, ASPE, US GAAP and IFR
 
 ---
 
-## 📁 Project Structure (updated for v0.2.5)
+## 📁 Project Structure (updated for v0.3.0)
 
 ```
 smb-finsight/
@@ -141,7 +149,8 @@ smb-finsight/
 │   ├── standard_us_gaap.toml            # Standard-specific mappings & rules (US GAAP)
 │   └── standard_ifrs.toml               # Standard-specific mappings & rules (IFRS)
 ├── data/
-│   ├── input/                           # User-provided accounting entries (examples)
+│   ├── input/                           # Contains example CSV files that can be imported into the 
+│   │                                    # database using the `--import` command.
 │   │   ├── accounting_entries_fr_pcg.csv
 │   │   ├── accounting_entries_ca_aspe.csv
 │   │   ├── accounting_entries_us_gaap.csv
@@ -172,8 +181,9 @@ smb-finsight/
 │       ├── engine.py
 │       ├── io.py
 │       ├── mapping.py
-│       ├── ratios.py                    # NEW core ratios engine
-│       └── views.py
+│       ├── ratios.py                    
+│       ├── views.py
+│       └── db.py
 ├── tests/
 ```
 
@@ -225,14 +235,23 @@ This file defines:
 - display settings  
 - optional balance-sheet and HR variables  
 
+As of v0.3.0, SMB FinSight no longer reads accounting entries directly from CSV files.
+All entries must be imported into the database using the CLI (--import), and the dashboard always reads from the database.
+
 #### Example (FR PCG):
 
 ```toml
+[accounting]
 standard = "FR_PCG"
+standard_config_file = "config/standard_fr_pcg.toml"
 
 [fiscal_year]
 start_date = "2025-01-01"
 end_date = "2025-12-31"
+
+[database]
+engine = "sqlite"
+path = "data/db/smb_finsight.sqlite"
 
 [display]
 mode = "table"
@@ -254,9 +273,6 @@ average_fte = 52
 [accounting]
 standard = "IFRS"
 standard_config_file = "config/standard_ifrs.toml"
-
-[paths]
-accounting_entries = "data/input/accounting_entries_ifrs.csv"
 ```
 
 ### 2. Standard-specific configuration (`config/standard_fr_pcg.toml`)
@@ -285,9 +301,13 @@ This two-level configuration makes SMB FinSight fully multi-standard.
 ---
 ## Input Files
 
-### 1. `accounting_entries.csv` (required)
+### 1. `accounting_entries.csv`
 
-The input CSV must contain **both a date and a description** for each entry.
+
+The input CSV is not read directly during analysis.
+It is only used as an import source for the database via the `--import` argument.
+
+The file must contain **a date, a code, and a description** for each entry.
 
 Two input formats are supported:
 
@@ -318,7 +338,7 @@ date,code,description,amount
 | Column        | Required | Format           | Notes                              |
 |---------------|----------|------------------|------------------------------------|
 | `date`        | Yes      | YYYY-MM-DD       | Used for fiscal and period logic   |
-| `code`        | Yes      | text / integer   | Must match `fr_pcg.csv`               |
+| `code`        | Yes      | text / integer   | Must match the chart of accounts of the selected standard   |
 | `description` | Yes      | text             | Free text, used for readability    |
 | `debit`       | Optional | number           | Used if `amount` not provided      |
 | `credit`      | Optional | number           | Used if `amount` not provided      |
@@ -403,6 +423,7 @@ Same structure as above, but specific French SIG definitions
 
 ```bash
 python -m smb_finsight.cli \
+  --import CSV_PATH \
   --scope statements|all_statements|ratios|all \
   --view simplified|regular|detailed|complete \
   --ratios-level basic|advanced|full \
@@ -413,14 +434,21 @@ python -m smb_finsight.cli \
   [--output OUTPUT_DIR]
 ```
 
+`--import` : Import accounting entries from the given CSV file into the database.
+`--import` must be provided before any dashboard filtering arguments.
+
+When `--import` is used, entries are added to the database first, and the dashboard is computed immediately afterwards, unless the user explicitly suppresses output via display settings.
+
 If you do not specify `--output`, CSVs are written automatically to: 
 `data/output/<timestamped-files>.csv` with timestamped filenames.
 The accounting standard, mapping files and ratio rules are now loaded
 automatically from the configuration files under `/config/`.
 
-### 📦 CLI Quick Examples (v0.1.6+)
+### 📦 CLI Quick Examples (v0.3.0+)
 
 Here are ready-to-run commands demonstrating the most common use cases.
+
+NB: If the database is empty, SMB FinSight will warn you and show no entries.
 
 #### 1) Income statement (regular view)
 
@@ -449,8 +477,18 @@ python -m smb_finsight.cli \
     --display-mode table
 ```
 
+#### 4) First-time import
 
-### ⏱️ Period selection (NEW in v0.1.5)
+```bash
+python -m smb_finsight.cli --import data/input/accounting_entries_2024.csv
+```
+
+Then run dashboard (uses the database):
+```bash
+python -m smb_finsight.cli --period ytd
+```
+
+### ⏱️ Period selection
 
 SMB FinSight can generate income statements for a specific time period.
 
@@ -554,7 +592,7 @@ label = "Marge brute (%)"
 SMB FinSight provides a full French-style SIG (Soldes Intermédiaires de Gestion)
 based on the PCG.
 
-- Mapping file: `/mapping/sig_fr_pcg.csv`  
+- Mapping file: `mapping/sig_fr_pcg.csv`  
 - Sign convention (FinSight):
   - products (7*) are **positive**  
   - charges (6*) are **negative**  
@@ -578,8 +616,6 @@ The SIG result is identical to:
 - the result from the detailed view, and  
 - the raw sum of all 6* and 7* accounting entries
 (assuming no exceptional entries outside classes 6 and 7).
-
-This consistency is enforced by test `test_sig_consistency.py`.
 
 ➡️ SIG is specific to French PCG.  
 Other accounting standards may define a different secondary statement or none at all.
@@ -641,7 +677,7 @@ ruff check src tests
 ruff format --check src tests
 ```
 
-The full test suite currently includes **22 tests** and all must pass before contributing.
+The full test suite currently includes **25 tests** and all must pass before contributing.
 
 Includes:
 
@@ -703,7 +739,7 @@ Pull requests are welcome!
 
 ## 🚀 Roadmap
 
-### ✅ Completed (as of v0.2.0)
+### ✅ Completed (as of v0.3.0)
 - [x] Full support for **FR PCG** (income statement + SIG + ratios)
 - [x] Full support for **CA ASPE** (mapping, ratios, COA, sample entries)
 - [x] Multi-standard architecture with standard-specific mapping & ratios
@@ -712,10 +748,11 @@ Pull requests are welcome!
 - [x] Hierarchical statement rendering (simplified → complete)
 - [x] CLI overhaul and consistent outputs
 - [x] Normalized canonical measures across standards
-- [x] Full test suite (13 tests)
+- [x] Full test suite (25 tests)
+- [x] Database module (store accounting entries)
 
 ### 🚧 In Progress
-- [ ] Add database/history module (store past & current accounting entries)
+- [ ] Improve database module (duplicate resolution workflow, Update and Delete features)
 
 ### 🧭 Planned
 - [ ] Improve Console UI/UX
@@ -730,6 +767,7 @@ Pull requests are welcome!
 
 | Version | Date | Highlights | Tag |
 |----------|------|-------------|------|
+| **0.3.0** | Nov 2025 | New database-backed architecture, SQLite database, new `--import` CLI command, duplicate detection engine, configuration refactor | [v0.3.0](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.3.0) |
 | **0.2.5** | Nov 2025 | Added US GAAP + IFRS support, updated mappings, COA, ratios, full test suites | [v0.2.5](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.2.5) |
 | **0.2.0** | Nov 2025 | Added full CA ASPE support (mapping, ratios, CA ASPE COA, sample entries) | [v0.2.0](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.2.0) |
 | **0.1.6** | Nov 2025 | Ratios engine, multi-standard support, PCG canonical variables, new CLI, config overhaul | [v0.1.6](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.1.6) |
