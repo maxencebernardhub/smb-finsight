@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smb-finsight"
-version = "0.3.0"
+version = "0.3.5"
 description = "SMB FinSight - Financial Dashboard & Analysis application for SMBs"
 authors = [{ name = "Maxence Bernard", email = "maxence@maxencebernardhub.com" }]
 license = { text = "MIT" }

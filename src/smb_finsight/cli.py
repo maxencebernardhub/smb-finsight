@@ -185,6 +185,23 @@ Priority rules (in simplified form):
    period is used.
 3) If neither is provided, the full fiscal year (from config) is used.
 
+Multi-period support
+--------------------
+As of version 0.3.5, the SMB FinSight computation engine supports full
+multi-period analytics through the unified function
+``compute_all_multi_period()``. This function computes statements,
+measures (canonical, extra and derived) and ratios for any number of
+periods in a single pass.
+
+However, the CLI intentionally remains *single-period only* in this
+version. This preserves a predictable and focused command-line interface
+meant for technical usage, scripting and CSV extraction. Multi-period
+dashboards, charts and interactive analytics will be handled primarily
+in the upcoming Web UI (v0.5.x).
+
+Future versions of the CLI may introduce optional multi-period commands
+if needed, but this is not part of the v0.3.5 scope.
+
 
 Ratios and levels
 -----------------

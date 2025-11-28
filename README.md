@@ -11,12 +11,17 @@ The application supports:
 - normalized income statement generation (simplified → complete)
 - optional secondary statements (e.g., French SIG)
 - a unified financial-ratio engine (basic / advanced / full levels)
+- a unified multi-period computation engine (`compute_all_multi_period`)  
+  generating statements, measures (canonical, extra and derived) and ratios  
+  for any number of periods in a single pass (Python API)
 - flexible period selection (FY, YTD, MTD, last-month, custom)
 - automatic CSV exports in a consistent hierarchical format
 
-Since version **0.3.0**, SMB FinSight uses a local SQLite database as the single source of truth for all accounting entries. CSV files can still be imported using the `--import` CLI argument, but the dashboard always reads from the database.
+Note: the CLI remains single-period only in version 0.3.5. Multi-period analysis is available through the Python API and will power the upcoming Web UI.
 
-Since version **0.2.5**, SMB FinSight supports **four full accounting standards**:  
+As of version **0.3.5**, SMB FinSight uses a local SQLite database as the single source of truth for all accounting entries. CSV files can still be imported using the `--import` CLI argument, but the dashboard always reads from the database.
+
+As of version **0.3.5**, SMB FinSight supports **four full accounting standards**:  
 **French PCG**, **Canadian ASPE**, **US GAAP**, and **IFRS** — all mapped into a unified canonical financial model allowing perfectly comparable KPIs and ratios across jurisdictions.
 
 
@@ -28,7 +33,7 @@ Since version **0.2.5**, SMB FinSight supports **four full accounting standards*
 
 - [Main Features](#️-main-features)
 - [Supported Accounting Standards](#-supported-accounting-standards)
-- [Project Structure](#-project-structure-updated-for-v030)
+- [Project Structure](#-project-structure-updated-for-v035)
 - [Installation](#-installation)
 - [Configuration](#configuration)
 - [Input Files](#input-files)
@@ -80,12 +85,21 @@ Since version **0.2.5**, SMB FinSight supports **four full accounting standards*
 - Full cross-standard compatibility: CLI commands, ratios, period selection and exports all work identically across every accounting standard
 - ⚙️ **Configurable display mode** (`table`, `csv`, `both`) via CLI or config file  
 - 📄 **Generated CSV output is timestamped and stored automatically under `data/output/`**
-- 🗄️ Database-backed storage (new in v0.3.0)
+- 🗄️ Database-backed storage
   - All accounting entries are now stored in a local SQLite database
   - The financial dashboard always uses the database as the single source of truth
   - CSV files are no longer read directly during analysis.
   - CSV files can be imported at any time via the `--import` CLI argument
   - Duplicate detection is built-in, with suspected duplicates routed to a dedicated table
+- 📈 **Unified multi-period computation engine (v0.3.5)**  
+  - new `compute_all_multi_period()` function  
+  - computes statements, measures (canonical, extra and derived) and ratios  
+    for any number of periods in one pass  
+  - optimized for dashboards, charts and financial comparisons
+
+The CLI continues to expose single-period commands only  
+(FY, YTD, MTD, last-month, custom).
+
 
 ---
 
@@ -137,7 +151,7 @@ This ensures **perfect comparability** between French PCG, ASPE, US GAAP and IFR
 
 ---
 
-## 📁 Project Structure (updated for v0.3.0)
+## 📁 Project Structure (updated for v0.3.5)
 
 ```
 smb-finsight/
@@ -178,12 +192,14 @@ smb-finsight/
 │       ├── accounts.py
 │       ├── cli.py
 │       ├── config.py
-│       ├── engine.py
+│       ├── engine.py                    # Core single-period aggregation logic
 │       ├── io.py
 │       ├── mapping.py
+│       ├── multi_periods.py             # Unified multi-period engine (v0.3.5)
+│       ├── periods.py                   # Period parsing (FY/YTD/MTD/Custom)
 │       ├── ratios.py                    
 │       ├── views.py
-│       └── db.py
+│       └── db.py                        # Local SQLite storage (v0.3.0+)
 ├── tests/
 ```
 
@@ -419,6 +435,12 @@ Same structure as above, but specific French SIG definitions
 
 ## 🧮 CLI Usage
 
+Note: the CLI operates on a single reporting period per command.  
+Multi-period analytics are available through the Python API  
+via `compute_all_multi_period()` and will be exposed in the Web UI.
+There is currently no CLI command for exporting multiple periods at once.
+
+
 ### Base command
 
 ```bash
@@ -584,6 +606,11 @@ unit = "percent"
 label = "Marge brute (%)"
 ```
 
+As of v0.3.5, all ratios and underlying measures may also be computed  
+for multiple periods using the unified `compute_all_multi_period()` function.
+The CLI remains single-period.
+
+
 ---
 
 ## 🟦 Secondary Statement: SIG (FR PCG)
@@ -677,7 +704,7 @@ ruff check src tests
 ruff format --check src tests
 ```
 
-The full test suite currently includes **25 tests** and all must pass before contributing.
+The full test suite currently includes **29 tests** (including multi-period orchestration).
 
 Includes:
 
@@ -689,6 +716,7 @@ Includes:
 - CA ASPE  
 - US GAAP  
 - IFRS
+- Multi-period orchestration
 
 ### SIG consistency tests
 
@@ -739,7 +767,7 @@ Pull requests are welcome!
 
 ## 🚀 Roadmap
 
-### ✅ Completed (as of v0.3.0)
+### ✅ Completed (as of v0.3.5)
 - [x] Full support for **FR PCG** (income statement + SIG + ratios)
 - [x] Full support for **CA ASPE** (mapping, ratios, COA, sample entries)
 - [x] Multi-standard architecture with standard-specific mapping & ratios
@@ -748,18 +776,19 @@ Pull requests are welcome!
 - [x] Hierarchical statement rendering (simplified → complete)
 - [x] CLI overhaul and consistent outputs
 - [x] Normalized canonical measures across standards
-- [x] Full test suite (25 tests)
+- [x] Full test suite (29 tests)
 - [x] Database module (store accounting entries)
+- [x] Unified multi-period engine (statements + measures + ratios) — v0.3.5
+
 
 ### 🚧 In Progress
-- [ ] Improve database module (duplicate resolution workflow, Update and Delete features)
+- [ ] Improve database module (duplicate resolution workflow, CRUD features)
 
 ### 🧭 Planned
-- [ ] Improve Console UI/UX
-- [ ] Add **projected** accounting entries.
 - [ ] Add interactive visual dashboards.
 - [ ] Web UI / lightweight desktop app
-- [ ] Add Cash Flow
+- [ ] Add **forecast** and **objectives** modules.
+- [ ] Add **Cash Flow** module
 - [ ] Add AI-assisted insights
 ---
 
@@ -767,6 +796,7 @@ Pull requests are welcome!
 
 | Version | Date | Highlights | Tag |
 |----------|------|-------------|------|
+| **0.3.5** | Nov 2025 | Unified multi-period engine (`compute_all_multi_period`), metadata improvements, extended test suite | [v0.3.5](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.3.5) |
 | **0.3.0** | Nov 2025 | New database-backed architecture, SQLite database, new `--import` CLI command, duplicate detection engine, configuration refactor | [v0.3.0](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.3.0) |
 | **0.2.5** | Nov 2025 | Added US GAAP + IFRS support, updated mappings, COA, ratios, full test suites | [v0.2.5](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.2.5) |
 | **0.2.0** | Nov 2025 | Added full CA ASPE support (mapping, ratios, CA ASPE COA, sample entries) | [v0.2.0](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.2.0) |
