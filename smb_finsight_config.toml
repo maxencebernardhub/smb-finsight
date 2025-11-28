@@ -23,7 +23,7 @@ end_date   = "2025-12-31"
 #   "CA_ASPE"
 #   "US_GAAP"
 #   "IFRS"
-standard = "IFRS"
+standard = "FR_PCG"
 
 # Optional reporting currency (informational, for display).
 currency = "USD"
@@ -37,7 +37,7 @@ currency = "USD"
 #
 # Example (for a Canadian company under ASPE):
 #   standard_config_file = "config/standard_ca_aspe.toml"
-standard_config_file = "config/standard_ifrs.toml"
+standard_config_file = "config/standard_fr_pcg.toml"
 
 # -------------------------------------------------------------------
 # Database

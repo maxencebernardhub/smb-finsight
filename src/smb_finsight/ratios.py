@@ -4,15 +4,90 @@
 
 
 """
-Ratios and KPI computation engine for SMB FinSight.
+Computation of derived measures and financial ratios for SMB FinSight.
 
-This module is responsible for:
-- loading ratio and measure definitions from standard-specific TOML files,
-- evaluating derived measures based on canonical measures,
-- computing ratios per level (basic, advanced, full) for display.
+This module complements the core engine (engine.py) by providing:
 
-It is intentionally independent from I/O and CLI concerns: it only works
-with in-memory dictionaries and paths to TOML rule files.
+1. Derived measures
+   -----------------
+   Derived measures are defined by users or standards in the
+   ratios_*.toml files under the `[measures.*]` sections.
+
+   Each derived measure is expressed as a formula referencing:
+   - canonical measures (from the mapping templates),
+   - other previously defined derived measures.
+
+   They are computed by:
+       compute_derived_measures(base_measures, rules_file)
+   which returns an extended dictionary:
+       {measure_key -> float}
+
+   Metadata (label, unit, notes) for derived measures is provided by:
+       load_derived_measures_metadata(rules_file)
+   which returns:
+       {measure_key -> MeasureMeta}
+   allowing richer presentation in the Web UI and multi-period analysis.
+
+2. Financial ratios
+   ------------------
+   Ratios are also defined in the TOML files under `[ratios.<level>.*]`.
+   Each ratio specifies:
+       - a key (identifier),
+       - a human-readable label,
+       - a formula string,
+       - a unit (percent, ratio, days, amount, etc.),
+       - optional notes,
+       - a logical level (basic, advanced, full).
+
+   Ratios are built on top of:
+       - canonical measures (engine.py),
+       - derived measures (computed above).
+
+   The function:
+       compute_ratios(all_measures, rules_file, level)
+   returns a list of RatioResult objects, each containing:
+       - key
+       - label
+       - value
+       - unit
+       - notes
+       - level
+
+   Ratio levels follow a logical hierarchy:
+       "full"     includes all ratios
+       "advanced" includes "basic" + "advanced"
+       "basic"    includes only basic ratios
+
+3. Integration with the rest of the system
+   ----------------------------------------
+   This module focuses exclusively on:
+   - derived measure evaluation,
+   - ratio evaluation,
+   - and derived measure metadata.
+
+   It does NOT:
+   - compute canonical measures (engine.py does that),
+   - load accounting entries (db.py),
+   - aggregate statements (engine.py),
+   - orchestrate multi-period logic (multi_periods.py).
+
+4. Usage in multi-period analysis & Web UI
+   ----------------------------------------
+   Both derived measures and ratios are consumed by:
+       - multi_periods.py for time-series aggregation,
+       - future Web UI (Streamlit) for charts and dashboards.
+
+   Thanks to MeasureMeta (from engine.py), this module now supports
+   rich metadata for derived measures (label, unit, notes), enabling
+   user-friendly display and automatic formatting (percentages, days,
+   currency amounts, etc.).
+
+Summary
+-------
+This module is the dedicated computation engine for all financial
+metrics beyond the canonical measures—namely derived measures and
+ratios. It works hand-in-hand with engine.py and forms the analytical
+foundation for higher-level reporting and visualization layers.
 """
 
 import ast
@@ -23,6 +98,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 import tomllib  # Python 3.11+
+
+from .engine import MeasureMeta
 
 # Logical ordering of ratio levels. This is used so that requesting an
 # "advanced" level includes both "basic" and "advanced" ratios, and
@@ -201,6 +278,64 @@ def compute_derived_measures(
         all_measures[str(key)] = float(value)
 
     return all_measures
+
+
+def load_derived_measures_metadata(rules_file: Path) -> dict[str, MeasureMeta]:
+    """
+    Load metadata for derived measures defined in a TOML rules file.
+
+    Derived measures are defined under the [measures.*] sections of the
+    standard-specific ratios TOML file. This function extracts the
+    human-readable metadata that will later be used by the Web UI.
+
+    For each [measures.<key>] section, the following fields are read:
+
+    - key   → the section name (<key>)
+    - label → "label" (default: key)
+    - unit  → "unit"  (default: "amount")
+    - notes → "notes" (default: "")
+
+    The resulting MeasureMeta instances are marked with kind="extra" to
+    distinguish them from canonical measures coming from the mapping.
+
+    Parameters
+    ----------
+    rules_file :
+        Path to a TOML file defining [measures.*] sections.
+
+    Returns
+    -------
+    dict[str, MeasureMeta]
+        Dictionary mapping derived measure keys to their metadata.
+    """
+    data = _load_toml(rules_file)
+
+    measures_section = data.get("measures") or {}
+    if not isinstance(measures_section, Mapping):
+        return {}
+
+    metadata: dict[str, MeasureMeta] = {}
+
+    for key, cfg in measures_section.items():
+        if not isinstance(cfg, Mapping):
+            continue
+
+        key_str = str(key)
+        label = str(cfg.get("label") or key_str)
+        unit = str(cfg.get("unit") or "amount")
+        notes = str(cfg.get("notes") or "")
+
+        # Last definition wins if a key is duplicated, which should not
+        # normally happen in a well-formed TOML file.
+        metadata[key_str] = MeasureMeta(
+            key=key_str,
+            label=label,
+            unit=unit,
+            notes=notes,
+            kind="extra",
+        )
+
+    return metadata
 
 
 def compute_ratios(
