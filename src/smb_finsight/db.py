@@ -4,23 +4,145 @@
 
 
 """
-Database helpers for SMB FinSight.
+Database layer for SMB FinSight.
 
-This module is responsible for:
+This module provides all low-level accessors and utilities for interacting
+with the SQLite database used by the application. It is responsible for:
 
-- managing the application database schema,
-- importing accounting entries into the database (from normalized DataFrames),
-- loading entries for a given reporting period,
-- exposing typed dataclasses used by the rest of the application.
+- Initializing and migrating the database schema.
+- Managing import batches (CSV, manual, API sources).
+- Inserting accounting entries in bulk during an import.
+- Detecting and recording potential duplicate entries.
+- Exposing CRUD operations on individual accounting entries.
+- Supporting soft deletion, restoration, and metadata tracking.
+- Providing advanced query utilities for searching and filtering entries.
 
-Design decisions
-----------------
-- The database is the *single source of truth* for accounting entries.
-- For 0.3.0, only SQLite is supported.
-- Amounts are stored in integer cents (amount_cents) to avoid floating issues.
-- Every entry belongs to an import batch (import_batch_id is NOT NULL).
-- Potential duplicate entries are stored in a dedicated table
-  (`duplicate_entries`) with a `pending` resolution status.
+The database is the single source of truth for accounting entries across all
+views, statements, KPIs, and multi-period comparisons.
+
+------------------------------------------------------------------------------
+Schema Overview (as of version 0.4.0)
+------------------------------------------------------------------------------
+
+The database contains three main tables:
+
+1) import_batches
+   One row per import batch, representing the origin of a set of entries.
+
+   Columns:
+   - id             INTEGER PRIMARY KEY AUTOINCREMENT
+   - created_at     TEXT    NOT NULL (ISO datetime, UTC)
+   - source_type    TEXT    NOT NULL  -- "csv" | "manual" | "api"
+   - source_label   TEXT    NOT NULL  -- file path, connector name, etc.
+   - rows_inserted  INTEGER NOT NULL
+   - notes          TEXT            -- optional human-readable notes
+
+   Import batches are used to group entries logically and capture metadata
+   about how they were created (file imports, manual entry batches, etc.).
+
+
+2) entries
+   Core table storing all accounting entries in the system.
+
+   Columns:
+   - id              INTEGER PRIMARY KEY AUTOINCREMENT
+   - date            TEXT    NOT NULL  -- ISO date "YYYY-MM-DD"
+   - code            TEXT    NOT NULL  -- account code (chart of accounts)
+   - description     TEXT
+   - amount_cents    INTEGER NOT NULL  -- signed integer amount in cents
+   - import_batch_id INTEGER NOT NULL  -- foreign key to import_batches.id
+
+   -- Mutation tracking (added in v0.4.0)
+   - updated_at      TEXT              -- UTC timestamp of last modification
+   - is_deleted      INTEGER NOT NULL DEFAULT 0
+   - deleted_at      TEXT              -- UTC timestamp when soft-deleted
+   - deleted_reason  TEXT              -- optional reason for deletion
+
+   Soft deletion allows entries to be marked as removed without being
+   physically deleted. Deleted entries are ignored by analytics and reporting
+   but can be searched, reviewed, restored, or permanently purged.
+
+
+3) duplicate_entries
+   Records entries that were detected as duplicates during an import.
+
+   Columns:
+   - id                  INTEGER PRIMARY KEY AUTOINCREMENT
+   - date                TEXT NOT NULL
+   - code                TEXT NOT NULL
+   - description         TEXT
+   - amount_cents        INTEGER NOT NULL
+   - import_batch_id     INTEGER NOT NULL
+   - imported_at         TEXT NOT NULL        -- timestamp of import batch
+   - existing_entry_id   INTEGER              -- id of the entry considered duplicate
+   - resolution_status   TEXT NOT NULL        -- "pending" | "kept" | "discarded"
+   - resolution_comment  TEXT
+
+   Duplicate detection is used to avoid inserting the same entry multiple times
+   when importing CSV files or syncing with external systems.
+
+------------------------------------------------------------------------------
+Key Responsibilities
+------------------------------------------------------------------------------
+
+1) Schema creation & migration
+   - On startup, this module ensures the schema exists and performs
+     in-place migrations when older versions are detected.
+   - The migration logic is idempotent and safe to run multiple times.
+
+2) Import batches
+   - The function `import_entries` inserts a new import batch and then loads
+     all entries from a DataFrame into the `entries` table.
+   - Import metadata (source type, label, timestamps) is stored centrally.
+
+3) Bulk import with duplicate detection
+   - During import, each row is checked for an existing matching entry.
+   - Exact matches are recorded in duplicate_entries with status="pending".
+
+4) CRUD operations (added in v0.4.0)
+   - `insert_entry` inserts a single new entry.
+   - `update_entry` performs partial updates with automatic updated_at handling.
+   - `soft_delete_entry` marks an entry as deleted (is_deleted=1) and
+     records deletion metadata.
+   - `restore_entry` reactivates a deleted entry.
+   - `get_entry_by_id` loads a fully enriched AccountingEntry, including
+     metadata from both entries and import_batches.
+
+5) Advanced search utilities
+   - `search_entries` accepts an EntriesFilter and supports:
+     * date ranges,
+     * exact or prefix account code matches,
+     * substring search in descriptions,
+     * amount bounds,
+     * filtering by import batch,
+     * inclusion/exclusion of deleted entries,
+     * pagination and sorting.
+
+6) Data types & dataclasses
+   - The module defines typed dataclasses for:
+     * `AccountingEntry` (enriched, JOINed view),
+     * `NewEntry`       (for inserts),
+     * `EntryUpdate`    (for partial edits),
+     * `EntriesFilter`  (for search queries),
+     * `ImportStats`    (for bulk import reporting).
+
+These structures provide a clean, typed interface for consumption by higher
+layers of the application such as the CLI or the upcoming Web UI (Streamlit).
+
+------------------------------------------------------------------------------
+SQLite Notes
+------------------------------------------------------------------------------
+
+- All timestamps are stored as ISO-8601 text (UTC).
+- Foreign key enforcement is explicitly enabled.
+- Migrations involving column removal are performed safely by rebuilding the
+  affected table (`entries`) and copying its content.
+- The database file is portable across platforms and can be bundled with a
+  packaged version of the application.
+
+------------------------------------------------------------------------------
+End of module description.
+------------------------------------------------------------------------------
 """
 
 from __future__ import annotations
@@ -75,6 +197,149 @@ class ImportStats:
     duplicates_detected: int
 
 
+SourceType = Literal["csv", "manual", "api"]
+"""
+Type alias for the origin of an import batch.
+
+Values
+------
+- "csv"   : imported from a CSV file.
+- "manual": created manually from the UI or CLI.
+- "api"   : imported from an external API or integration.
+"""
+
+
+@dataclass(frozen=True)
+class AccountingEntry:
+    """
+    Enriched representation of an accounting entry.
+
+    This dataclass is designed for higher-level services (CLI, Web UI) and
+    combines information coming from both `entries` and `import_batches`:
+
+    - Base entry fields (from `entries`):
+      * id
+      * date
+      * code
+      * description
+      * amount
+      * import_batch_id
+      * updated_at
+      * is_deleted
+      * deleted_at
+      * deleted_reason
+
+    - Batch metadata (from `import_batches`):
+      * source_type
+      * created_at (import timestamp)
+
+    All timestamps are stored in UTC in the database and converted back to
+    timezone-aware `datetime` objects when materializing `AccountingEntry`.
+    """
+
+    id: int
+
+    # Core accounting data
+    date: date
+    code: str
+    description: str | None
+    amount: float
+    import_batch_id: int
+
+    # Batch metadata (JOIN with import_batches)
+    source_type: SourceType | None
+    created_at: datetime | None
+
+    # Tracking metadata
+    updated_at: datetime | None
+    is_deleted: bool
+    deleted_at: datetime | None
+    deleted_reason: str | None
+
+
+@dataclass(frozen=True)
+class NewEntry:
+    """
+    Data required to create a new accounting entry.
+
+    Notes
+    -----
+    - Every entry must belong to an import batch. For manual entries, higher
+      level services are responsible for creating (or reusing) a dedicated
+      import batch with `source_type="manual"` and then passing its id here.
+    """
+
+    date: date
+    code: str
+    description: str | None
+    amount: float
+    import_batch_id: int
+
+
+@dataclass(frozen=True)
+class EntryUpdate:
+    """
+    Fields that can be updated on an existing accounting entry.
+
+    Each attribute is optional. Only non-None values are applied during
+    the update operation.
+
+    This dataclass is intentionally limited to business fields. Deletion
+    is handled by dedicated functions (`soft_delete_entry`, `restore_entry`)
+    rather than overloading this type.
+    """
+
+    date: date | None = None
+    code: str | None = None
+    description: str | None = None
+    amount: float | None = None
+
+
+@dataclass(frozen=True)
+class EntriesFilter:
+    """
+    Filters used to search accounting entries.
+
+    The filters can be combined. Date bounds are inclusive.
+
+    Attributes
+    ----------
+    start, end:
+        Inclusive date bounds (`date` column).
+    code_exact:
+        Exact account code match (e.g. "706000").
+    code_prefix:
+        Prefix match on account code (e.g. "70" to match all "70*").
+    description_contains:
+        Case-insensitive substring search on the description.
+    min_amount, max_amount:
+        Bounds on the signed amount (in monetary units).
+    import_batch_id:
+        Restrict search to a specific import batch.
+    include_deleted:
+        If False (default), returns only active entries.
+    deleted_only:
+        If True, returns only deleted entries. Takes precedence over
+        `include_deleted` when both are True.
+    """
+
+    start: date | None = None
+    end: date | None = None
+
+    code_exact: str | None = None
+    code_prefix: str | None = None
+
+    description_contains: str | None = None
+
+    min_amount: float | None = None
+    max_amount: float | None = None
+
+    import_batch_id: int | None = None
+
+    include_deleted: bool = False
+    deleted_only: bool = False
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -102,9 +367,138 @@ def _connect(cfg: DatabaseConfig) -> sqlite3.Connection:
     return conn
 
 
+def _get_table_columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    """
+    Return the set of column names for the given table.
+
+    Parameters
+    ----------
+    conn:
+        Open SQLite connection.
+    table:
+        Table name.
+
+    Returns
+    -------
+    set[str]
+        Set of column names for the table.
+    """
+    cur = conn.execute(f"PRAGMA table_info({table});")
+    return {row[1] for row in cur.fetchall()}
+
+
+def _migrate_schema_if_needed(conn: sqlite3.Connection) -> None:
+    """
+    Migrate the database schema to the 0.4.0 layout if required.
+
+    This function is idempotent and safe to call multiple times. It performs
+    lightweight migrations in-place when older schemas are detected:
+
+    - import_batches:
+        * add `notes` column if missing.
+
+    - entries:
+        * ensure soft-delete related columns (`updated_at`, `is_deleted`,
+          `deleted_at`, `deleted_reason`) exist.
+        * drop legacy `imported_at` column by rebuilding the table when needed.
+
+    Notes
+    -----
+    - Foreign key enforcement is temporarily disabled while rebuilding the
+      `entries` table to avoid constraint issues when renaming the table.
+    - Existing data is preserved and new columns are initialized with sensible
+      defaults (`is_deleted = 0`, others = NULL).
+    """
+
+    # --- import_batches: ensure 'notes' column exists --------------------------------
+    batch_columns = _get_table_columns(conn, "import_batches")
+    if "notes" not in batch_columns:
+        conn.execute("ALTER TABLE import_batches ADD COLUMN notes TEXT;")
+
+    # --- entries: ensure new soft-delete columns & drop legacy 'imported_at' --------
+    entry_columns = _get_table_columns(conn, "entries")
+    if not entry_columns:
+        # Table does not exist yet: nothing to migrate.
+        return
+
+    needs_rebuild = False
+
+    # We want to remove 'imported_at' from entries in 0.4.0.
+    if "imported_at" in entry_columns:
+        needs_rebuild = True
+
+    # We also require the new columns to be present.
+    required_new_columns = {"updated_at", "is_deleted", "deleted_at", "deleted_reason"}
+    if not required_new_columns.issubset(entry_columns):
+        needs_rebuild = True
+
+    if not needs_rebuild:
+        return
+
+    # Temporarily disable foreign key checks while rebuilding the table.
+    conn.execute("PRAGMA foreign_keys = OFF;")
+    try:
+        # Rename the old table.
+        conn.execute("ALTER TABLE entries RENAME TO entries_old;")
+
+        # Create the new table with the desired schema.
+        conn.execute(
+            """
+            CREATE TABLE entries (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                date            TEXT    NOT NULL,  -- ISO date 'YYYY-MM-DD'
+                code            TEXT    NOT NULL,
+                description     TEXT,
+                amount_cents    INTEGER NOT NULL,
+                import_batch_id INTEGER NOT NULL,
+                updated_at      TEXT,
+                is_deleted      INTEGER NOT NULL DEFAULT 0,
+                deleted_at      TEXT,
+                deleted_reason  TEXT,
+
+                FOREIGN KEY (import_batch_id) REFERENCES import_batches(id)
+            );
+            """
+        )
+
+        # Copy data from the old table, initializing the new columns.
+        conn.execute(
+            """
+            INSERT INTO entries (
+                id,
+                date,
+                code,
+                description,
+                amount_cents,
+                import_batch_id,
+                updated_at,
+                is_deleted,
+                deleted_at,
+                deleted_reason
+            )
+            SELECT
+                id,
+                date,
+                code,
+                description,
+                amount_cents,
+                import_batch_id,
+                NULL        AS updated_at,
+                0           AS is_deleted,
+                NULL        AS deleted_at,
+                NULL        AS deleted_reason
+            FROM entries_old;
+            """
+        )
+
+        conn.execute("DROP TABLE entries_old;")
+    finally:
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+
 def _create_schema_if_needed(conn: sqlite3.Connection) -> None:
     """
-    Create tables and indexes if they do not exist yet.
+    Create tables and indexes if they do not exist yet and migrate the schema.
 
     This function is idempotent and can be called multiple times safely.
     """
@@ -117,7 +511,8 @@ def _create_schema_if_needed(conn: sqlite3.Connection) -> None:
             created_at    TEXT    NOT NULL,
             source_type   TEXT    NOT NULL,
             source_label  TEXT    NOT NULL,
-            rows_inserted INTEGER NOT NULL DEFAULT 0
+            rows_inserted INTEGER NOT NULL DEFAULT 0,
+            notes         TEXT
         );
         """
     )
@@ -132,7 +527,10 @@ def _create_schema_if_needed(conn: sqlite3.Connection) -> None:
             description     TEXT,
             amount_cents    INTEGER NOT NULL,
             import_batch_id INTEGER NOT NULL,
-            imported_at     TEXT    NOT NULL,  -- ISO datetime in UTC
+            updated_at      TEXT,
+            is_deleted      INTEGER NOT NULL DEFAULT 0,
+            deleted_at      TEXT,
+            deleted_reason  TEXT,
 
             FOREIGN KEY (import_batch_id) REFERENCES import_batches(id)
         );
@@ -155,13 +553,16 @@ def _create_schema_if_needed(conn: sqlite3.Connection) -> None:
             -- 'pending' | 'kept' | 'discarded'
             resolution_comment  TEXT,
 
-            FOREIGN KEY (import_batch_id)   REFERENCES import_batches(id),
+            FOREIGN KEY (import_batch_id) REFERENCES import_batches(id),
             FOREIGN KEY (existing_entry_id) REFERENCES entries(id)
         );
         """
     )
 
-    # Indexes for performance (keep it minimal for 0.3.0)
+    # Apply schema migrations for existing databases (0.4.0 and onwards).
+    _migrate_schema_if_needed(conn)
+
+    # Indexes
     conn.execute(
         """
         CREATE INDEX IF NOT EXISTS idx_entries_date
@@ -238,7 +639,7 @@ def import_entries(
     df: pd.DataFrame,
     cfg: DatabaseConfig,
     *,
-    source_type: Literal["csv", "manual", "api"] = "csv",
+    source_type: SourceType = "csv",
     source_label: str,
     imported_at: datetime | None = None,
 ) -> ImportStats:
@@ -266,7 +667,10 @@ def import_entries(
         Stored in import_batches.source_label.
 
     imported_at:
-        Timestamp to associate with the import. If None, uses datetime.utcnow().
+        Timestamp to associate with the import. If None, uses the current
+        UTC time. The value is stored in `import_batches.created_at` and in
+        `duplicate_entries.imported_at` for potential duplicates.
+
 
     Behavior
     --------
@@ -352,10 +756,17 @@ def import_entries(
                 cur.execute(
                     """
                     INSERT INTO entries (
-                        date, code, description, amount_cents,
-                        import_batch_id, imported_at
+                        date,
+                        code,
+                        description,
+                        amount_cents,
+                        import_batch_id,
+                        updated_at,
+                        is_deleted,
+                        deleted_at,
+                        deleted_reason
                     )
-                    VALUES (?, ?, ?, ?, ?, ?);
+                    VALUES (?, ?, ?, ?, ?, NULL, 0, NULL, NULL);
                     """,
                     (
                         iso_date,
@@ -363,10 +774,10 @@ def import_entries(
                         description,
                         amount_cents,
                         batch_id,
-                        imported_at_iso,
                     ),
                 )
                 rows_inserted += 1
+
             else:
                 # Potential duplicate -> insert into duplicate_entries
                 existing_entry_id = row_existing[0]
@@ -464,10 +875,12 @@ def load_entries(
             SELECT date, code, description, amount_cents
               FROM entries
              WHERE date BETWEEN ? AND ?
+               AND is_deleted = 0
              ORDER BY date, id;
             """,
             (start_iso, end_iso),
         )
+
         rows = cur.fetchall()
     finally:
         conn.close()
@@ -495,7 +908,7 @@ def has_entries(cfg: DatabaseConfig) -> bool:
     conn = _connect(cfg)
     try:
         cur = conn.cursor()
-        cur.execute("SELECT 1 FROM entries LIMIT 1;")
+        cur.execute("SELECT 1 FROM entries WHERE is_deleted = 0 LIMIT 1;")
         return cur.fetchone() is not None
     finally:
         conn.close()
@@ -538,4 +951,515 @@ def list_import_batches(cfg: DatabaseConfig) -> pd.DataFrame:
         columns=["id", "created_at", "source_type", "source_label", "rows_inserted"],
     )
     df["created_at"] = pd.to_datetime(df["created_at"])
+    return df
+
+
+# ---------------------------------------------------------------------------
+# CRUD and search helpers for entries
+# ---------------------------------------------------------------------------
+
+
+def _row_to_accounting_entry(row: tuple) -> AccountingEntry:
+    """
+    Convert a database row (as returned by cursor.fetchone / fetchall) into
+    an AccountingEntry instance.
+
+    Expected row layout:
+      (id, date, code, description, amount_cents, import_batch_id,
+       source_type, created_at, updated_at, is_deleted, deleted_at, deleted_reason)
+    """
+    (
+        entry_id,
+        date_str,
+        code,
+        description,
+        amount_cents,
+        import_batch_id,
+        source_type,
+        created_at_str,
+        updated_at_str,
+        is_deleted_int,
+        deleted_at_str,
+        deleted_reason,
+    ) = row
+
+    entry_date = date.fromisoformat(date_str)
+
+    created_at = (
+        datetime.fromisoformat(created_at_str) if created_at_str is not None else None
+    )
+    updated_at = (
+        datetime.fromisoformat(updated_at_str) if updated_at_str is not None else None
+    )
+    deleted_at = (
+        datetime.fromisoformat(deleted_at_str) if deleted_at_str is not None else None
+    )
+
+    is_deleted = bool(is_deleted_int)
+
+    amount = float(amount_cents) / 100.0
+
+    return AccountingEntry(
+        id=entry_id,
+        date=entry_date,
+        code=code,
+        description=description,
+        amount=amount,
+        import_batch_id=import_batch_id,
+        source_type=source_type,
+        created_at=created_at,
+        updated_at=updated_at,
+        is_deleted=is_deleted,
+        deleted_at=deleted_at,
+        deleted_reason=deleted_reason,
+    )
+
+
+def get_entry_by_id(cfg: DatabaseConfig, entry_id: int) -> AccountingEntry | None:
+    """
+    Load a single accounting entry by id, including batch metadata.
+
+    Parameters
+    ----------
+    cfg:
+        Database configuration.
+    entry_id:
+        Identifier of the entry in `entries.id`.
+
+    Returns
+    -------
+    AccountingEntry | None
+        The matching entry, or None if not found.
+    """
+    init_database(cfg)
+
+    conn = _connect(cfg)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT
+                e.id,
+                e.date,
+                e.code,
+                e.description,
+                e.amount_cents,
+                e.import_batch_id,
+                b.source_type,
+                b.created_at,
+                e.updated_at,
+                e.is_deleted,
+                e.deleted_at,
+                e.deleted_reason
+            FROM entries AS e
+            JOIN import_batches AS b
+              ON e.import_batch_id = b.id
+           WHERE e.id = ?;
+            """,
+            (entry_id,),
+        )
+        row = cur.fetchone()
+    finally:
+        conn.close()
+
+    if row is None:
+        return None
+
+    return _row_to_accounting_entry(row)
+
+
+def insert_entry(cfg: DatabaseConfig, new_entry: NewEntry) -> AccountingEntry:
+    """
+    Insert a new accounting entry into the database.
+
+    Notes
+    -----
+    - The `import_batch_id` must reference an existing row in `import_batches`.
+      Higher-level services are responsible for creating manual batches when
+      needed.
+    """
+    init_database(cfg)
+
+    iso_date = new_entry.date.isoformat()
+    amount_cents = int(round(new_entry.amount * 100))
+
+    conn = _connect(cfg)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO entries (
+                date,
+                code,
+                description,
+                amount_cents,
+                import_batch_id,
+                updated_at,
+                is_deleted,
+                deleted_at,
+                deleted_reason
+            )
+            VALUES (?, ?, ?, ?, ?, NULL, 0, NULL, NULL);
+            """,
+            (
+                iso_date,
+                new_entry.code,
+                new_entry.description,
+                amount_cents,
+                new_entry.import_batch_id,
+            ),
+        )
+        entry_id = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+
+    result = get_entry_by_id(cfg, entry_id)
+    if result is None:
+        msg = f"Entry #{entry_id} was just inserted but could not be reloaded."
+        raise RuntimeError(msg)
+    return result
+
+
+def update_entry(
+    cfg: DatabaseConfig,
+    entry_id: int,
+    update: EntryUpdate,
+) -> AccountingEntry:
+    """
+    Apply a partial update to an existing accounting entry.
+
+    Parameters
+    ----------
+    cfg:
+        Database configuration.
+    entry_id:
+        Identifier of the entry in `entries.id`.
+    update:
+        Fields to update. Only non-None attributes are applied.
+
+    Returns
+    -------
+    AccountingEntry
+        The updated entry.
+
+    Raises
+    ------
+    ValueError
+        If no fields are provided for update.
+    """
+    init_database(cfg)
+
+    fields: list[str] = []
+    params: list[object] = []
+
+    if update.date is not None:
+        fields.append("date = ?")
+        params.append(update.date.isoformat())
+    if update.code is not None:
+        fields.append("code = ?")
+        params.append(update.code)
+    if update.description is not None:
+        fields.append("description = ?")
+        params.append(update.description)
+    if update.amount is not None:
+        amount_cents = int(round(update.amount * 100))
+        fields.append("amount_cents = ?")
+        params.append(amount_cents)
+
+    if not fields:
+        raise ValueError("No fields to update in EntryUpdate.")
+
+    # Always update the updated_at timestamp
+    updated_at_iso = _now_utc_iso()
+    fields.append("updated_at = ?")
+    params.append(updated_at_iso)
+
+    params.append(entry_id)
+
+    conn = _connect(cfg)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"""
+            UPDATE entries
+               SET {", ".join(fields)}
+             WHERE id = ?;
+            """,
+            params,
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    result = get_entry_by_id(cfg, entry_id)
+    if result is None:
+        msg = f"Entry #{entry_id} was updated but could not be reloaded."
+        raise RuntimeError(msg)
+    return result
+
+
+def soft_delete_entry(
+    cfg: DatabaseConfig,
+    entry_id: int,
+    reason: str | None = None,
+) -> AccountingEntry:
+    """
+    Soft-delete an entry by marking it as deleted.
+
+    Parameters
+    ----------
+    cfg:
+        Database configuration.
+    entry_id:
+        Identifier of the entry in `entries.id`.
+    reason:
+        Optional human-readable reason for the deletion. This is stored in
+        `deleted_reason` and can later be displayed in an audit / recycle bin
+        view.
+
+    Returns
+    -------
+    AccountingEntry
+        The deleted entry (after update).
+    """
+    init_database(cfg)
+
+    deleted_at_iso = _now_utc_iso()
+
+    conn = _connect(cfg)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            UPDATE entries
+               SET is_deleted    = 1,
+                   deleted_at    = ?,
+                   deleted_reason = ?,
+                   updated_at    = ?
+             WHERE id = ?;
+            """,
+            (deleted_at_iso, reason, deleted_at_iso, entry_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    result = get_entry_by_id(cfg, entry_id)
+    if result is None:
+        msg = f"Entry #{entry_id} was soft-deleted but could not be reloaded."
+        raise RuntimeError(msg)
+    return result
+
+
+def restore_entry(cfg: DatabaseConfig, entry_id: int) -> AccountingEntry:
+    """
+    Restore a soft-deleted entry by clearing the deletion flags.
+
+    Parameters
+    ----------
+    cfg:
+        Database configuration.
+    entry_id:
+        Identifier of the entry in `entries.id`.
+
+    Returns
+    -------
+    AccountingEntry
+        The restored entry.
+    """
+    init_database(cfg)
+
+    updated_at_iso = _now_utc_iso()
+
+    conn = _connect(cfg)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            UPDATE entries
+               SET is_deleted     = 0,
+                   deleted_at     = NULL,
+                   deleted_reason = NULL,
+                   updated_at     = ?
+             WHERE id = ?;
+            """,
+            (updated_at_iso, entry_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    result = get_entry_by_id(cfg, entry_id)
+    if result is None:
+        msg = f"Entry #{entry_id} was restored but could not be reloaded."
+        raise RuntimeError(msg)
+    return result
+
+
+def search_entries(
+    cfg: DatabaseConfig,
+    filters: EntriesFilter,
+    *,
+    limit: int | None = None,
+    offset: int = 0,
+    order_by: tuple[str, str] = ("date", "ASC"),
+) -> pd.DataFrame:
+    """
+    Search accounting entries using the given filters.
+
+    The returned DataFrame is intended for listing / UI use and includes
+    both entry and batch metadata.
+
+    Result columns
+    --------------
+    - id
+    - date
+    - code
+    - description
+    - amount
+    - import_batch_id
+    - source_type
+    - created_at
+    - updated_at
+    - is_deleted
+    - deleted_at
+    - deleted_reason
+    """
+    init_database(cfg)
+
+    where_clauses: list[str] = ["1 = 1"]
+    params: list[object] = []
+
+    if filters.start is not None:
+        where_clauses.append("e.date >= ?")
+        params.append(filters.start.isoformat())
+    if filters.end is not None:
+        where_clauses.append("e.date <= ?")
+        params.append(filters.end.isoformat())
+
+    if filters.code_exact is not None:
+        where_clauses.append("e.code = ?")
+        params.append(filters.code_exact)
+    elif filters.code_prefix is not None:
+        where_clauses.append("e.code LIKE ?")
+        params.append(filters.code_prefix + "%")
+
+    if filters.description_contains is not None:
+        where_clauses.append("LOWER(e.description) LIKE ?")
+        params.append(f"%{filters.description_contains.lower()}%")
+
+    if filters.min_amount is not None:
+        where_clauses.append("e.amount_cents >= ?")
+        params.append(int(round(filters.min_amount * 100)))
+    if filters.max_amount is not None:
+        where_clauses.append("e.amount_cents <= ?")
+        params.append(int(round(filters.max_amount * 100)))
+
+    if filters.import_batch_id is not None:
+        where_clauses.append("e.import_batch_id = ?")
+        params.append(filters.import_batch_id)
+
+    if filters.deleted_only:
+        where_clauses.append("e.is_deleted = 1")
+    elif not filters.include_deleted:
+        where_clauses.append("e.is_deleted = 0")
+
+    # Validate and build ORDER BY clause
+    allowed_order_columns = {"date", "code", "amount", "id"}
+    order_column, order_direction = order_by
+    if order_column not in allowed_order_columns:
+        raise ValueError(f"Invalid order_by column: {order_column!r}")
+    order_direction_upper = order_direction.upper()
+    if order_direction_upper not in {"ASC", "DESC"}:
+        raise ValueError(f"Invalid order_by direction: {order_direction!r}")
+
+    if order_column == "amount":
+        order_expr = "e.amount_cents"
+    else:
+        order_expr = f"e.{order_column}"
+
+    order_clause = (
+        f"ORDER BY {order_expr} {order_direction_upper}, e.id {order_direction_upper}"
+    )
+
+    limit_clause = ""
+    if limit is not None:
+        limit_clause = " LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+    query = f"""
+        SELECT
+            e.id,
+            e.date,
+            e.code,
+            e.description,
+            e.amount_cents,
+            e.import_batch_id,
+            b.source_type,
+            b.created_at,
+            e.updated_at,
+            e.is_deleted,
+            e.deleted_at,
+            e.deleted_reason
+        FROM entries AS e
+        JOIN import_batches AS b
+          ON e.import_batch_id = b.id
+       WHERE {' AND '.join(where_clauses)}
+       {order_clause}
+       {limit_clause};
+    """
+
+    conn = _connect(cfg)
+    try:
+        cur = conn.cursor()
+        cur.execute(query, params)
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        return pd.DataFrame(
+            columns=[
+                "id",
+                "date",
+                "code",
+                "description",
+                "amount",
+                "import_batch_id",
+                "source_type",
+                "created_at",
+                "updated_at",
+                "is_deleted",
+                "deleted_at",
+                "deleted_reason",
+            ]
+        )
+
+    df = pd.DataFrame(
+        rows,
+        columns=[
+            "id",
+            "date",
+            "code",
+            "description",
+            "amount_cents",
+            "import_batch_id",
+            "source_type",
+            "created_at",
+            "updated_at",
+            "is_deleted",
+            "deleted_at",
+            "deleted_reason",
+        ],
+    )
+
+    # Type conversions
+    df["date"] = pd.to_datetime(df["date"]).dt.date
+    df["created_at"] = pd.to_datetime(df["created_at"])
+    df["updated_at"] = pd.to_datetime(df["updated_at"], errors="coerce")
+    df["deleted_at"] = pd.to_datetime(df["deleted_at"], errors="coerce")
+
+    df["amount"] = df["amount_cents"].astype(float) / 100.0
+    df = df.drop(columns=["amount_cents"])
     return df

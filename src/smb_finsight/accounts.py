@@ -13,6 +13,8 @@ Responsibilities:
 - Filter accounting entries to keep only those whose account codes exist in this list,
   now accepting entries that match the **closest known ancestor** by prefix.
   Entries are ignored only if **no** prefix of the code exists in the list.
+- Split entries into *known* and *unknown* accounts for reporting purposes.
+- Build summary reports for unknown accounts (per account code).
 """
 
 from typing import Optional
@@ -111,6 +113,51 @@ def _resolve_to_known_account(code: str, known_codes: set[str]) -> Optional[str]
     return None
 
 
+def split_known_and_unknown_accounts(
+    accounting_entries: pd.DataFrame,
+    known_codes: set[str],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Split accounting entries into two DataFrames based on the chart of accounts.
+
+    The matching rule is the same as in `filter_unknown_accounts`:
+    - an entry is considered *known* if its account code is present in the
+      chart of accounts OR if one of its prefixes is present (closest ancestor);
+    - an entry is considered *unknown* if **no** prefix matches any known code.
+
+    Parameters
+    ----------
+    accounting_entries:
+        DataFrame containing at least a 'code' column. The column is cast to
+        string and stripped before matching.
+    known_codes:
+        Set of valid account codes (from the chart of accounts CSV).
+
+    Returns
+    -------
+    (known_entries, unknown_entries) : tuple of pandas.DataFrame
+        Two DataFrames with the same columns as `accounting_entries`:
+        - known_entries: rows whose account code (or ancestor) exists
+          in the chart of accounts.
+        - unknown_entries: rows whose account code does not match any
+          known prefix.
+    """
+    df = accounting_entries.copy()
+    df["code"] = df["code"].astype(str).str.strip()
+
+    keep_mask: list[bool] = []
+    for _, row in df.iterrows():
+        code = row["code"]
+        resolved = _resolve_to_known_account(code, known_codes)
+        keep = resolved is not None
+        keep_mask.append(keep)
+
+    mask = pd.Series(keep_mask, index=df.index)
+    known = df[mask].copy()
+    unknown = df[~mask].copy()
+    return known, unknown
+
+
 def filter_unknown_accounts(
     accounting_entries: pd.DataFrame, known_codes: set[str]
 ) -> pd.DataFrame:
@@ -133,16 +180,58 @@ def filter_unknown_accounts(
         Filtered DataFrame including only entries that map to a known or
         ancestor account code.
     """
-    df = accounting_entries.copy()
+    known, unknown = split_known_and_unknown_accounts(accounting_entries, known_codes)
+
+    # Preserve legacy behaviour: print each unknown code to stdout.
+    for code in unknown["code"].astype(str).unique():
+        print(f"Unknown account code {code}, ignored")
+
+    return known
+
+
+def summarize_unknown_accounts(unknown_entries: pd.DataFrame) -> pd.DataFrame:
+    """
+    Build a summary report for entries whose account code is unknown.
+
+    The summary groups unknown entries by their raw account code and computes:
+    - the number of entries per code,
+    - the total signed amount per code (if an 'amount' column is present).
+
+    Parameters
+    ----------
+    unknown_entries:
+        DataFrame of entries considered "unknown". It must contain a 'code'
+        column. If it also contains an 'amount' column (in monetary units),
+        a 'total_amount' column will be computed in the summary.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Summary DataFrame with at least:
+        - 'code'
+        - 'entries_count'
+
+        If 'amount' is present in `unknown_entries`, the summary will also
+        include:
+        - 'total_amount'
+    """
+    if unknown_entries.empty:
+        return pd.DataFrame(columns=["code", "entries_count", "total_amount"])
+
+    df = unknown_entries.copy()
     df["code"] = df["code"].astype(str).str.strip()
 
-    keep_mask = []
-    for _, row in df.iterrows():
-        code = row["code"]
-        resolved = _resolve_to_known_account(code, known_codes)
-        keep = resolved is not None
-        keep_mask.append(keep)
-        if not keep:
-            print(f"Unknown account code {code}, ignored")
+    has_amount = "amount" in df.columns
 
-    return df[pd.Series(keep_mask, index=df.index)].copy()
+    if has_amount:
+        grouped = df.groupby("code", as_index=False).agg(
+            entries_count=("code", "size"),
+            total_amount=("amount", "sum"),
+        )
+    else:
+        grouped = df.groupby("code", as_index=False).agg(
+            entries_count=("code", "size"),
+        )
+        grouped["total_amount"] = float("nan")
+
+    return grouped[["code", "entries_count", "total_amount"]]
