@@ -330,18 +330,134 @@ and the standard-specific configuration is correctly set up.
         --display-mode csv \\
         --output reports/output_fy_last
 
+======================================================================
+Entries subcommands (CRUD) — added in version 0.4.0
+======================================================================
+
+Starting with v0.4.0, the CLI exposes a complete CRUD interface for
+accounting entries stored in the SQLite database. This replaces the
+need to manipulate entries via CSV files once imported, and forms the
+foundation for the upcoming Streamlit Web UI (v0.5.x).
+
+The ``entries`` command group provides:
+
+- listing entries for a period,
+- free-form search across the entire DB,
+- soft deletion with reasons,
+- restoration of deleted entries,
+- reporting unknown account codes.
+
+These commands operate *after* database initialization and optional
+CSV imports.
+
+
+entries list
+------------
+
+List accounting entries for a reporting period, using the same period
+selection rules as the main pipeline:
+
+    python -m smb_finsight.cli entries list --period ytd
+    python -m smb_finsight.cli entries list --from-date 2025-01-01 --to-date 2025-03-31
+
+Filters include:
+
+- ``--code`` or ``--code-prefix``
+- ``--description-contains``
+- ``--min-amount`` / ``--max-amount``
+- ``--batch-id``
+- ``--include-deleted`` / ``--deleted-only``
+- ``--limit`` / ``--offset``
+- ``--order-by`` / ``--order-direction``
+
+
+entries search
+--------------
+
+Search entries across the entire database without period constraints:
+
+    python -m smb_finsight.cli entries search --code-prefix 70
+    python -m smb_finsight.cli entries search --description-contains stripe
+
+Optional date bounds:
+
+- ``--from-date``
+- ``--to-date``
+
+This is ideal for developers, auditors, and debugging workflows.
+
+
+entries delete
+--------------
+
+Soft-delete a single entry:
+
+    python -m smb_finsight.cli entries delete 42 --reason "duplicate"
+
+Soft deletes set:
+
+- ``is_deleted = 1``
+- ``deleted_at = UTC timestamp``
+- ``deleted_reason = <user text>``
+
+
+entries restore
+---------------
+
+Restore an entry that was previously soft-deleted:
+
+    python -m smb_finsight.cli entries restore 42
+
+This clears deletion fields and updates ``updated_at``.
+
+
+entries unknown-accounts
+------------------------
+
+Report unknown account codes for a selected period, based on
+prefix-matching against the chart of accounts:
+
+    python -m smb_finsight.cli entries unknown-accounts --period fy
+    python -m smb_finsight.cli entries unknown-accounts --show-entries
+
+Returns:
+
+- summary per unknown account code,
+- optional detailed list of all unknown entries.
+
+This is the main diagnostic tool for detecting unmapped or invalid
+accounts after imports.
+
+
+
+End of module description.
 """
 
 import argparse
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
 from . import __version__
 from .accounts import filter_unknown_accounts, load_list_of_accounts
 from .config import load_app_config
-from .db import has_entries, import_entries, init_database, load_entries
+from .db import EntriesFilter, has_entries, import_entries, init_database, load_entries
 from .engine import aggregate, build_canonical_measures
+from .entries_service import (
+    delete_entry as service_delete_entry,
+)
+from .entries_service import (
+    list_entries_for_period,
+)
+from .entries_service import (
+    restore_deleted_entry as service_restore_entry,
+)
+from .entries_service import (
+    search_entries as service_search_entries,
+)
+from .entries_service import (
+    unknown_accounts_report_for_period as service_unknown_accounts_report,
+)
 from .io import read_accounting_entries
 from .mapping import Template
 from .periods import determine_period_from_args
@@ -507,7 +623,625 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    # ------------------------------------------------------------------
+    # Subcommands: entries
+    # ------------------------------------------------------------------
+    subparsers = ap.add_subparsers(
+        dest="command",
+        metavar="command",
+        help="Optional subcommands (e.g. 'entries') for inspecting data.",
+    )
+
+    # `entries` group: high-level operations on accounting entries.
+    entries_parser = subparsers.add_parser(
+        "entries",
+        help="Inspect and manage accounting entries stored in the database.",
+    )
+
+    entries_subparsers = entries_parser.add_subparsers(
+        dest="entries_command",
+        metavar="entries-command",
+        help="Entries subcommands (e.g. 'list').",
+    )
+
+    # ------------------------------------------------------------------
+    # entries list
+    # ------------------------------------------------------------------
+    entries_list = entries_subparsers.add_parser(
+        "list",
+        help="List accounting entries for a reporting period.",
+    )
+
+    # Period selection (duplicated from top-level arguments so that
+    # users can write: `entries list --period ytd`).
+    entries_list.add_argument(
+        "--period",
+        choices=["fy", "ytd", "mtd", "last-month", "last-fy"],
+        help=(
+            "Named reporting period. If omitted, falls back to the default "
+            "fiscal year behaviour defined in the configuration."
+        ),
+    )
+    entries_list.add_argument(
+        "--from-date",
+        dest="from_date",
+        help="Custom start date (YYYY-MM-DD). Overrides --period when set.",
+    )
+    entries_list.add_argument(
+        "--to-date",
+        dest="to_date",
+        help="Custom end date (YYYY-MM-DD). Overrides --period when set.",
+    )
+
+    entries_list.add_argument(
+        "--code",
+        help="Filter by exact account code.",
+    )
+    entries_list.add_argument(
+        "--code-prefix",
+        dest="code_prefix",
+        help="Filter by account code prefix (e.g. '70' for all 70* accounts).",
+    )
+    entries_list.add_argument(
+        "--description-contains",
+        dest="description_contains",
+        help="Case-insensitive substring to search in the entry description.",
+    )
+    entries_list.add_argument(
+        "--min-amount",
+        dest="min_amount",
+        type=float,
+        help="Minimum amount (inclusive, in monetary units).",
+    )
+    entries_list.add_argument(
+        "--max-amount",
+        dest="max_amount",
+        type=float,
+        help="Maximum amount (inclusive, in monetary units).",
+    )
+    entries_list.add_argument(
+        "--batch-id",
+        dest="import_batch_id",
+        type=int,
+        help="Restrict to entries belonging to a specific import batch id.",
+    )
+    entries_list.add_argument(
+        "--include-deleted",
+        action="store_true",
+        help="Include soft-deleted entries in the results.",
+    )
+    entries_list.add_argument(
+        "--deleted-only",
+        action="store_true",
+        help="Return only soft-deleted entries.",
+    )
+    entries_list.add_argument(
+        "--limit",
+        type=int,
+        help="Maximum number of entries to display (for pagination).",
+    )
+    entries_list.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        help="Number of entries to skip before starting to display results.",
+    )
+    entries_list.add_argument(
+        "--order-by",
+        dest="order_by",
+        choices=["date", "code", "amount", "id"],
+        default="date",
+        help="Column used to sort entries (default: date).",
+    )
+    entries_list.add_argument(
+        "--order-direction",
+        dest="order_direction",
+        choices=["asc", "desc"],
+        default="asc",
+        help="Sort direction: 'asc' or 'desc' (default: asc).",
+    )
+
+    # ------------------------------------------------------------------
+    # entries search
+    # ------------------------------------------------------------------
+    entries_search = entries_subparsers.add_parser(
+        "search",
+        help="Search accounting entries across the entire database.",
+    )
+
+    entries_search.add_argument(
+        "--from-date",
+        dest="from_date",
+        help="Optional start date (YYYY-MM-DD) for filtering entries.",
+    )
+    entries_search.add_argument(
+        "--to-date",
+        dest="to_date",
+        help="Optional end date (YYYY-MM-DD) for filtering entries.",
+    )
+    entries_search.add_argument(
+        "--code",
+        help="Filter by exact account code.",
+    )
+    entries_search.add_argument(
+        "--code-prefix",
+        dest="code_prefix",
+        help="Filter by account code prefix (e.g. '70' for all 70* accounts).",
+    )
+    entries_search.add_argument(
+        "--description-contains",
+        dest="description_contains",
+        help="Case-insensitive substring to search in the entry description.",
+    )
+    entries_search.add_argument(
+        "--min-amount",
+        dest="min_amount",
+        type=float,
+        help="Minimum amount (inclusive, in monetary units).",
+    )
+    entries_search.add_argument(
+        "--max-amount",
+        dest="max_amount",
+        type=float,
+        help="Maximum amount (inclusive, in monetary units).",
+    )
+    entries_search.add_argument(
+        "--batch-id",
+        dest="import_batch_id",
+        type=int,
+        help="Restrict to entries belonging to a specific import batch id.",
+    )
+    entries_search.add_argument(
+        "--include-deleted",
+        action="store_true",
+        help="Include soft-deleted entries in the results.",
+    )
+    entries_search.add_argument(
+        "--deleted-only",
+        action="store_true",
+        help="Return only soft-deleted entries.",
+    )
+    entries_search.add_argument(
+        "--limit",
+        type=int,
+        help="Maximum number of entries to display (for pagination).",
+    )
+    entries_search.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        help="Number of entries to skip before starting to display results.",
+    )
+    entries_search.add_argument(
+        "--order-by",
+        dest="order_by",
+        choices=["date", "code", "amount", "id"],
+        default="date",
+        help="Column used to sort entries (default: date).",
+    )
+    entries_search.add_argument(
+        "--order-direction",
+        dest="order_direction",
+        choices=["asc", "desc"],
+        default="asc",
+        help="Sort direction: 'asc' or 'desc' (default: asc).",
+    )
+
+    # ------------------------------------------------------------------
+    # entries delete
+    # ------------------------------------------------------------------
+    entries_delete = entries_subparsers.add_parser(
+        "delete",
+        help="Soft-delete a single accounting entry by id.",
+    )
+
+    entries_delete.add_argument(
+        "entry_id",
+        type=int,
+        help="Identifier of the entry to delete.",
+    )
+    entries_delete.add_argument(
+        "--reason",
+        help=(
+            "Optional human-readable reason for the deletion. "
+            "This is stored in the database and can be displayed in "
+            "a recycle-bin view or for audit purposes."
+        ),
+    )
+
+    # ------------------------------------------------------------------
+    # entries restore
+    # ------------------------------------------------------------------
+    entries_restore = entries_subparsers.add_parser(
+        "restore",
+        help="Restore a previously soft-deleted accounting entry by id.",
+    )
+
+    entries_restore.add_argument(
+        "entry_id",
+        type=int,
+        help="Identifier of the entry to restore.",
+    )
+
+    # ------------------------------------------------------------------
+    # entries unknown-accounts
+    # ------------------------------------------------------------------
+    entries_unknown = entries_subparsers.add_parser(
+        "unknown-accounts",
+        help=(
+            "Report on accounting entries whose account code is not present "
+            "in the chart of accounts for the active standard."
+        ),
+    )
+
+    # Period selection (same behaviour as 'entries list').
+    entries_unknown.add_argument(
+        "--period",
+        choices=["fy", "ytd", "mtd", "last-month", "last-fy"],
+        help=(
+            "Named reporting period. If omitted, falls back to the default "
+            "fiscal year behaviour defined in the configuration."
+        ),
+    )
+    entries_unknown.add_argument(
+        "--from-date",
+        dest="from_date",
+        help="Custom start date (YYYY-MM-DD). Overrides --period when set.",
+    )
+    entries_unknown.add_argument(
+        "--to-date",
+        dest="to_date",
+        help="Custom end date (YYYY-MM-DD). Overrides --period when set.",
+    )
+    entries_unknown.add_argument(
+        "--show-entries",
+        action="store_true",
+        help=(
+            "Also display the full list of unknown entries, not only the "
+            "summary per account code."
+        ),
+    )
+
     return ap
+
+
+def _parse_optional_date(value: Optional[str]) -> Optional[date]:
+    """
+    Parse an optional CLI date argument (YYYY-MM-DD).
+
+    Parameters
+    ----------
+    value:
+        String value passed from the CLI, or None.
+
+    Returns
+    -------
+    datetime.date or None
+        Parsed date if value is not None, otherwise None.
+
+    Raises
+    ------
+    SystemExit
+        If the date format is invalid.
+    """
+    if value is None:
+        return None
+
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        msg = f"Invalid date format: {value!r}. Expected YYYY-MM-DD."
+        raise SystemExit(msg) from exc
+
+
+def _handle_entries_list(args: argparse.Namespace, config) -> None:
+    """
+    Handle the 'entries list' subcommand: list accounting entries for a period
+    with optional filters.
+
+    This function:
+    - determines the reporting period from CLI args and configuration,
+    - builds an EntriesFilter from CLI-supplied filters,
+    - uses entries_service.list_entries_for_period to load data,
+    - prints a concise tabular view of the results to stdout.
+    """
+    # 1) Determine reporting period from CLI args (same logic as main).
+    period = determine_period_from_args(args, config.fiscal_year)
+
+    # 2) Build additional filters from CLI options.
+    extra_filters = EntriesFilter(
+        start=None,
+        end=None,
+        code_exact=args.code,
+        code_prefix=args.code_prefix,
+        description_contains=args.description_contains,
+        min_amount=args.min_amount,
+        max_amount=args.max_amount,
+        import_batch_id=args.import_batch_id,
+        include_deleted=args.include_deleted,
+        deleted_only=args.deleted_only,
+    )
+
+    order = (args.order_by, args.order_direction.upper())
+
+    # 3) Fetch entries using the high-level service.
+    df = list_entries_for_period(
+        config,
+        period,
+        extra_filters=extra_filters,
+        limit=args.limit,
+        offset=args.offset,
+        order_by=order,
+    )
+
+    print(
+        f"Applied period: {period.label} "
+        f"({period.start.isoformat()} → {period.end.isoformat()})"
+    )
+
+    if df.empty:
+        print("No entries found for the given criteria.")
+        return
+
+    # 4) Prepare a readable subset of columns for console display.
+    preferred_columns = [
+        "id",
+        "date",
+        "code",
+        "description",
+        "amount",
+        "import_batch_id",
+        "source_type",
+        "is_deleted",
+    ]
+    columns_to_show = [c for c in preferred_columns if c in df.columns]
+    if not columns_to_show:
+        columns_to_show = list(df.columns)
+
+    df_display = df[columns_to_show].copy()
+
+    # Ensure date is displayed as ISO strings.
+    if "date" in df_display.columns:
+        df_display["date"] = df_display["date"].astype(str)
+
+    # Print a compact table without the pandas index.
+    print()
+    print(df_display.to_string(index=False))
+
+    # Optional footer with basic stats.
+    if "amount" in df.columns:
+        total_amount = float(df["amount"].sum())
+        print()
+        print(f"Total entries: {len(df)} | Total amount: {total_amount:.2f}")
+
+
+def _handle_entries_search(args: argparse.Namespace, config) -> None:
+    """
+    Handle the 'entries search' subcommand: free-form search across the
+    entire database using EntriesFilter.
+
+    Unlike 'entries list', this command does not rely on a named reporting
+    period. Optional date bounds can be provided via --from-date and
+    --to-date, but if omitted, the search spans the whole dataset.
+    """
+    start_date = _parse_optional_date(args.from_date)
+    end_date = _parse_optional_date(args.to_date)
+
+    filters = EntriesFilter(
+        start=start_date,
+        end=end_date,
+        code_exact=args.code,
+        code_prefix=args.code_prefix,
+        description_contains=args.description_contains,
+        min_amount=args.min_amount,
+        max_amount=args.max_amount,
+        import_batch_id=args.import_batch_id,
+        include_deleted=args.include_deleted,
+        deleted_only=args.deleted_only,
+    )
+
+    order = (args.order_by, args.order_direction.upper())
+
+    df = service_search_entries(
+        config,
+        filters,
+        limit=args.limit,
+        offset=args.offset,
+        order_by=order,
+    )
+
+    if start_date or end_date:
+        label_parts: list[str] = []
+        if start_date:
+            label_parts.append(f"from {start_date.isoformat()}")
+        if end_date:
+            label_parts.append(f"to {end_date.isoformat()}")
+        label = " ".join(label_parts)
+        print(f"Applied date bounds: {label}")
+    else:
+        print("No date bounds applied (searching across the whole dataset).")
+
+    if df.empty:
+        print("No entries found for the given criteria.")
+        return
+
+    preferred_columns = [
+        "id",
+        "date",
+        "code",
+        "description",
+        "amount",
+        "import_batch_id",
+        "source_type",
+        "is_deleted",
+    ]
+    columns_to_show = [c for c in preferred_columns if c in df.columns]
+    if not columns_to_show:
+        columns_to_show = list(df.columns)
+
+    df_display = df[columns_to_show].copy()
+
+    if "date" in df_display.columns:
+        df_display["date"] = df_display["date"].astype(str)
+
+    print()
+    print(df_display.to_string(index=False))
+
+    if "amount" in df.columns:
+        total_amount = float(df["amount"].sum())
+        print()
+        print(f"Total entries: {len(df)} | Total amount: {total_amount:.2f}")
+
+
+def _handle_entries_delete(args: argparse.Namespace, config) -> None:
+    """
+    Handle the 'entries delete' subcommand: soft-delete a single entry.
+
+    This marks the entry as deleted (is_deleted=1) and records an optional
+    deletion reason and timestamps in the database. The entry is not removed
+    physically and can be restored later.
+    """
+    entry_id = args.entry_id
+    reason = args.reason
+
+    print(f"Soft-deleting entry #{entry_id}...")
+    entry = service_delete_entry(config, entry_id, reason)
+
+    # Display a concise summary of the deleted entry.
+    print("Entry marked as deleted:")
+    print(f"  id:            {entry.id}")
+    print(f"  date:          {entry.date.isoformat()}")
+    print(f"  code:          {entry.code}")
+    print(f"  description:   {entry.description}")
+    print(f"  amount:        {entry.amount:.2f}")
+    print(f"  import_batch:  {entry.import_batch_id}")
+    print(f"  source_type:   {entry.source_type}")
+    print(f"  is_deleted:    {entry.is_deleted}")
+    print(f"  deleted_at:    {entry.deleted_at}")
+
+    reason_display = entry.deleted_reason or ""
+    print(f"  deleted_reason: {reason_display}")
+
+
+def _handle_entries_restore(args: argparse.Namespace, config) -> None:
+    """
+    Handle the 'entries restore' subcommand: restore a soft-deleted entry.
+
+    This clears the deletion flags (is_deleted, deleted_at, deleted_reason)
+    and updates the updated_at timestamp in the database.
+    """
+    entry_id = args.entry_id
+
+    print(f"Restoring entry #{entry_id}...")
+    entry = service_restore_entry(config, entry_id)
+
+    print("Entry restored:")
+    print(f"  id:             {entry.id}")
+    print(f"  date:           {entry.date.isoformat()}")
+    print(f"  code:           {entry.code}")
+    print(f"  description:    {entry.description}")
+    print(f"  amount:         {entry.amount:.2f}")
+    print(f"  import_batch:   {entry.import_batch_id}")
+    print(f"  source_type:    {entry.source_type}")
+    print(f"  is_deleted:     {entry.is_deleted}")
+    print(f"  deleted_at:     {entry.deleted_at}")
+    reason_display = entry.deleted_reason or ""
+    print(f"  deleted_reason: {reason_display}")
+
+
+def _handle_entries_unknown_accounts(args: argparse.Namespace, config) -> None:
+    """
+    Handle the 'entries unknown-accounts' subcommand.
+
+    This command:
+    - determines the reporting period from CLI args,
+    - builds the unknown-accounts report using the chart of accounts of the
+      active standard,
+    - prints a summary of unknown accounts (code, number of entries, total),
+    - optionally prints the full list of unknown entries.
+    """
+    # 1) Déterminer la période (même logique que pour entries list).
+    period = determine_period_from_args(args, config.fiscal_year)
+
+    print(
+        f"Applied period: {period.label} "
+        f"({period.start.isoformat()} → {period.end.isoformat()})"
+    )
+
+    # 2) Construire le rapport via le service.
+    try:
+        known_entries, unknown_entries, summary = service_unknown_accounts_report(
+            config,
+            period,
+        )
+    except ValueError as exc:
+        # Typiquement: chart_of_accounts non configuré pour le standard actif.
+        print(f"Error while building unknown accounts report: {exc}")
+        return
+
+    if unknown_entries.empty:
+        print("No unknown accounts detected for the given period.")
+        return
+
+    # 3) Afficher le résumé par code (summary).
+    print()
+    print("Unknown accounts summary (grouped by account code):")
+
+    # On s'assure de l'ordre des colonnes pour la lisibilité.
+    summary_cols = [
+        c for c in ["code", "entries_count", "total_amount"] if c in summary.columns
+    ]
+    summary_display = summary[summary_cols].copy()
+    print(summary_display.to_string(index=False))
+
+    # 4) Optionnellement, afficher la liste détaillée des écritures inconnues.
+    if args.show_entries:
+        print()
+        print("Unknown entries:")
+        preferred_columns = [
+            "date",
+            "code",
+            "description",
+            "amount",
+            "import_batch_id",
+            "source_type",
+        ]
+        cols_to_show = [c for c in preferred_columns if c in unknown_entries.columns]
+        if not cols_to_show:
+            cols_to_show = list(unknown_entries.columns)
+
+        df_unknown_display = unknown_entries[cols_to_show].copy()
+        if "date" in df_unknown_display.columns:
+            df_unknown_display["date"] = df_unknown_display["date"].astype(str)
+
+        print(df_unknown_display.to_string(index=False))
+
+
+def _handle_entries_command(args: argparse.Namespace, config) -> None:
+    """
+    Dispatch function for the 'entries' subcommands.
+
+    This is called from main() after the database has been initialized
+    and optional CSV import has been performed.
+    """
+    subcmd = getattr(args, "entries_command", None)
+
+    if subcmd == "list":
+        _handle_entries_list(args, config)
+    elif subcmd == "search":
+        _handle_entries_search(args, config)
+    elif subcmd == "delete":
+        _handle_entries_delete(args, config)
+    elif subcmd == "restore":
+        _handle_entries_restore(args, config)
+    elif subcmd == "unknown-accounts":
+        _handle_entries_unknown_accounts(args, config)
+    else:
+        print(
+            "No entries subcommand specified. "
+            "Available subcommands are: "
+            "'list', 'search', 'delete', 'restore', 'unknown-accounts'."
+        )
 
 
 def main() -> None:
@@ -563,6 +1297,11 @@ def main() -> None:
             f"{stats.rows_inserted} entries, "
             f"{stats.duplicates_detected} potential duplicates."
         )
+
+    # If an 'entries' subcommand was requested, handle it now and exit early.
+    if getattr(args, "command", None) == "entries":
+        _handle_entries_command(args, config)
+        return
 
     # 4) Resolve paths with optional CLI overrides for mappings and chart of accounts
     primary_mapping_path: Optional[Path] = (

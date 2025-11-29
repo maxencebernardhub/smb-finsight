@@ -17,11 +17,11 @@ The application supports:
 - flexible period selection (FY, YTD, MTD, last-month, custom)
 - automatic CSV exports in a consistent hierarchical format
 
-Note: the CLI remains single-period only in version 0.3.5. Multi-period analysis is available through the Python API and will power the upcoming Web UI.
+Note: the CLI remains single-period only in version 0.4.0. Multi-period analysis is available through the Python API and will power the upcoming Web UI.
 
-As of version **0.3.5**, SMB FinSight uses a local SQLite database as the single source of truth for all accounting entries. CSV files can still be imported using the `--import` CLI argument, but the dashboard always reads from the database.
+As of version **0.4.0**, SMB FinSight uses a local SQLite database as the single source of truth for all accounting entries. CSV files can still be imported using the `--import` CLI argument, but the dashboard always reads from the database.
 
-As of version **0.3.5**, SMB FinSight supports **four full accounting standards**:  
+As of version **0.4.0**, SMB FinSight supports **four full accounting standards**:  
 **French PCG**, **Canadian ASPE**, **US GAAP**, and **IFRS** — all mapped into a unified canonical financial model allowing perfectly comparable KPIs and ratios across jurisdictions.
 
 
@@ -33,7 +33,7 @@ As of version **0.3.5**, SMB FinSight supports **four full accounting standards*
 
 - [Main Features](#️-main-features)
 - [Supported Accounting Standards](#-supported-accounting-standards)
-- [Project Structure](#-project-structure-updated-for-v035)
+- [Project Structure](#-project-structure-updated-for-v040)
 - [Installation](#-installation)
 - [Configuration](#configuration)
 - [Input Files](#input-files)
@@ -96,6 +96,22 @@ As of version **0.3.5**, SMB FinSight supports **four full accounting standards*
   - computes statements, measures (canonical, extra and derived) and ratios  
     for any number of periods in one pass  
   - optimized for dashboards, charts and financial comparisons
+- 🗄️ **Complete CRUD interface (v0.4.0+)**
+  - Add, update, soft-delete, restore accounting entries directly in the database
+  - High-level CRUD operations exposed via the CLI `entries` command group
+  - Fully orchestrated through `entries_service.py`
+- 🔍 **Unknown Accounts Reporting (v0.4.0+)**
+  - Detect unmapped or invalid account codes for any reporting period
+  - Summaries by code + optional detailed listing
+  - Based on chart-of-accounts prefix matching
+- 🧹 **Improved CSV Import Validation (v0.4.0+)**
+  - Rejects entries containing account codes not present in the chart of accounts
+  - Ensures clean and consistent database content before analytical processing
+- 🗂️ **Developer Tools**
+  - `entries list` → entries for a fiscal/period range
+  - `entries search` → full-DB unrestricted search
+  - `entries delete` / `entries restore` → soft-delete cycle
+  - `entries unknown-accounts` → validation & diagnostics
 
 The CLI continues to expose single-period commands only  
 (FY, YTD, MTD, last-month, custom).
@@ -151,7 +167,7 @@ This ensures **perfect comparability** between French PCG, ASPE, US GAAP and IFR
 
 ---
 
-## 📁 Project Structure (updated for v0.3.5)
+## 📁 Project Structure (updated for v0.4.0)
 
 ```
 smb-finsight/
@@ -199,9 +215,15 @@ smb-finsight/
 │       ├── periods.py                   # Period parsing (FY/YTD/MTD/Custom)
 │       ├── ratios.py                    
 │       ├── views.py
-│       └── db.py                        # Local SQLite storage (v0.3.0+)
+│       ├── db.py                        # Database schema, CRUD, imports (v0.4.0 updated)
+│       └── entries_service.py           # High-level CRUD & reporting orchestration (v0.4.0)
 ├── tests/
 ```
+
+As of v0.4.0:
+- `db.py` now exposes full CRUD operations (create/update/delete/restore)
+- `entries_service.py` provides a business-level CRUD layer for the CLI & Web UI
+- `accounts.py` includes improved account-code validation for CSV imports
 
 
 ---
@@ -371,7 +393,7 @@ and no longer passed via CLI arguments.
 
 This file **must** list all valid account codes.
 
-For FR PCG: file is fr_pcg.csv.
+For FR PCG: file is `data/reference/fr_pcg.csv`.
 Other standards provide their own chart of accounts.
 
 ```csv
@@ -406,7 +428,8 @@ display_order,id,name,type,level,accounts_to_include,accounts_to_exclude,formula
 20,11,Chiffre d'affaires net,calc,2,,,=1+2,revenue,
 ...
 ```
-SMB FinSight uses `accounts_to_include` / `accounts_to_exclude` instead of legacy `code_range`.  
+SMB FinSight uses `accounts_to_include` / `accounts_to_exclude` instead of legacy `code_range`. The system performs strict prefix matching: “701*” matches all accounts starting with “701”.
+ 
 
 
 - `level 0` = top categories  
@@ -465,6 +488,48 @@ If you do not specify `--output`, CSVs are written automatically to:
 `data/output/<timestamped-files>.csv` with timestamped filenames.
 The accounting standard, mapping files and ratio rules are now loaded
 automatically from the configuration files under `/config/`.
+
+### 📁 Database CRUD Commands (v0.4.0+)
+
+SMB FinSight now includes a full CRUD interface for accounting entries stored
+in the SQLite database. These commands are grouped under:
+
+    python -m smb_finsight.cli entries <subcommand>
+
+Available subcommands:
+
+#### 1) List entries for a period
+```bash
+python -m smb_finsight.cli entries list --period ytd
+python -m smb_finsight.cli entries list --from-date 2025-01-01 --to-date 2025-03-31
+```
+
+#### 2) Search the entire database
+```bash
+python -m smb_finsight.cli entries search --code-prefix 70
+python -m smb_finsight.cli entries search --description-contains stripe
+```
+
+#### 3) Soft-delete an entry
+```bash
+python -m smb_finsight.cli entries delete 42 --reason "duplicate"
+```
+
+#### 4) Restore a previously deleted entry
+```bash
+python -m smb_finsight.cli entries restore 42
+```
+
+#### 5) Unknown accounts reporting
+```bash
+python -m smb_finsight.cli entries unknown-accounts --period fy
+python -m smb_finsight.cli entries unknown-accounts --show-entries
+```
+
+These database-focused commands allow developers, power users, and the future
+Web UI (v0.5.x) to inspect data, clean it, and validate it independently of
+the analytical dashboard.
+
 
 ### 📦 CLI Quick Examples (v0.3.0+)
 
@@ -767,7 +832,7 @@ Pull requests are welcome!
 
 ## 🚀 Roadmap
 
-### ✅ Completed (as of v0.3.5)
+### ✅ Completed (as of v0.4.0)
 - [x] Full support for **FR PCG** (income statement + SIG + ratios)
 - [x] Full support for **CA ASPE** (mapping, ratios, COA, sample entries)
 - [x] Multi-standard architecture with standard-specific mapping & ratios
@@ -779,10 +844,10 @@ Pull requests are welcome!
 - [x] Full test suite (29 tests)
 - [x] Database module (store accounting entries)
 - [x] Unified multi-period engine (statements + measures + ratios) — v0.3.5
-
+- [x] Full CRUD database layer — v0.4.0
 
 ### 🚧 In Progress
-- [ ] Improve database module (duplicate resolution workflow, CRUD features)
+- [ ] Duplicate resolution workflow (v0.4.5)
 
 ### 🧭 Planned
 - [ ] Add interactive visual dashboards.
@@ -796,6 +861,7 @@ Pull requests are welcome!
 
 | Version | Date | Highlights | Tag |
 |----------|------|-------------|------|
+| **0.4.0** | Nov 2025 | Full CRUD database layer, entries_service, CLI entries subcommands, unknown accounts reporting | [v0.4.0](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.4.0) |
 | **0.3.5** | Nov 2025 | Unified multi-period engine (`compute_all_multi_period`), metadata improvements, extended test suite | [v0.3.5](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.3.5) |
 | **0.3.0** | Nov 2025 | New database-backed architecture, SQLite database, new `--import` CLI command, duplicate detection engine, configuration refactor | [v0.3.0](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.3.0) |
 | **0.2.5** | Nov 2025 | Added US GAAP + IFRS support, updated mappings, COA, ratios, full test suites | [v0.2.5](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.2.5) |
