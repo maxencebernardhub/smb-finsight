@@ -21,7 +21,7 @@ The database is the single source of truth for accounting entries across all
 views, statements, KPIs, and multi-period comparisons.
 
 ------------------------------------------------------------------------------
-Schema Overview (as of version 0.4.0)
+Schema Overview (as of version 0.4.5)
 ------------------------------------------------------------------------------
 
 The database contains three main tables:
@@ -72,14 +72,18 @@ The database contains three main tables:
    - code                TEXT NOT NULL
    - description         TEXT
    - amount_cents        INTEGER NOT NULL
-   - import_batch_id     INTEGER NOT NULL
-   - imported_at         TEXT NOT NULL        -- timestamp of import batch
+   - import_batch_id     INTEGER NOT NULL     -- foreign key to import_batches.id
+   - imported_at         TEXT NOT NULL        -- timestamp of the import batch
    - existing_entry_id   INTEGER              -- id of the entry considered duplicate
    - resolution_status   TEXT NOT NULL        -- "pending" | "kept" | "discarded"
-   - resolution_comment  TEXT
+   - resolution_at       TEXT                 -- UTC timestamp when the duplicate
+                                                 was resolved
+   - resolved_by         TEXT                 -- "cli" | "webui" | "system"
+   - resolution_comment  TEXT                 -- optional human-readable explanation
 
    Duplicate detection is used to avoid inserting the same entry multiple times
    when importing CSV files or syncing with external systems.
+
 
 ------------------------------------------------------------------------------
 Key Responsibilities
@@ -89,6 +93,8 @@ Key Responsibilities
    - On startup, this module ensures the schema exists and performs
      in-place migrations when older versions are detected.
    - The migration logic is idempotent and safe to run multiple times.
+   - Migrations for the `duplicate_entries` table were extended in v0.4.5
+     to introduce resolution metadata (resolution_at, resolved_by).
 
 2) Import batches
    - The function `import_entries` inserts a new import batch and then loads
@@ -97,11 +103,18 @@ Key Responsibilities
 
 3) Bulk import with duplicate detection
    - During import, each row is checked for an existing matching entry.
-   - Exact matches are recorded in duplicate_entries with status="pending".
+   - Exact matches are recorded in `duplicate_entries` with
+     resolution_status="pending" instead of being inserted into `entries`.
+   - The duplicate table preserves all candidate rows and is the only place
+     where duplicate candidates are stored.
+   - Starting with v0.4.5, duplicate rows also carry resolution metadata
+     (resolution_at, resolved_by, resolution_comment) that drive the
+     duplicate resolution workflow.
 
 4) CRUD operations (added in v0.4.0)
    - `insert_entry` inserts a single new entry.
-   - `update_entry` performs partial updates with automatic updated_at handling.
+   - `update_entry` performs partial updates with automatic updated_at
+     handling.
    - `soft_delete_entry` marks an entry as deleted (is_deleted=1) and
      records deletion metadata.
    - `restore_entry` reactivates a deleted entry.
@@ -120,14 +133,26 @@ Key Responsibilities
 
 6) Data types & dataclasses
    - The module defines typed dataclasses for:
-     * `AccountingEntry` (enriched, JOINed view),
-     * `NewEntry`       (for inserts),
-     * `EntryUpdate`    (for partial edits),
-     * `EntriesFilter`  (for search queries),
-     * `ImportStats`    (for bulk import reporting).
+     * `AccountingEntry`   (enriched, JOINed view),
+     * `NewEntry`          (for inserts),
+     * `EntryUpdate`       (for partial edits),
+     * `EntriesFilter`     (for search queries),
+     * `ImportStats`       (for bulk import reporting),
+     * `DuplicateEntry`    (low-level view of `duplicate_entries` rows),
+     * `DuplicateStats`    (aggregated counts by resolution status).
 
-These structures provide a clean, typed interface for consumption by higher
-layers of the application such as the CLI or the upcoming Web UI (Streamlit).
+7) Duplicate resolution workflow (low-level API, v0.4.5)
+   - `get_duplicate_stats` returns global counts of duplicates by status
+     ("pending", "kept", "discarded").
+   - `list_duplicate_entries` lists raw DuplicateEntry objects with optional
+     filters (status, import_batch_id, date range).
+   - `resolve_duplicate` applies a decision ("keep" or "discard") to a
+     duplicate candidate, updating resolution metadata and, for "keep",
+     inserting the candidate into `entries` as a new AccountingEntry.
+
+These structures and functions provide a clean, typed interface for
+consumption by higher layers of the application such as the CLI or the
+upcoming Web UI.
 
 ------------------------------------------------------------------------------
 SQLite Notes
@@ -340,6 +365,47 @@ class EntriesFilter:
     deleted_only: bool = False
 
 
+DuplicateDecision = Literal["keep", "discard"]
+ResolvedBy = Literal["cli", "webui", "system"]
+
+
+@dataclass(frozen=True)
+class DuplicateEntry:
+    """
+    Low-level representation of a potential duplicate accounting entry.
+
+    This dataclass mirrors a row from the `duplicate_entries` table and uses
+    high-level Python types (date, datetime, float) for convenience.
+    """
+
+    id: int
+    date: date
+    code: str
+    description: str | None
+    amount: float
+    import_batch_id: int
+    imported_at: datetime
+    existing_entry_id: int | None
+    resolution_status: str
+    resolution_at: datetime | None
+    resolved_by: str | None
+    resolution_comment: str | None
+
+
+@dataclass(frozen=True)
+class DuplicateStats:
+    """
+    Aggregated counts of duplicate entries by resolution status.
+
+    This is primarily intended for UI layers (CLI, Web UI) to display data
+    quality indicators (pending duplicates, resolved duplicates, etc.).
+    """
+
+    pending: int
+    kept: int
+    discarded: int
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -389,7 +455,7 @@ def _get_table_columns(conn: sqlite3.Connection, table: str) -> set[str]:
 
 def _migrate_schema_if_needed(conn: sqlite3.Connection) -> None:
     """
-    Migrate the database schema to the 0.4.0 layout if required.
+    Migrate the database schema to the 0.4.x layout (0.4.0 → 0.4.5) if required.
 
     This function is idempotent and safe to call multiple times. It performs
     lightweight migrations in-place when older schemas are detected:
@@ -495,6 +561,67 @@ def _migrate_schema_if_needed(conn: sqlite3.Connection) -> None:
     finally:
         conn.execute("PRAGMA foreign_keys = ON;")
 
+    # --- duplicate_entries: add resolution_at and resolved_by (v0.4.5) ----------
+    duplicate_columns = _get_table_columns(conn, "duplicate_entries")
+    if duplicate_columns and (
+        "resolution_at" not in duplicate_columns
+        or "resolved_by" not in duplicate_columns
+    ):
+        # We need to rebuild the table to introduce the new columns and keep
+        # a clean column ordering.
+        conn.execute("PRAGMA foreign_keys = OFF;")
+        try:
+            conn.execute(
+                """
+                CREATE TABLE duplicate_entries_new (
+                    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date                TEXT    NOT NULL,
+                    code                TEXT    NOT NULL,
+                    description         TEXT,
+                    amount_cents        INTEGER NOT NULL,
+
+                    import_batch_id     INTEGER NOT NULL,
+                    imported_at         TEXT    NOT NULL,
+
+                    existing_entry_id   INTEGER,
+
+                    resolution_status   TEXT    NOT NULL DEFAULT 'pending',
+                    resolution_at       TEXT,
+                    resolved_by         TEXT,
+                    resolution_comment  TEXT,
+
+                    FOREIGN KEY (import_batch_id) REFERENCES import_batches(id),
+                    FOREIGN KEY (existing_entry_id) REFERENCES entries(id)
+                );
+                """
+            )
+
+            # Copy existing data into the new table. Older databases do not have
+            # resolution_at / resolved_by, so we simply let them default to NULL.
+            conn.execute(
+                """
+                INSERT INTO duplicate_entries_new (
+                    id, date, code, description, amount_cents,
+                    import_batch_id, imported_at,
+                    existing_entry_id,
+                    resolution_status, resolution_comment
+                )
+                SELECT
+                    id, date, code, description, amount_cents,
+                    import_batch_id, imported_at,
+                    existing_entry_id,
+                    resolution_status, resolution_comment
+                FROM duplicate_entries;
+                """
+            )
+
+            conn.execute("DROP TABLE duplicate_entries;")
+            conn.execute(
+                "ALTER TABLE duplicate_entries_new RENAME TO duplicate_entries;"
+            )
+        finally:
+            conn.execute("PRAGMA foreign_keys = ON;")
+
 
 def _create_schema_if_needed(conn: sqlite3.Connection) -> None:
     """
@@ -546,11 +673,16 @@ def _create_schema_if_needed(conn: sqlite3.Connection) -> None:
             code                TEXT    NOT NULL,
             description         TEXT,
             amount_cents        INTEGER NOT NULL,
+
             import_batch_id     INTEGER NOT NULL,
             imported_at         TEXT    NOT NULL,
+
             existing_entry_id   INTEGER,
+
             resolution_status   TEXT    NOT NULL DEFAULT 'pending',
             -- 'pending' | 'kept' | 'discarded'
+            resolution_at       TEXT,
+            resolved_by         TEXT,
             resolution_comment  TEXT,
 
             FOREIGN KEY (import_batch_id) REFERENCES import_batches(id),
@@ -1015,6 +1147,58 @@ def _row_to_accounting_entry(row: tuple) -> AccountingEntry:
     )
 
 
+def _row_to_duplicate_entry(row: tuple) -> DuplicateEntry:
+    """
+    Convert a database row into a DuplicateEntry instance.
+
+    Expected row layout (in order):
+      (id, date, code, description, amount_cents,
+       import_batch_id, imported_at,
+       existing_entry_id,
+       resolution_status, resolution_at, resolved_by, resolution_comment)
+    """
+    (
+        dup_id,
+        date_str,
+        code,
+        description,
+        amount_cents,
+        import_batch_id,
+        imported_at_str,
+        existing_entry_id,
+        resolution_status,
+        resolution_at_str,
+        resolved_by,
+        resolution_comment,
+    ) = row
+
+    duplicate_date = date.fromisoformat(date_str)
+    imported_at = datetime.fromisoformat(imported_at_str)
+
+    resolution_at = (
+        datetime.fromisoformat(resolution_at_str)
+        if resolution_at_str is not None
+        else None
+    )
+
+    amount = float(amount_cents) / 100.0
+
+    return DuplicateEntry(
+        id=dup_id,
+        date=duplicate_date,
+        code=code,
+        description=description,
+        amount=amount,
+        import_batch_id=import_batch_id,
+        imported_at=imported_at,
+        existing_entry_id=existing_entry_id,
+        resolution_status=resolution_status,
+        resolution_at=resolution_at,
+        resolved_by=resolved_by,
+        resolution_comment=resolution_comment,
+    )
+
+
 def get_entry_by_id(cfg: DatabaseConfig, entry_id: int) -> AccountingEntry | None:
     """
     Load a single accounting entry by id, including batch metadata.
@@ -1463,3 +1647,312 @@ def search_entries(
     df["amount"] = df["amount_cents"].astype(float) / 100.0
     df = df.drop(columns=["amount_cents"])
     return df
+
+
+# ---------------------------------------------------------------------------
+# Duplicate entries API
+# ---------------------------------------------------------------------------
+
+
+def get_duplicate_stats(cfg: DatabaseConfig) -> DuplicateStats:
+    """
+    Compute aggregated counts of duplicate entries by resolution status.
+
+    Parameters
+    ----------
+    cfg:
+        Database configuration.
+
+    Returns
+    -------
+    DuplicateStats
+        Object containing counts for "pending", "kept", and "discarded".
+    """
+    init_database(cfg)
+    conn = _connect(cfg)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT resolution_status, COUNT(*)
+              FROM duplicate_entries
+             GROUP BY resolution_status;
+            """
+        )
+        counts: dict[str, int] = {status: count for status, count in cur.fetchall()}
+    finally:
+        conn.close()
+
+    return DuplicateStats(
+        pending=counts.get("pending", 0),
+        kept=counts.get("kept", 0),
+        discarded=counts.get("discarded", 0),
+    )
+
+
+def list_duplicate_entries(
+    cfg: DatabaseConfig,
+    *,
+    status: str | None = None,
+    import_batch_id: int | None = None,
+    start: date | None = None,
+    end: date | None = None,
+    limit: int | None = 100,
+    offset: int = 0,
+) -> list[DuplicateEntry]:
+    """
+    List potential duplicate entries with optional filtering.
+
+    This function returns raw DuplicateEntry objects and does not join with
+    the `entries` table. Higher-level services can combine this with
+    `get_entry_by_id` when they need the full existing AccountingEntry.
+
+    Parameters
+    ----------
+    cfg:
+        Database configuration.
+    status:
+        Optional resolution status filter ("pending", "kept", "discarded").
+        If None, all statuses are included.
+    import_batch_id:
+        Optional filter to restrict duplicates to a specific import batch.
+    start, end:
+        Optional inclusive date bounds on the `date` column.
+    limit, offset:
+        Optional pagination settings. If limit is None, all rows are returned.
+
+    Returns
+    -------
+    list[DuplicateEntry]
+        List of duplicate entries matching the given filters.
+    """
+    init_database(cfg)
+
+    where_clauses: list[str] = []
+    params: list[object] = []
+
+    if status is not None:
+        where_clauses.append("resolution_status = ?")
+        params.append(status)
+
+    if import_batch_id is not None:
+        where_clauses.append("import_batch_id = ?")
+        params.append(import_batch_id)
+
+    if start is not None:
+        where_clauses.append("date >= ?")
+        params.append(start.isoformat())
+
+    if end is not None:
+        where_clauses.append("date <= ?")
+        params.append(end.isoformat())
+
+    where_sql = ""
+    if where_clauses:
+        where_sql = "WHERE " + " AND ".join(where_clauses)
+
+    limit_clause = ""
+    if limit is not None:
+        limit_clause = " LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+    query = f"""
+        SELECT
+            id,
+            date,
+            code,
+            description,
+            amount_cents,
+            import_batch_id,
+            imported_at,
+            existing_entry_id,
+            resolution_status,
+            resolution_at,
+            resolved_by,
+            resolution_comment
+        FROM duplicate_entries
+        {where_sql}
+        ORDER BY date ASC, id ASC
+        {limit_clause};
+    """
+
+    conn = _connect(cfg)
+    try:
+        cur = conn.cursor()
+        cur.execute(query, params)
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    return [_row_to_duplicate_entry(row) for row in rows]
+
+
+def resolve_duplicate(
+    cfg: DatabaseConfig,
+    duplicate_id: int,
+    decision: DuplicateDecision,
+    *,
+    comment: str | None = None,
+    resolved_by: ResolvedBy = "cli",
+) -> DuplicateEntry:
+    """
+    Resolve a single duplicate entry by either keeping or discarding it.
+
+    When the decision is "keep", the candidate duplicate is inserted into
+    the `entries` table as a new accounting entry. When the decision is
+    "discard", the candidate is simply marked as discarded and never used
+    in analytics.
+
+    Parameters
+    ----------
+    cfg:
+        Database configuration.
+    duplicate_id:
+        Identifier of the duplicate entry to resolve.
+    decision:
+        Either "keep" or "discard".
+    comment:
+        Optional human-readable explanation stored in resolution_comment.
+    resolved_by:
+        Origin of the resolution action ("cli", "webui", "system").
+
+    Returns
+    -------
+    DuplicateEntry
+        The updated DuplicateEntry after resolution.
+
+    Raises
+    ------
+    ValueError
+        If the duplicate does not exist or has already been resolved.
+    """
+    if decision not in ("keep", "discard"):
+        msg = f"Unsupported duplicate resolution decision: {decision!r}"
+        raise ValueError(msg)
+
+    init_database(cfg)
+    conn = _connect(cfg)
+    try:
+        cur = conn.cursor()
+
+        # Load current duplicate state
+        cur.execute(
+            """
+            SELECT
+                id,
+                date,
+                code,
+                description,
+                amount_cents,
+                import_batch_id,
+                imported_at,
+                existing_entry_id,
+                resolution_status,
+                resolution_at,
+                resolved_by,
+                resolution_comment
+            FROM duplicate_entries
+            WHERE id = ?;
+            """,
+            (duplicate_id,),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise ValueError(f"Duplicate entry with id {duplicate_id} does not exist.")
+
+        duplicate = _row_to_duplicate_entry(row)
+        if duplicate.resolution_status != "pending":
+            raise ValueError(
+                f"Duplicate entry {duplicate_id} has already been resolved "
+                f"with status {duplicate.resolution_status!r}."
+            )
+
+        # If we keep the candidate, insert it into `entries` as a new row.
+        if decision == "keep":
+            amount_cents = int(round(duplicate.amount * 100))
+            cur.execute(
+                """
+                INSERT INTO entries (
+                    date,
+                    code,
+                    description,
+                    amount_cents,
+                    import_batch_id,
+                    updated_at,
+                    is_deleted,
+                    deleted_at,
+                    deleted_reason
+                )
+                VALUES (?, ?, ?, ?, ?, NULL, 0, NULL, NULL);
+                """,
+                (
+                    duplicate.date.isoformat(),
+                    duplicate.code,
+                    duplicate.description,
+                    amount_cents,
+                    duplicate.import_batch_id,
+                ),
+            )
+
+        # Map high-level decision ("keep"/"discard") to the persisted
+        # resolution_status values used throughout the codebase and in
+        # DuplicateStats ("kept"/"discarded").
+        if decision == "keep":
+            status_value = "kept"
+        else:
+            status_value = "discarded"
+
+        # Update resolution metadata on the duplicate row.
+        resolution_at = datetime.utcnow().isoformat(timespec="seconds")
+        cur.execute(
+            """
+            UPDATE duplicate_entries
+               SET resolution_status = ?,
+                   resolution_at = ?,
+                   resolved_by = ?,
+                   resolution_comment = ?
+             WHERE id = ?;
+            """,
+            (
+                status_value,
+                resolution_at,
+                resolved_by,
+                comment,
+                duplicate_id,
+            ),
+        )
+
+        conn.commit()
+
+        # Reload and return the updated duplicate entry to reflect the new state.
+        cur.execute(
+            """
+            SELECT
+                id,
+                date,
+                code,
+                description,
+                amount_cents,
+                import_batch_id,
+                imported_at,
+                existing_entry_id,
+                resolution_status,
+                resolution_at,
+                resolved_by,
+                resolution_comment
+            FROM duplicate_entries
+            WHERE id = ?;
+            """,
+            (duplicate_id,),
+        )
+        updated_row = cur.fetchone()
+    finally:
+        conn.close()
+
+    if updated_row is None:
+        # This should not happen but we guard against it for robustness.
+        raise RuntimeError(
+            f"Duplicate entry {duplicate_id} was updated but cannot be reloaded."
+        )
+
+    return _row_to_duplicate_entry(updated_row)
