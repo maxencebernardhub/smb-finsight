@@ -483,9 +483,12 @@ def _migrate_schema_if_needed(conn: sqlite3.Connection) -> None:
 
     # --- entries: ensure new soft-delete columns & drop legacy 'imported_at' --------
     entry_columns = _get_table_columns(conn, "entries")
+
+    # If the entries table does not exist yet, there is nothing to migrate for
+    # this table, but we still want to continue with other migrations (e.g.
+    # duplicate_entries in v0.4.5).
     if not entry_columns:
-        # Table does not exist yet: nothing to migrate.
-        return
+        entry_columns = set()
 
     needs_rebuild = False
 
@@ -494,72 +497,74 @@ def _migrate_schema_if_needed(conn: sqlite3.Connection) -> None:
         needs_rebuild = True
 
     # We also require the new columns to be present.
-    required_new_columns = {"updated_at", "is_deleted", "deleted_at", "deleted_reason"}
+    required_new_columns = {
+        "updated_at",
+        "is_deleted",
+        "deleted_at",
+        "deleted_reason",
+    }
     if not required_new_columns.issubset(entry_columns):
         needs_rebuild = True
 
-    if not needs_rebuild:
-        return
+    if needs_rebuild:
+        # Temporarily disable foreign key checks while rebuilding the table.
+        conn.execute("PRAGMA foreign_keys = OFF;")
+        try:
+            # Rename the old table.
+            conn.execute("ALTER TABLE entries RENAME TO entries_old;")
 
-    # Temporarily disable foreign key checks while rebuilding the table.
-    conn.execute("PRAGMA foreign_keys = OFF;")
-    try:
-        # Rename the old table.
-        conn.execute("ALTER TABLE entries RENAME TO entries_old;")
-
-        # Create the new table with the desired schema.
-        conn.execute(
-            """
-            CREATE TABLE entries (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                date            TEXT    NOT NULL,  -- ISO date 'YYYY-MM-DD'
-                code            TEXT    NOT NULL,
-                description     TEXT,
-                amount_cents    INTEGER NOT NULL,
-                import_batch_id INTEGER NOT NULL,
-                updated_at      TEXT,
-                is_deleted      INTEGER NOT NULL DEFAULT 0,
-                deleted_at      TEXT,
-                deleted_reason  TEXT,
-
-                FOREIGN KEY (import_batch_id) REFERENCES import_batches(id)
-            );
-            """
-        )
-
-        # Copy data from the old table, initializing the new columns.
-        conn.execute(
-            """
-            INSERT INTO entries (
-                id,
-                date,
-                code,
-                description,
-                amount_cents,
-                import_batch_id,
-                updated_at,
-                is_deleted,
-                deleted_at,
-                deleted_reason
+            # Create the new table with the desired schema.
+            conn.execute(
+                """
+                CREATE TABLE entries (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date            TEXT    NOT NULL,  -- ISO date 'YYYY-MM-DD'
+                    code            TEXT    NOT NULL,
+                    description     TEXT,
+                    amount_cents    INTEGER NOT NULL,
+                    import_batch_id INTEGER NOT NULL,
+                    updated_at      TEXT,
+                    is_deleted      INTEGER NOT NULL DEFAULT 0,
+                    deleted_at      TEXT,
+                    deleted_reason  TEXT,
+                    FOREIGN KEY (import_batch_id) REFERENCES import_batches(id)
+                );
+                """
             )
-            SELECT
-                id,
-                date,
-                code,
-                description,
-                amount_cents,
-                import_batch_id,
-                NULL        AS updated_at,
-                0           AS is_deleted,
-                NULL        AS deleted_at,
-                NULL        AS deleted_reason
-            FROM entries_old;
-            """
-        )
 
-        conn.execute("DROP TABLE entries_old;")
-    finally:
-        conn.execute("PRAGMA foreign_keys = ON;")
+            # Copy data from the old table into the new one.
+            conn.execute(
+                """
+                INSERT INTO entries (
+                    id,
+                    date,
+                    code,
+                    description,
+                    amount_cents,
+                    import_batch_id,
+                    updated_at,
+                    is_deleted,
+                    deleted_at,
+                    deleted_reason
+                )
+                SELECT
+                    id,
+                    date,
+                    code,
+                    description,
+                    amount_cents,
+                    import_batch_id,
+                    NULL        AS updated_at,
+                    0           AS is_deleted,
+                    NULL        AS deleted_at,
+                    NULL        AS deleted_reason
+                FROM entries_old;
+                """
+            )
+
+            conn.execute("DROP TABLE entries_old;")
+        finally:
+            conn.execute("PRAGMA foreign_keys = ON;")
 
     # --- duplicate_entries: add resolution_at and resolved_by (v0.4.5) ----------
     duplicate_columns = _get_table_columns(conn, "duplicate_entries")
