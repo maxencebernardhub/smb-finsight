@@ -837,7 +837,7 @@ ruff check src tests
 ruff format --check src tests
 ```
 
-The full test suite currently includes **29 tests** (including multi-period orchestration).
+The full test suite currently includes **32 tests** (including multi-period orchestration).
 
 Includes:
 
@@ -900,7 +900,7 @@ Pull requests are welcome!
 
 ## 🚀 Roadmap
 
-### ✅ Completed (as of v0.4.0)
+### ✅ Completed (as of v0.4.5)
 - [x] Full support for **FR PCG** (income statement + SIG + ratios)
 - [x] Full support for **CA ASPE** (mapping, ratios, COA, sample entries)
 - [x] Multi-standard architecture with standard-specific mapping & ratios
@@ -909,7 +909,7 @@ Pull requests are welcome!
 - [x] Hierarchical statement rendering (simplified → complete)
 - [x] CLI overhaul and consistent outputs
 - [x] Normalized canonical measures across standards
-- [x] Full test suite (29 tests)
+- [x] Full test suite (32 tests)
 - [x] Database module (store accounting entries)
 - [x] Unified multi-period engine (statements + measures + ratios) — v0.3.5
 - [x] Full CRUD database layer — v0.4.0

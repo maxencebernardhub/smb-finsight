@@ -1908,7 +1908,7 @@ def resolve_duplicate(
             status_value = "discarded"
 
         # Update resolution metadata on the duplicate row.
-        resolution_at = datetime.utcnow().isoformat(timespec="seconds")
+        resolution_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         cur.execute(
             """
             UPDATE duplicate_entries
