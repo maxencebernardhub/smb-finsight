@@ -19,10 +19,17 @@ The application supports:
 
 Note: the CLI remains single-period only in version 0.4.0. Multi-period analysis is available through the Python API and will power the upcoming Web UI.
 
-As of version **0.4.0**, SMB FinSight uses a local SQLite database as the single source of truth for all accounting entries. CSV files can still be imported using the `--import` CLI argument, but the dashboard always reads from the database.
+As of version **0.3.0**, SMB FinSight uses a local SQLite database as the single source of truth for all accounting entries. CSV files can still be imported using the `--import` CLI argument, but the dashboard always reads from the database.
+Version **0.4.0+** added full CRUD operations, and version **0.4.5** extends the schema with the duplicate-resolution workflow.
 
-As of version **0.4.0**, SMB FinSight supports **four full accounting standards**:  
-**French PCG**, **Canadian ASPE**, **US GAAP**, and **IFRS** — all mapped into a unified canonical financial model allowing perfectly comparable KPIs and ratios across jurisdictions.
+As of version **0.4.5**, SMB FinSight introduces a complete duplicate-resolution
+workflow. During CSV imports, entries that match an already-existing accounting
+entry are **not inserted** into `entries` but instead stored in the new
+`duplicate_entries` table with `resolution_status = "pending"`.
+The CLI now provides commands to list, inspect and resolve these duplicates.
+
+As of version **0.4.5**, SMB FinSight supports **four full accounting standards**:  
+**French PCG**, **Canadian ASPE**, **US GAAP**, and **IFRS** — all mapped into a unif              ied canonical financial model allowing perfectly comparable KPIs and ratios across jurisdictions.
 
 
 💡 Ideal for freelancers, entrepreneurs, CFOs, analysts, and accountants who want **clean, reproducible financial statements and KPIs** from simple CSV extracts — without relying on heavy accounting software.
@@ -91,6 +98,11 @@ As of version **0.4.0**, SMB FinSight supports **four full accounting standards*
   - CSV files are no longer read directly during analysis.
   - CSV files can be imported at any time via the `--import` CLI argument
   - Duplicate detection is built-in, with suspected duplicates routed to a dedicated table
+- 🔄 **Duplicate Resolution Workflow (v0.4.5)**
+  - Duplicates detected during import are stored in `duplicate_entries`
+  - New CLI commands to list, inspect, and resolve duplicates
+  - Resolution metadata tracked (`resolution_status`, `resolution_at`,
+    `resolved_by`, `resolution_comment`)
 - 📈 **Unified multi-period computation engine (v0.3.5)**  
   - new `compute_all_multi_period()` function  
   - computes statements, measures (canonical, extra and derived) and ratios  
@@ -112,6 +124,8 @@ As of version **0.4.0**, SMB FinSight supports **four full accounting standards*
   - `entries search` → full-DB unrestricted search
   - `entries delete` / `entries restore` → soft-delete cycle
   - `entries unknown-accounts` → validation & diagnostics
+  - `entries duplicate` → access duplicate resolution workflow
+
 
 The CLI continues to expose single-period commands only  
 (FY, YTD, MTD, last-month, custom).
@@ -167,7 +181,7 @@ This ensures **perfect comparability** between French PCG, ASPE, US GAAP and IFR
 
 ---
 
-## 📁 Project Structure (updated for v0.4.0)
+## 📁 Project Structure (updated for v0.4.5)
 
 ```
 smb-finsight/
@@ -215,8 +229,8 @@ smb-finsight/
 │       ├── periods.py                   # Period parsing (FY/YTD/MTD/Custom)
 │       ├── ratios.py                    
 │       ├── views.py
-│       ├── db.py                        # Database schema, CRUD, imports (v0.4.0 updated)
-│       └── entries_service.py           # High-level CRUD & reporting orchestration (v0.4.0)
+│       ├── db.py                        # Database schema, CRUD, imports, and duplicate workflow (v0.4.0 / v0.4.5)
+│       └── entries_service.py           # High-level CRUD, reporting, and duplicate resolution API (v0.4.0 / v0.4.5)
 ├── tests/
 ```
 
@@ -530,6 +544,60 @@ These database-focused commands allow developers, power users, and the future
 Web UI (v0.5.x) to inspect data, clean it, and validate it independently of
 the analytical dashboard.
 
+### 🔄 Duplicate Resolution Workflow (v0.4.5)
+
+During CSV imports, SMB FinSight automatically detects exact duplicate entries.
+Instead of inserting them into the main entries table, they are stored in
+duplicate_entries with resolution_status="pending".
+
+You can inspect and resolve these duplicates through the CLI:
+
+#### 1) View duplicate statistics
+
+```bash
+python -m smb_finsight.cli entries duplicates stats
+```
+Shows counts:
+- pending
+- kept
+- discarded
+
+#### 2) List duplicates
+
+```bash
+python -m smb_finsight.cli entries duplicates list
+python -m smb_finsight.cli entries duplicates list --status all
+```
+Shows Candidate vs Existing entry with minimal columns.
+
+#### 3) Show details for a specific duplicate
+
+```bash
+python -m smb_finsight.cli entries duplicates show <ID>
+```
+
+Side-by-side view of:
+- duplicate candidate
+- existing matched entry
+
+#### 4) Resolve a duplicate
+
+Keep the candidate (= insert it into entries):
+```bash
+python -m smb_finsight.cli entries duplicates resolve <ID> --keep --comment "not a duplicate"
+```
+
+Discard it:
+```bash
+python -m smb_finsight.cli entries duplicates resolve <ID> --discard --comment "true duplicate"
+```
+
+Resolution updates:
+- resolution_status → kept | discarded
+- resolution_at → timestamp
+- resolved_by → cli
+- resolution_comment → optional
+
 
 ### 📦 CLI Quick Examples (v0.3.0+)
 
@@ -769,7 +837,7 @@ ruff check src tests
 ruff format --check src tests
 ```
 
-The full test suite currently includes **29 tests** (including multi-period orchestration).
+The full test suite currently includes **32 tests** (including multi-period orchestration).
 
 Includes:
 
@@ -832,7 +900,7 @@ Pull requests are welcome!
 
 ## 🚀 Roadmap
 
-### ✅ Completed (as of v0.4.0)
+### ✅ Completed (as of v0.4.5)
 - [x] Full support for **FR PCG** (income statement + SIG + ratios)
 - [x] Full support for **CA ASPE** (mapping, ratios, COA, sample entries)
 - [x] Multi-standard architecture with standard-specific mapping & ratios
@@ -841,17 +909,18 @@ Pull requests are welcome!
 - [x] Hierarchical statement rendering (simplified → complete)
 - [x] CLI overhaul and consistent outputs
 - [x] Normalized canonical measures across standards
-- [x] Full test suite (29 tests)
+- [x] Full test suite (32 tests)
 - [x] Database module (store accounting entries)
 - [x] Unified multi-period engine (statements + measures + ratios) — v0.3.5
 - [x] Full CRUD database layer — v0.4.0
+- [x] Duplicate resolution workflow (v0.4.5): database schema upgrade, CLI commands, service layer
+
 
 ### 🚧 In Progress
-- [ ] Duplicate resolution workflow (v0.4.5)
+- [ ] Add interactive visual dashboards / WebUI
 
 ### 🧭 Planned
-- [ ] Add interactive visual dashboards.
-- [ ] Web UI / lightweight desktop app
+- [ ] Add webview wrapper
 - [ ] Add **forecast** and **objectives** modules.
 - [ ] Add **Cash Flow** module
 - [ ] Add AI-assisted insights
@@ -861,6 +930,7 @@ Pull requests are welcome!
 
 | Version | Date | Highlights | Tag |
 |----------|------|-------------|------|
+| **0.4.5** | Dec 2025 | Duplicate resolution workflow (DB schema migration, entries duplicates CLI commands, service-layer API) | [v0.4.5](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.4.5) |
 | **0.4.0** | Nov 2025 | Full CRUD database layer, entries_service, CLI entries subcommands, unknown accounts reporting | [v0.4.0](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.4.0) |
 | **0.3.5** | Nov 2025 | Unified multi-period engine (`compute_all_multi_period`), metadata improvements, extended test suite | [v0.3.5](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.3.5) |
 | **0.3.0** | Nov 2025 | New database-backed architecture, SQLite database, new `--import` CLI command, duplicate detection engine, configuration refactor | [v0.3.0](https://github.com/maxencebernardhub/smb-finsight/releases/tag/v0.3.0) |

@@ -428,6 +428,76 @@ Returns:
 This is the main diagnostic tool for detecting unmapped or invalid
 accounts after imports.
 
+entries duplicates
+------------------
+
+The ``entries duplicates`` subcommands expose the v0.4.5 duplicate
+resolution workflow. These commands are primarily intended for
+developers and power users; the Web UI will be the main user-facing
+interface for resolving duplicates.
+
+The core subcommands are:
+
+- ``entries duplicates stats``:
+    Show global counters for duplicate entries, grouped by
+    resolution_status:
+
+    - pending
+    - kept
+    - discarded
+
+    Example:
+
+        python -m smb_finsight.cli entries duplicates stats
+
+- ``entries duplicates list``:
+    List duplicate candidates and their associated existing entries
+    (when present) in a compact tabular form. By default, only
+    pending duplicates are shown.
+
+    Examples:
+
+        python -m smb_finsight.cli entries duplicates list
+        python -m smb_finsight.cli entries duplicates list --status all
+
+    This is useful for quickly inspecting which entries are still
+    awaiting a decision.
+
+- ``entries duplicates show DUPLICATE_ID``:
+    Display a detailed, side-by-side view of a specific duplicate
+    pair, including:
+
+    - the duplicate candidate (date, code, amount, description,
+      import batch, resolution metadata),
+    - the existing entry that was considered a duplicate match
+      (if still present in the database).
+
+    Example:
+
+        python -m smb_finsight.cli entries duplicates show 123
+
+- ``entries duplicates resolve DUPLICATE_ID (--keep | --discard) [--comment ...]``:
+    Apply a resolution decision to a duplicate candidate.
+
+    - ``--keep``:
+        Insert the candidate into the ``entries`` table as a new
+        accounting entry and mark the duplicate row as resolved
+        with status "kept".
+
+    - ``--discard``:
+        Mark the duplicate row as "discarded" so that it is never
+        included in financial statements or analytics.
+
+    An optional ``--comment`` argument allows storing a human-readable
+    explanation of the decision in ``resolution_comment`` for audit
+    and debugging purposes.
+
+    Examples:
+
+        python -m smb_finsight.cli entries duplicates resolve 123 --keep
+         --comment "not a real duplicate"
+        python -m smb_finsight.cli entries duplicates resolve 124 --discard
+         --comment "true duplicate from batch 7"
 
 
 End of module description.
@@ -447,7 +517,16 @@ from .entries_service import (
     delete_entry as service_delete_entry,
 )
 from .entries_service import (
+    get_duplicate_stats as service_get_duplicate_stats,
+)
+from .entries_service import (
+    list_duplicate_pairs as service_list_duplicate_pairs,
+)
+from .entries_service import (
     list_entries_for_period,
+)
+from .entries_service import (
+    resolve_duplicate_entry as service_resolve_duplicate_entry,
 )
 from .entries_service import (
     restore_deleted_entry as service_restore_entry,
@@ -902,6 +981,103 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    # ------------------------------------------------------------------
+    # entries duplicates
+    # ------------------------------------------------------------------
+    entries_duplicates = entries_subparsers.add_parser(
+        "duplicates",
+        help="Inspect and resolve duplicate accounting entries.",
+    )
+
+    duplicates_subparsers = entries_duplicates.add_subparsers(
+        dest="duplicates_command",
+        metavar="duplicates-command",
+        help="Duplicate entries subcommands (e.g. 'stats').",
+    )
+
+    # entries duplicates stats
+    duplicates_subparsers.add_parser(
+        "stats",
+        help="Show global statistics for duplicate entries.",
+    )
+
+    # No extra options for 'stats' at this stage.
+
+    # entries duplicates list
+    duplicates_list = duplicates_subparsers.add_parser(
+        "list",
+        help="List duplicate entries (default: pending only).",
+    )
+
+    duplicates_list.add_argument(
+        "--status",
+        choices=["pending", "kept", "discarded", "all"],
+        default="pending",
+        help=("Filter duplicates by resolution status. 'all' includes every status."),
+    )
+    duplicates_list.add_argument(
+        "--limit",
+        type=int,
+        default=100,
+        help="Maximum number of duplicate pairs to display.",
+    )
+    duplicates_list.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        help="Number of duplicate pairs to skip (for pagination).",
+    )
+
+    # entries duplicates show
+    duplicates_show = duplicates_subparsers.add_parser(
+        "show",
+        help="Show a detailed side-by-side view of a specific duplicate.",
+    )
+
+    duplicates_show.add_argument(
+        "duplicate_id",
+        type=int,
+        help="Identifier of the duplicate entry to inspect.",
+    )
+
+    # entries duplicates resolve
+    duplicates_resolve = duplicates_subparsers.add_parser(
+        "resolve",
+        help="Resolve a duplicate entry by keeping or discarding it.",
+    )
+
+    duplicates_resolve.add_argument(
+        "duplicate_id",
+        type=int,
+        help="Identifier of the duplicate entry to resolve.",
+    )
+
+    decision_group = duplicates_resolve.add_mutually_exclusive_group(
+        required=True,
+    )
+    decision_group.add_argument(
+        "--keep",
+        dest="decision",
+        action="store_const",
+        const="keep",
+        help="Mark the duplicate as kept and insert it into 'entries'.",
+    )
+    decision_group.add_argument(
+        "--discard",
+        dest="decision",
+        action="store_const",
+        const="discard",
+        help="Mark the duplicate as discarded (ignore permanently).",
+    )
+
+    duplicates_resolve.add_argument(
+        "--comment",
+        help=(
+            "Optional human-readable comment describing the resolution. "
+            "Stored in 'resolution_comment' for audit purposes."
+        ),
+    )
+
     return ap
 
 
@@ -1217,6 +1393,207 @@ def _handle_entries_unknown_accounts(args: argparse.Namespace, config) -> None:
         print(df_unknown_display.to_string(index=False))
 
 
+def _handle_entries_duplicates_stats(args: argparse.Namespace, config) -> None:
+    """
+    Handle the 'entries duplicates stats' subcommand.
+
+    This prints global counters for duplicate entries:
+    - pending
+    - kept
+    - discarded
+
+    It is mainly intended for quick checks and debugging from the CLI.
+    """
+    stats = service_get_duplicate_stats(config)
+
+    print("Duplicate entries (global):")
+    print(f"- pending   : {stats.pending}")
+    print(f"- kept      : {stats.kept}")
+    print(f"- discarded : {stats.discarded}")
+
+
+def _handle_entries_duplicates_list(args: argparse.Namespace, config) -> None:
+    """
+    Handle the 'entries duplicates list' subcommand.
+
+    This command lists duplicate candidates along with their associated
+    existing entry (when present) in a compact tabular form. It is a
+    convenient inspection tool for developers and power users.
+
+    The output is intentionally simple compared to the future Web UI:
+    it shows only the most relevant columns needed to understand and
+    debug the duplicate detection logic.
+    """
+    effective_status = None if args.status == "all" else args.status
+
+    pairs = service_list_duplicate_pairs(
+        config,
+        status=effective_status,
+        import_batch_id=None,
+        period=None,
+        limit=args.limit,
+        offset=args.offset,
+    )
+
+    if not pairs:
+        print("No duplicate entries found for the given criteria.")
+        return
+
+    # Build a list of dictionaries to render as a simple table.
+    rows = []
+    for pair in pairs:
+        d = pair.duplicate
+        e = pair.existing
+        rows.append(
+            {
+                "dup_id": d.id,
+                "date": d.date.isoformat(),
+                "code": d.code,
+                "amount": f"{d.amount:.2f}",
+                "status": d.resolution_status,
+                "existing_id": e.id if e is not None else "",
+            }
+        )
+
+    headers = ["dup_id", "date", "code", "amount", "status", "existing_id"]
+
+    # Compute column widths based on content.
+    col_widths = {}
+    for h in headers:
+        max_len = max(len(h), max(len(str(row[h])) for row in rows))
+        col_widths[h] = max_len
+
+    def _format_row(row: dict) -> str:
+        return "  " + "  ".join(str(row[h]).ljust(col_widths[h]) for h in headers)
+
+    # Print header and separator.
+    header_row = "  " + "  ".join(h.ljust(col_widths[h]) for h in headers)
+    separator_row = "  " + "  ".join("-" * col_widths[h] for h in headers)
+
+    print()
+    print(header_row)
+    print(separator_row)
+    for row in rows:
+        print(_format_row(row))
+
+    print()
+    print(f"Total duplicates: {len(rows)}")
+
+
+def _handle_entries_duplicates_show(args: argparse.Namespace, config) -> None:
+    """
+    Handle the 'entries duplicates show' subcommand.
+
+    This command loads a single DuplicatePair and prints a detailed,
+    side-by-side view of the duplicate candidate and the existing
+    entry (if present).
+    """
+    duplicate_id = args.duplicate_id
+
+    # We fetch all duplicates (status=None, limit=None) and then look for
+    # the requested id. Typical datasets stay small enough for this to be
+    # acceptable in a CLI context.
+    pairs = service_list_duplicate_pairs(
+        config,
+        status=None,
+        import_batch_id=None,
+        period=None,
+        limit=None,
+        offset=0,
+    )
+
+    pair = next((p for p in pairs if p.duplicate.id == duplicate_id), None)
+    if pair is None:
+        print(f"Duplicate entry with id {duplicate_id} not found.")
+        return
+
+    d = pair.duplicate
+    e = pair.existing
+
+    print(f"Duplicate entry #{d.id}")
+    print(f"  status        : {d.resolution_status}")
+    print(f"  date          : {d.date.isoformat()}")
+    print(f"  code          : {d.code}")
+    print(f"  amount        : {d.amount:.2f}")
+    print(f"  description   : {d.description}")
+    print(f"  import_batch  : {d.import_batch_id}")
+    print(f"  imported_at   : {d.imported_at}")
+    print(f"  resolution_at : {d.resolution_at}")
+    print(f"  resolved_by   : {d.resolved_by}")
+    print(f"  comment       : {d.resolution_comment}")
+
+    print()
+    print("Existing entry:")
+    if e is None:
+        print("  None (existing entry not found in 'entries').")
+    else:
+        print(f"  id            : {e.id}")
+        print(f"  date          : {e.date.isoformat()}")
+        print(f"  code          : {e.code}")
+        print(f"  amount        : {e.amount:.2f}")
+        print(f"  description   : {e.description}")
+        print(f"  import_batch  : {e.import_batch_id}")
+        print(f"  source_type   : {e.source_type}")
+        print(f"  is_deleted    : {e.is_deleted}")
+
+
+def _handle_entries_duplicates_resolve(args: argparse.Namespace, config) -> None:
+    """
+    Handle the 'entries duplicates resolve' subcommand.
+
+    This applies a decision ("keep" or "discard") to a duplicate entry.
+
+    - When the decision is "keep", the candidate is inserted into the
+      `entries` table as a new accounting entry and the duplicate row
+      is marked as resolved with status "kept".
+    - When the decision is "discard", the duplicate is simply marked as
+      "discarded" and never included in financial statements.
+
+    A human-readable comment can optionally be provided for audit
+    purposes and will be stored in `resolution_comment`.
+    """
+    duplicate_id = args.duplicate_id
+    decision = args.decision
+    comment = args.comment
+
+    updated_pair = service_resolve_duplicate_entry(
+        config,
+        duplicate_id,
+        decision,
+        comment=comment,
+        resolved_by="cli",
+    )
+
+    print(
+        f"Duplicate #{duplicate_id} resolved as "
+        f"{updated_pair.duplicate.resolution_status}."
+    )
+
+
+def _handle_entries_duplicates(args: argparse.Namespace, config) -> None:
+    """
+    Dispatch function for the 'entries duplicates' subcommands.
+
+    This is called from _handle_entries_command once the main 'entries'
+    command has been selected and the database initialized.
+    """
+    subcmd = getattr(args, "duplicates_command", None)
+
+    if subcmd == "stats":
+        _handle_entries_duplicates_stats(args, config)
+    elif subcmd == "list":
+        _handle_entries_duplicates_list(args, config)
+    elif subcmd == "show":
+        _handle_entries_duplicates_show(args, config)
+    elif subcmd == "resolve":
+        _handle_entries_duplicates_resolve(args, config)
+    else:
+        print(
+            "No duplicates subcommand specified. "
+            "Available subcommands are: 'stats', 'list', 'show', 'resolve'."
+        )
+
+
 def _handle_entries_command(args: argparse.Namespace, config) -> None:
     """
     Dispatch function for the 'entries' subcommands.
@@ -1236,11 +1613,14 @@ def _handle_entries_command(args: argparse.Namespace, config) -> None:
         _handle_entries_restore(args, config)
     elif subcmd == "unknown-accounts":
         _handle_entries_unknown_accounts(args, config)
+    elif subcmd == "duplicates":
+        _handle_entries_duplicates(args, config)
     else:
         print(
             "No entries subcommand specified. "
             "Available subcommands are: "
-            "'list', 'search', 'delete', 'restore', 'unknown-accounts'."
+            "'list', 'search', 'delete', 'restore', 'unknown-accounts', "
+            "'duplicates'."
         )
 
 

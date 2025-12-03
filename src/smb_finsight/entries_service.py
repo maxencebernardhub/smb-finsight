@@ -70,6 +70,7 @@ Design notes
   rules itself. It remains lightweight and focused on orchestration.
 """
 
+from dataclasses import dataclass
 from typing import Optional
 
 import pandas as pd
@@ -83,15 +84,28 @@ from .config import AppConfig
 from .db import (
     AccountingEntry,
     DatabaseConfig,
+    DuplicateDecision,
+    DuplicateEntry,
+    DuplicateStats,
     EntriesFilter,
     EntryUpdate,
     NewEntry,
+    ResolvedBy,
+)
+from .db import (
+    get_duplicate_stats as _db_get_duplicate_stats,
 )
 from .db import (
     get_entry_by_id as _db_get_entry_by_id,
 )
 from .db import (
     insert_entry as _db_insert_entry,
+)
+from .db import (
+    list_duplicate_entries as _db_list_duplicate_entries,
+)
+from .db import (
+    resolve_duplicate as _db_resolve_duplicate,
 )
 from .db import (
     restore_entry as _db_restore_entry,
@@ -106,6 +120,26 @@ from .db import (
     update_entry as _db_update_entry,
 )
 from .periods import Period
+
+
+@dataclass(frozen=True)
+class DuplicatePair:
+    """
+    High-level view combining a duplicate candidate and its existing entry.
+
+    The `duplicate` attribute contains the raw DuplicateEntry metadata stored
+    in the `duplicate_entries` table. The `existing` attribute contains the
+    AccountingEntry that was considered a duplicate match, or None if the
+    original entry no longer exists.
+
+    This structure is designed for UI layers (CLI, Web UI) that need to
+    display side-by-side comparisons and drive the duplicate resolution
+    workflow.
+    """
+
+    duplicate: DuplicateEntry
+    existing: Optional[AccountingEntry]
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -346,6 +380,200 @@ def search_entries(
         limit=limit,
         offset=offset,
         order_by=order_by,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Duplicate resolution workflow
+# ---------------------------------------------------------------------------
+
+
+def get_duplicate_stats(app_config: AppConfig) -> DuplicateStats:
+    """
+    Retrieve global statistics about duplicate entries for the current app.
+
+    This function is intended for high-level UI components such as:
+    - a navigation bar badge showing how many duplicates are pending, or
+    - a data quality dashboard summarizing resolved vs. unresolved duplicates.
+
+    Parameters
+    ----------
+    app_config:
+        Global application configuration.
+
+    Returns
+    -------
+    DuplicateStats
+        Aggregated counts for "pending", "kept", and "discarded" duplicates.
+    """
+    db_cfg = _get_db_config(app_config)
+    return _db_get_duplicate_stats(db_cfg)
+
+
+def list_duplicate_pairs(
+    app_config: AppConfig,
+    *,
+    status: Optional[str] = "pending",
+    import_batch_id: Optional[int] = None,
+    period: Optional[Period] = None,
+    limit: Optional[int] = 100,
+    offset: int = 0,
+) -> list[DuplicatePair]:
+    """
+    List duplicate entries along with their associated existing entries.
+
+    This function is the main entry point for UI layers that need to display
+    duplicates and allow the user to resolve them. It returns one DuplicatePair
+    per duplicate candidate, combining:
+
+    - DuplicateEntry: the candidate row stored in `duplicate_entries`, and
+    - AccountingEntry (optional): the existing entry that was detected as a
+      potential duplicate.
+
+    Parameters
+    ----------
+    app_config:
+        Global application configuration.
+    status:
+        Optional resolution status filter:
+        - "pending": candidates waiting for a decision (default),
+        - "kept": candidates that were inserted into `entries`,
+        - "discarded": candidates that were explicitly discarded,
+        - None: include all statuses.
+    import_batch_id:
+        Optional filter to restrict duplicates to a specific import batch.
+    period:
+        Optional reporting period used to constrain the candidate entry dates.
+        When provided, the [start, end] bounds of the Period are mapped to the
+        `date` column of the duplicate entries.
+    limit, offset:
+        Optional pagination settings. When limit is None, all matching
+        duplicates are returned.
+
+    Returns
+    -------
+    list[DuplicatePair]
+        A list of high-level duplicate views ready to be consumed by the CLI
+        or Web UI.
+    """
+    db_cfg = _get_db_config(app_config)
+
+    start = period.start if period is not None else None
+    end = period.end if period is not None else None
+
+    duplicates = _db_list_duplicate_entries(
+        db_cfg,
+        status=status,
+        import_batch_id=import_batch_id,
+        start=start,
+        end=end,
+        limit=limit,
+        offset=offset,
+    )
+
+    # Cache existing entries by id so that we do not re-load the same
+    # AccountingEntry multiple times when several duplicates point to it.
+    existing_cache: dict[int, AccountingEntry] = {}
+
+    result: list[DuplicatePair] = []
+    for duplicate in duplicates:
+        existing: Optional[AccountingEntry]
+
+        if duplicate.existing_entry_id is None:
+            existing = None
+        else:
+            existing_id = duplicate.existing_entry_id
+            if existing_id in existing_cache:
+                existing = existing_cache[existing_id]
+            else:
+                existing = _db_get_entry_by_id(db_cfg, existing_id)
+                if existing is not None:
+                    existing_cache[existing_id] = existing
+
+        result.append(
+            DuplicatePair(
+                duplicate=duplicate,
+                existing=existing,
+            )
+        )
+
+    return result
+
+
+def resolve_duplicate_entry(
+    app_config: AppConfig,
+    duplicate_id: int,
+    decision: DuplicateDecision,
+    *,
+    comment: Optional[str] = None,
+    resolved_by: ResolvedBy = "cli",
+) -> DuplicatePair:
+    """
+    Resolve a single duplicate entry by either keeping or discarding it.
+
+    This high-level function wraps the low-level database helper and returns
+    a DuplicatePair that can immediately be used by UI layers to update their
+    views (e.g. removing the resolved duplicate from a list).
+
+    When the decision is "keep":
+        - the candidate duplicate is inserted into the `entries` table as a
+          new AccountingEntry; and
+        - the corresponding row in `duplicate_entries` is marked with
+          resolution_status="kept".
+
+    When the decision is "discard":
+        - the candidate is simply marked as discarded and will never be used
+          in analytics or financial statements.
+
+    Parameters
+    ----------
+    app_config:
+        Global application configuration.
+    duplicate_id:
+        Identifier of the duplicate entry to resolve.
+    decision:
+        Either "keep" or "discard".
+    comment:
+        Optional human-readable explanation for the decision. This value is
+        stored in `resolution_comment` and can be displayed in audit views.
+    resolved_by:
+        Origin of the resolution action. Typical values are:
+        - "cli":    when resolution is triggered from the command-line,
+        - "webui":  when resolution is triggered from the Web UI,
+        - "system": for automated or batch decisions.
+
+    Returns
+    -------
+    DuplicatePair
+        The updated DuplicatePair after resolution. The `duplicate` field
+        reflects the new resolution_status / metadata, and the `existing`
+        field contains the current state of the existing AccountingEntry
+        (if still present).
+
+    Raises
+    ------
+    ValueError
+        If the duplicate does not exist or has already been resolved.
+    """
+    db_cfg = _get_db_config(app_config)
+
+    updated_duplicate = _db_resolve_duplicate(
+        db_cfg,
+        duplicate_id,
+        decision,
+        comment=comment,
+        resolved_by=resolved_by,
+    )
+
+    existing: Optional[AccountingEntry]
+    if updated_duplicate.existing_entry_id is None:
+        existing = None
+    else:
+        existing = _db_get_entry_by_id(db_cfg, updated_duplicate.existing_entry_id)
+
+    return DuplicatePair(
+        duplicate=updated_duplicate,
+        existing=existing,
     )
 
 
