@@ -20,6 +20,7 @@ Main capabilities:
 - a database-first architecture for accounting entries (SQLite),
 - a complete CRUD interface for accounting entries (v0.4.0+),
 - unknown accounts detection & reporting (v0.4.0+),
+- duplicate detection & full duplicate resolution workflow (v0.4.5+),
 - foundation for the upcoming Web UI (v0.5.x).
 
 SMB FinSight separates computation (engine), configuration (TOML), and
@@ -27,7 +28,7 @@ presentation (CLI / Web UI), making it suitable for scripting, automation,
 consulting workflows, and financial diagnostics.
 
 
-Version: 0.4.0
+Version: 0.4.5
 
 Usage:
     python -m smb_finsight.cli --help
@@ -35,4 +36,4 @@ Usage:
 
 __all__ = ["engine", "mapping", "views", "io"]
 
-__version__ = "0.4.0"
+__version__ = "0.4.5"
