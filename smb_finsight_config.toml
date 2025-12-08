@@ -37,7 +37,7 @@ currency = "USD"
 #
 # Example (for a Canadian company under ASPE):
 #   standard_config_file = "config/standard_ca_aspe.toml"
-standard_config_file = "config/standard_fr_pcg.toml"
+standard_config_file = "config/standards/standard_fr_pcg.toml"
 
 # -------------------------------------------------------------------
 # Database
@@ -111,3 +111,13 @@ mode = "table"
 
 # Number of decimals for ratio percentage display.
 ratio_decimals = 1
+
+# -------------------------------------------------------------------
+# Web UI configuration
+# -------------------------------------------------------------------
+[webui]
+# Path to the layout configuration file for the Web UI.
+# You can switch to the French version later with:
+# layout_config_path = "config/layout/layout_fr.toml"
+layout_config_path = "config/layout/layout_en.toml"
+

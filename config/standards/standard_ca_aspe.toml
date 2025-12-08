@@ -5,14 +5,14 @@
 
 [paths.mapping]
 # Primary income statement mapping under CA ASPE
-income_statement = "../mapping/income_statement_ca_aspe.csv"
+income_statement = "../../mapping/income_statement_ca_aspe.csv"
 
 # No secondary statement at this stage (can be added later if needed)
 secondary_mapping = ""
 
 # Optional: chart of accounts reference file for CA ASPE.
 # This file can be extended/customized by the user.
-chart_of_accounts = "../data/reference/ca_aspe.csv"
+chart_of_accounts = "../../data/reference/ca_aspe.csv"
 
 [statements]
 # Human-readable label for the primary statement (income statement).
@@ -23,7 +23,7 @@ secondary_label = ""
 
 [ratios]
 # Main ratios rules pack for CA ASPE.
-rules_file = "../ratios/ratios_ca_aspe.toml"
+rules_file = "../../ratios/ratios_ca_aspe.toml"
 
 # Optional company-specific ratios pack (can extend or override the main pack).
 #custom_rules_file = ""

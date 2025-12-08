@@ -1,0 +1,475 @@
+# -------------------------------------------------------------------
+# SMB FinSight - Layout configuration
+# English version
+
+# Layout configuration for SMB FinSight Web UI.
+#
+# This file controls:
+# - page titles & navigation options
+# - default period presets per page (primary & secondary)
+# - dashboard tiles & charts (measures/ratios)
+# - ratios page metrics & charts
+# - behaviour of statements, entries, duplicates, import pages
+#
+# GENERAL PRINCIPLES
+# ------------------
+# 1) Page-level defaults:
+#       [pages.<page>.periods]
+#    define default primary & secondary period presets and default granularity.
+#
+# 2) Tile / chart overrides:
+#    - Each tile/chart can optionally define:
+#         period_preset       (overrides the page's primary preset)
+#         comparison_preset   (overrides the page's secondary preset)
+#    - If these fields are omitted, the page defaults are used.
+#
+# 3) Measures vs ratios vs system values:
+#    - source = "measure" : canonical or derived measures (revenue, gross_margin, ...).
+#    - source = "ratio"   : ratios defined in ratios_*.toml.
+#    - source = "system"  : internal counters (e.g. duplicates stats) — reserved for future use.
+#
+# 4) Units & formats:
+#    - Each measure/ratio has a "unit" (amount, percent, number, days...) defined
+#      either by canonical metadata or ratios_*.toml.
+#    - "format" in this file is a UI hint:
+#         "amount"  -> monetary/amount formatting
+#         "percent" -> percentage formatting
+#         "number"  -> plain numeric formatting
+#      If "format" is omitted, the WebUI should infer it from the underlying "unit".
+#
+# 5) Notes & tooltips:
+#    - "tooltip_from" controls where the tile/chart gets its explanatory text:
+#         "measure_notes" -> canonical / derived measure notes
+#         "ratio_notes"   -> ratio notes
+#         "none"          -> no tooltip
+# -------------------------------------------------------------------
+
+[meta]
+id = "default_en"          # Identifier of this layout configuration
+schema_version = "0.5.0"   # Layout schema version understood by the WebUI
+language = "en"            # Main language of labels/titles in this file
+default_page = "dashboard" # Page opened by default: dashboard | statements | ratios | entries | duplicates | import_config
+
+# -------------------------------------------------------------------
+# PAGE DEFINITIONS
+# -------------------------------------------------------------------
+# Each [pages.<page>] section defines:
+#   - id: internal identifier of the page
+#   - title: label used in navigation and page header
+#   - icon: small emoji/icon in navigation (optional)
+#   - allow_secondary_period: whether the UI shows a secondary period selector
+#   - (optional) nested [pages.<page>.periods] block for period presets
+# -------------------------------------------------------------------
+
+# ----------------- Dashboard page -----------------
+[pages.dashboard]
+id = "dashboard"
+title = "Dashboard"
+icon = "📊"
+allow_secondary_period = true
+
+# Default periods behaviour for Dashboard:
+#   - default_primary_preset: main period used when the user first arrives on the page
+#   - default_comparison_preset: default secondary period (comparison)
+#   - default_granularity: default sub-period granularity for charts
+#   - allowed_granularities: which granularities the user can choose in the UI
+#
+# Example preset values:
+#   FY             -> current fiscal year
+#   FY_PREV        -> previous fiscal year
+#   YTD            -> year-to-date (current FY)
+#   YTD_PREV_FY    -> YTD of previous FY (for comparison)
+#   MTD            -> month-to-date
+#   LAST_MONTH     -> previous calendar/fiscal month
+#   CUSTOM         -> user-defined period (UI)
+[pages.dashboard.periods]
+default_primary_preset = "YTD"
+default_comparison_preset = "YTD_PREV_FY"
+default_granularity = "MONTH"                    # DAY | WEEK | MONTH | QUARTER | FY (for "whole year")
+allowed_granularities = ["DAY", "WEEK", "MONTH", "QUARTER"]
+
+
+# ----------------- Statements page -----------------
+[pages.statements]
+id = "statements"
+title = "Income Statement"
+icon = "📑"
+allow_secondary_period = true
+default_view = "regular"         # simplified | regular | detailed | complete
+comparison_mode = "columns"      # columns -> both periods + deltas in same table
+
+# Default periods for the Statements page:
+[pages.statements.periods]
+default_primary_preset = "FY"
+default_comparison_preset = "FY_PREV"
+
+
+# ----------------- Ratios & KPIs page -----------------
+[pages.ratios]
+id = "ratios"
+title = "Ratios & KPIs"
+icon = "📈"
+allow_secondary_period = true
+
+# Default periods for the Ratios page:
+[pages.ratios.periods]
+default_primary_preset = "FY"
+default_comparison_preset = "FY_PREV"
+
+
+# ----------------- Entries page -----------------
+[pages.entries]
+id = "entries"
+title = "Entries"
+icon = "📘"
+# Periods here are usually handled at filter level; page-level presets remain simple.
+# (We can add [pages.entries.periods] later if needed.)
+
+
+# ----------------- Duplicates page -----------------
+[pages.duplicates]
+id = "duplicates"
+title = "Duplicates"
+icon = "🧬"
+# Even if allow_secondary_period is not useful here, we keep it false/omitted.
+
+
+# ----------------- Import & Config page -----------------
+[pages.import_config]
+id = "import_config"
+title = "Import & Configuration"
+icon = "⚙️"
+
+
+# -------------------------------------------------------------------
+# DASHBOARD LAYOUT
+# -------------------------------------------------------------------
+# [dashboard] defines:
+#   - tiles: list of KPIs at the top ([[dashboard.tiles]] blocks)
+#   - charts: list of charts below (time-series, bar charts, etc.)
+# -------------------------------------------------------------------
+
+[dashboard]
+
+# ===== DASHBOARD TILES (metrics) =====
+#
+# Each [[dashboard.tiles]] entry defines a tile (metric card).
+# Fields:
+#   id                : unique identifier within dashboard tiles
+#   source            : "measure" | "ratio" | "system"
+#   key               : measure/ratio/system identifier
+#   label             : display label for the tile
+#   format            : "amount" | "percent" | "number" (optional override of underlying unit)
+#   period_preset     : optional override of the page's primary period preset
+#   comparison_preset : optional override of the page's secondary period preset
+#   show_delta_abs    : whether to show absolute delta vs secondary period
+#   show_delta_pct    : whether to show relative delta vs secondary period
+#   tooltip_from      : "measure_notes" | "ratio_notes" | "none"
+
+[[dashboard.tiles]]
+id = "revenue_ytd"
+source = "measure"
+key = "revenue"
+label = "Revenue (YTD)"
+format = "amount"
+period_preset = "YTD"            # overrides default_primary_preset for this tile
+comparison_preset = "YTD_PREV_FY"
+show_delta_abs = true
+show_delta_pct = true
+tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "gross_margin_ytd"
+source = "measure"
+key = "gross_margin"
+label = "Gross margin (YTD)"
+format = "amount"
+period_preset = "YTD"
+comparison_preset = "YTD_PREV_FY"
+show_delta_abs = true
+show_delta_pct = true
+tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "operating_income_ytd"
+source = "measure"
+key = "operating_income"
+label = "Operating income (YTD)"
+format = "amount"
+period_preset = "YTD"
+comparison_preset = "YTD_PREV_FY"
+show_delta_abs = true
+show_delta_pct = true
+tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "net_income_ytd"
+source = "measure"
+key = "net_income"
+label = "Net income (YTD)"
+format = "amount"
+period_preset = "YTD"
+comparison_preset = "YTD_PREV_FY"
+show_delta_abs = true
+show_delta_pct = true
+tooltip_from = "measure_notes"
+
+# NOTE:
+# We deliberately do NOT define a "duplicates" tile on the Dashboard.
+# Instead, the Duplicates page can show a badge/notification in the navigation
+# when there are pending duplicates (see [duplicates_page] section below).
+
+
+# ===== DASHBOARD CHARTS =====
+#
+# Each [[dashboard.charts]] defines a chart.
+# Fields:
+#   id                : unique identifier of the chart
+#   type              : "line" | "bar"
+#   title             : chart title
+#   period_preset     : primary period preset for this chart (optional; falls back to page defaults)
+#   comparison_preset : optional secondary period preset for this chart (if relevant)
+#   default_granularity / allowed_granularities :
+#                      controls how the primary period is split into subperiods.
+#
+# Sub-tables:
+#   [[dashboard.charts.series]]
+#   - source : "measure" | "ratio"
+#   - key    : measure/ratio identifier
+#   - label  : label in the legend
+
+[[dashboard.charts]]
+id = "revenue_and_margin_evolution"
+type = "line"
+title = "Revenue & gross margin evolution"
+# Use the page-level period presets (YTD vs YTD_PREV_FY) by default:
+# period_preset and comparison_preset can be omitted or explicitly set here.
+period_preset = "YTD"
+comparison_preset = "YTD_PREV_FY"
+default_granularity = "MONTH"
+allowed_granularities = ["DAY", "WEEK", "MONTH", "QUARTER"]
+
+[[dashboard.charts.series]]
+source = "measure"
+key = "revenue"
+label = "Revenue"
+
+[[dashboard.charts.series]]
+source = "measure"
+key = "gross_margin"
+label = "Gross margin"
+
+
+[[dashboard.charts]]
+id = "profitability_evolution"
+type = "bar"
+title = "Profitability evolution"
+# Here, we typically compare FY vs FY_PREV (can be changed later).
+period_preset = "FY"
+comparison_preset = "FY_PREV"
+# For this chart, we consider the entire FY as one bucket (no finer granularity).
+default_granularity = "FY"
+allowed_granularities = ["FY"]
+
+[[dashboard.charts.series]]
+source = "measure"
+key = "operating_income"
+label = "Operating income"
+
+[[dashboard.charts.series]]
+source = "measure"
+key = "net_income"
+label = "Net income"
+
+
+# -------------------------------------------------------------------
+# RATIOS & KPIs PAGE LAYOUT
+# -------------------------------------------------------------------
+# [ratios_page] defines:
+#   - metrics: tiles for individual ratios/KPIs
+#   - charts : aggregated charts for multiple ratios
+# -------------------------------------------------------------------
+
+[ratios_page]
+
+# ===== RATIO METRICS (tiles) =====
+#
+# Each [[ratios_page.metrics]] defines a tile on the Ratios page.
+# Fields:
+#   id                : unique identifier within ratios metrics
+#   source            : "ratio" | "measure" (usually "ratio" here)
+#   key               : ratio identifier from ratios_*.toml
+#   label             : display label
+#   format            : "percent" | "amount" | "number" (optional override)
+#   comparison        : whether to use secondary period
+#   show_delta_abs    : show absolute delta (for percent: points)
+#   show_delta_pct    : show relative change (e.g. +7.5%)
+#   tooltip_from      : typically "ratio_notes"
+#   period_preset     : optional override of primary preset for this metric
+#   comparison_preset : optional override of secondary preset for this metric
+
+[[ratios_page.metrics]]
+id = "gross_margin_pct"
+source = "ratio"
+key = "gross_margin_pct"
+label = "Gross margin"
+format = "percent"
+comparison = true
+show_delta_abs = true
+show_delta_pct = false
+tooltip_from = "ratio_notes"
+
+[[ratios_page.metrics]]
+id = "operating_margin_pct"
+source = "ratio"
+key = "operating_margin_pct"
+label = "Operating margin"
+format = "percent"
+comparison = true
+show_delta_abs = true
+show_delta_pct = false
+tooltip_from = "ratio_notes"
+
+[[ratios_page.metrics]]
+id = "net_margin_pct"
+source = "ratio"
+key = "net_margin_pct"
+label = "Net margin"
+format = "percent"
+comparison = true
+show_delta_abs = true
+show_delta_pct = false
+tooltip_from = "ratio_notes"
+
+[[ratios_page.metrics]]
+id = "ebitda_margin_pct"
+source = "ratio"
+key = "ebitda_margin_pct"
+label = "EBITDA margin"
+format = "percent"
+comparison = true
+show_delta_abs = true
+show_delta_pct = false
+tooltip_from = "ratio_notes"
+
+
+# ===== RATIO CHARTS =====
+#
+# Each [[ratios_page.charts]] defines a chart on the Ratios page.
+# Fields are similar to dashboard.charts.
+
+[[ratios_page.charts]]
+id = "margin_comparison"
+type = "bar"
+title = "Margins comparison"
+# Use Ratios page defaults: FY vs FY_PREV
+period_preset = "FY"
+comparison_preset = "FY_PREV"
+
+[[ratios_page.charts.series]]
+source = "ratio"
+key = "gross_margin_pct"
+label = "Gross"
+
+[[ratios_page.charts.series]]
+source = "ratio"
+key = "operating_margin_pct"
+label = "Operating"
+
+[[ratios_page.charts.series]]
+source = "ratio"
+key = "net_margin_pct"
+label = "Net"
+
+
+# -------------------------------------------------------------------
+# STATEMENTS PAGE OPTIONS
+# -------------------------------------------------------------------
+# These options control how the income statement is displayed.
+
+[statements_page]
+# In comparison mode, show delta columns (absolute and/or percent)?
+show_delta_columns = true
+
+# In comparison mode:
+#   true  -> hide lines where both periods are zero (and delta is zero)
+#   false -> show all lines, even if both periods are zero
+hide_zero_lines_in_comparison = true
+
+# In single-period mode:
+#   true  -> hide lines where the amount is zero
+#   false -> show the full structure, including zero lines
+hide_zero_lines_single_period = false
+
+
+# -------------------------------------------------------------------
+# ENTRIES PAGE OPTIONS
+# -------------------------------------------------------------------
+# Controls which columns are visible and how manual entries behave.
+
+[entries_page]
+# Columns to display in the entries table, in order.
+# Valid identifiers (depending on DB schema) include:
+#   "date", "account_code", "description", "debit", "credit", "amount",
+#   "import_batch", "is_deleted", "created_at", "updated_at"
+columns = ["date", "account_code", "description", "amount", "import_batch", "is_deleted"]
+
+[entries_page.filters]
+# Default period preset when opening the Entries page.
+default_period_preset = "YTD"
+# Whether to show deleted entries by default.
+show_deleted_by_default = false
+
+[entries_page.manual_entry]
+# Input mode for manual entries:
+#   "amount"       -> a single signed amount field (positive/negative)
+#   "debit_credit" -> two fields: debit and credit
+input_mode = "amount"
+
+# Behaviour when the user tries to save an entry with an unknown account code:
+#   true  -> block save and show an error
+#   false -> allow save (unknown accounts may later be flagged by other mechanisms)
+require_known_account = true
+
+
+# -------------------------------------------------------------------
+# DUPLICATES PAGE OPTIONS
+# -------------------------------------------------------------------
+# Controls how duplicate entries are presented and whether navigation
+# should highlight pending duplicates.
+
+[duplicates_page]
+# Default status filter when opening the page:
+#   "pending" | "kept" | "discarded"
+default_status_filter = "pending"
+
+# Whether to display summary tiles with counts (pending/kept/discarded)
+show_stats_tiles = true
+
+# Whether to show a visual indicator in the navigation when there are
+# pending duplicates (e.g., a badge next to the "Duplicates" menu item).
+show_nav_badge_when_pending = true
+
+# Optional label used in the navigation badge (could be "!", "•", etc.)
+nav_badge_label = "•"
+
+
+# -------------------------------------------------------------------
+# IMPORT & CONFIG PAGE OPTIONS
+# -------------------------------------------------------------------
+# Controls behaviour of the Import & Configuration page.
+
+[import_config_page]
+# Directory (relative to project root) where CSV files are stored/read from.
+input_dir = "data/input"
+
+# Behaviour when uploading a file with a name that already exists in input_dir:
+#   "ask"        -> ask the user what to do
+#   "overwrite"  -> replace the existing file
+#   "keep_both"  -> keep both, by adding a suffix to the new file
+#   "skip"       -> abort the upload
+on_existing_filename = "ask"
+
+# Whether to show a dropdown list of existing CSV files in input_dir
+# so the user can re-import them directly from the WebUI.
+show_existing_files_selector = true
