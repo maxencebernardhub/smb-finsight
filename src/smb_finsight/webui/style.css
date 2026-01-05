@@ -1,0 +1,111 @@
+/* Custom styles for the SMB FinSight WebUI */
+
+/* ---------------------------------
+   Sidebar base + title
+---------------------------------- */
+
+/* Sidebar title styling: bigger, bold, with some bottom spacing */
+[data-testid="stSidebar"] h1 {
+    font-size: 3.0rem;
+    font-weight: 500;
+    margin-bottom: 1.2rem;  /* space between the title and the navigation */
+    text-align: center;
+}
+
+/* ---------------------------------
+   Navigation radio buttons styling
+---------------------------------- */
+
+/* Ensure the radio widget uses full width inside the sidebar */
+[data-testid="stSidebar"] .stRadio {
+    width: 100%;
+}
+
+/* Vertical layout and spacing between radio options */
+[data-testid="stSidebar"] div[role="radiogroup"] {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;          /* vertical spacing between options */
+    width: 100%;
+}
+
+/* Each direct child of the radiogroup should stretch */
+[data-testid="stSidebar"] div[role="radiogroup"] > div {
+    width: 100%;
+}
+
+/* Make each label behave as a full-width block */
+[data-testid="stSidebar"] div[role="radiogroup"] label {
+    display: block;
+    width: 100%;
+}
+
+/* Hide the default radio "circle" icon */
+[data-testid="stSidebar"] div[role="radiogroup"] label > div:first-child {
+    display: none !important;
+}
+
+/* Base clickable rectangular block for each option:
+   this is the div immediately after the <input type="radio"> */
+[data-testid="stSidebar"] div[role="radiogroup"] input[type="radio"] + div {
+    display: block;
+    width: 100%;           /* take full width of the radio widget */
+    box-sizing: border-box;
+    border-radius: 0.75rem;
+    padding: 0.55rem 0.95rem;
+    transition: background-color 0.15s ease, color 0.15s ease;    
+}
+
+/* Hover state: neutral highlight that works in light and dark themes */
+[data-testid="stSidebar"] div[role="radiogroup"] label:hover input[type="radio"] + div {
+    background-color: rgba(148, 163, 184, 0.07);  /* based on #94A3B8 */
+    cursor: pointer;
+}
+
+/* Active (selected) state:
+   Streamlit assigns tabindex="0" to the selected radio input. */
+[data-testid="stSidebar"] div[role="radiogroup"] input[type="radio"][tabindex="0"] + div {
+    background-color: rgba(148, 163, 184, 0.15);
+    font-weight: 600;
+}
+
+/* Ensure text inside the active option inherits the block color */
+[data-testid="stSidebar"] div[role="radiogroup"] input[type="radio"][tabindex="0"] + div p {
+    color: inherit;
+}
+
+/* ---------------------------------
+   Sidebar footer (version, standard, DB status, docs, copyright)
+---------------------------------- */
+
+/* Sidebar footer container */
+.st-key-sidebar_footer {
+    border-top: 1px solid rgba(148, 163, 184, 0.4);  /* the horizontal line */
+    padding: 0.75rem 0.75rem 0 0.75rem;     /* top, right, bottom, left */      
+    width: 100%;
+    font-size: 0.85rem;
+    /*opacity: 0.8; */      
+}
+
+.st-key-sidebar_footer hr {
+    border: none;
+    border-top: 1px solid rgba(148, 163, 184, 0.4);
+    margin: 0 0 0.6rem 0;       
+}
+
+/* Reduce vertical spacing between caption lines in footer */
+.st-key-sidebar_footer p {
+    margin-top: 0.10rem !important;
+    margin-bottom: 0.10rem !important;
+}
+
+.st-key-sidebar_footer a {
+    font-size: 0.9rem;      /* matches st.caption */
+    /*color: rgba(49, 51, 63, 0.6);*/
+    text-decoration: none;
+}
+
+.st-key-sidebar_footer a:hover {
+    text-decoration: underline;
+    /*color: rgba(49, 51, 63, 0.8);*/
+}

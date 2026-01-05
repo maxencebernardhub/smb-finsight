@@ -80,6 +80,7 @@ class AppConfig:
     default_ratios_level: str
     display_mode: str
     ratio_decimals: int
+    webui_layout_config_path: str
 
 
 def _load_toml(path: Path) -> dict[str, Any]:
@@ -395,6 +396,15 @@ def load_app_config(config_path: Optional[str] = None) -> AppConfig:
     except (TypeError, ValueError):
         ratio_decimals = 1
 
+    # 7) Web UI options
+    webui_section = raw.get("webui") or {}
+    if not isinstance(webui_section, Mapping):
+        webui_section = {}
+
+    webui_layout_config_path = str(
+        webui_section.get("layout_config_path", "config/layout/layout_en.toml")
+    )
+
     return AppConfig(
         fiscal_year=fiscal_year,
         standard=standard,
@@ -408,4 +418,5 @@ def load_app_config(config_path: Optional[str] = None) -> AppConfig:
         default_ratios_level=default_level,
         display_mode=display_mode,
         ratio_decimals=ratio_decimals,
+        webui_layout_config_path=webui_layout_config_path,
     )

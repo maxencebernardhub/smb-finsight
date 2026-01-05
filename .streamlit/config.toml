@@ -1,0 +1,50 @@
+# ==========================================
+# SMB FinSight - Streamlit theme configuration
+# - Defines a light and a dark theme the user
+#   can switch between in the Settings menu.
+# - Colors are inspired by modern finance dashboards
+#   (dark “trading” look and clean light mode).
+# ==========================================
+
+[theme]
+# Base built-in theme that custom themes inherit from.
+# Can be "light" or "dark" or a TOML file path / URL.
+base = "light"
+
+# Global options that are shared by both light and dark modes.
+# (These cannot be put into [theme.light] / [theme.dark].)
+showSidebarBorder = false
+
+# You can uncomment these later if you want to tweak typography globally.
+baseFontSize = 14
+baseFontWeight = 400
+
+# -------------- LIGHT THEME --------------
+# Main app colors when "Light" mode is active.
+[theme.light]
+primaryColor = "#CC7C5E"            # Accent (buttons, radio, sliders)
+backgroundColor = "#FAF9F5"         # Main background (very light slate)
+secondaryBackgroundColor = "#F5F4EE" # Cards / widgets / containers
+textColor = "#141413"               # Nearly black text
+font = "sans serif"
+
+# Sidebar colors in Light mode.
+[theme.light.sidebar]
+backgroundColor = "#F5F4EE"          
+secondaryBackgroundColor = "#FAF9F5"
+textColor = "#141413"
+
+# -------------- DARK THEME --------------
+# Main app colors when "Dark" mode is active.
+[theme.dark]
+primaryColor = "#6060F6"             
+backgroundColor = "#1F293B"          # Dark blue
+secondaryBackgroundColor = "#1F293B" 
+textColor = "#E3E8EF"                # Light gray text
+font = "sans serif"
+
+# Sidebar colors in Dark mode.
+[theme.dark.sidebar]
+backgroundColor = "#11172A"
+secondaryBackgroundColor = "#020617"
+textColor = "#E3E8EF"
