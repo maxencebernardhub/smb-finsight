@@ -48,17 +48,23 @@ formula = "(net_income / revenue) * 100"
 unit    = "percent"
 notes   = "Résultat net rapporté au chiffre d'affaires."
 
+[measures.external_charges_abs]
+label   = "Charges externes"
+formula = "(-external_charges)"
+unit    = "amount"
+notes   = "Charges externes en valeur absolue."
+
 [measures.external_charges_pct]
 label   = "Charges externes / CA (%)"
 formula = "(-external_charges / revenue) * 100"
 unit    = "percent"
-notes   = "Charges externes rapportées au chiffre d'affaires, en valeur absolue."
+notes   = "Charges externes rapportées au chiffre d'affaires."
 
 [measures.personnel_expenses_pct]
 label   = "Charges de personnel / CA (%)"
 formula = "(-personnel_expenses / revenue) * 100"
 unit    = "percent"
-notes   = "Charges de personnel rapportées au chiffre d'affaires, en valeur absolue."
+notes   = "Charges de personnel rapportées au chiffre d'affaires."
 
 [measures.revenue_per_fte]
 label   = "CA par salarié"

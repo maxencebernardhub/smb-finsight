@@ -221,6 +221,7 @@ def compute_all_multi_period(
     app_config: AppConfig,
     standard_config: StandardConfig,
     periods: list[Period],
+    ratios_level: str | None = None,
 ) -> tuple[StatementsMultiPeriod, MeasuresMultiPeriod, RatiosMultiPeriod]:
     """
     Compute statements, measures and ratios over multiple periods in a
@@ -272,6 +273,10 @@ def compute_all_multi_period(
         - ratios_custom_file
     periods :
         List of Period objects defining the time windows to compute.
+    ratios_level:
+        Optional override for ratio computation level
+        ("basic"|"advanced"|"full").
+        If None, uses app_config.default_ratios_level.
 
     Returns
     -------
@@ -343,14 +348,22 @@ def compute_all_multi_period(
     ratio_rows: list[dict[str, Any]] = []
 
     ratios_enabled: bool = bool(getattr(app_config, "ratios_enabled", False))
-    ratio_level: str = getattr(app_config, "ratios_level", "basic") or "basic"
+    ratio_level = (ratios_level or "").strip().lower() or getattr(
+        app_config, "default_ratios_level", "basic"
+    )
+    ratio_level = str(ratio_level).strip().lower()
+
+    if ratio_level not in {"basic", "advanced", "full"}:
+        ratio_level = "basic"
 
     for period in periods:
         # Filter entries to the current period boundaries.
         if tx_all.empty:
             tx_period = tx_all
         else:
-            mask = (tx_all["date"] >= period.start) & (tx_all["date"] <= period.end)
+            mask = (tx_all["date"] >= pd.Timestamp(period.start)) & (
+                tx_all["date"] <= pd.Timestamp(period.end)
+            )
             tx_period = tx_all.loc[mask]
 
         # ------------------------------------------------------------------
@@ -456,7 +469,7 @@ def compute_all_multi_period(
             if ratios_rules_file is not None:
                 ratio_results.extend(
                     compute_ratios(
-                        all_measures=all_measures,
+                        measures=all_measures,
                         rules_file=ratios_rules_file,
                         level=ratio_level,
                     )
@@ -464,7 +477,7 @@ def compute_all_multi_period(
             if ratios_custom_file is not None:
                 ratio_results.extend(
                     compute_ratios(
-                        all_measures=all_measures,
+                        measures=all_measures,
                         rules_file=ratios_custom_file,
                         level=ratio_level,
                     )

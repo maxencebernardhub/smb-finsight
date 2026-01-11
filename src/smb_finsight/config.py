@@ -60,7 +60,8 @@ class AppConfig:
 
     This aggregates:
     - the fiscal year definition,
-    - the main accounting standard and currency,
+    - the main accounting standard,
+    - the reporting currency and number formatting options (e.g., thousands separator),
     - the database configuration (where entries are stored),
     - the standard-specific configuration (mappings, ratios rules),
     - optional inputs for balance sheet, HR and period parameters,
@@ -71,6 +72,7 @@ class AppConfig:
     fiscal_year: FiscalYear
     standard: str
     currency: str
+    thousands_separator: str
     database: DatabaseConfig
     standard_config: StandardConfig
     balance_sheet_inputs: dict[str, float]
@@ -249,8 +251,9 @@ def load_app_config(config_path: Optional[str] = None) -> AppConfig:
         Defines the fiscal year start date (month/day).
 
     [accounting]
-        Defines the accounting standard (e.g. "FR_PCG", "CA_ASPE") and
-        the presentation currency.
+        Defines the accounting standard (e.g. "FR_PCG", "CA_ASPE"),
+        the presentation currency and the thousands separator used
+        for display formatting.
 
     [database]
         Defines the database engine and the SQLite file path.
@@ -308,6 +311,15 @@ def load_app_config(config_path: Optional[str] = None) -> AppConfig:
 
     standard = str(accounting_section.get("standard") or "FR_PCG")
     currency = str(accounting_section.get("currency") or "EUR")
+
+    thousands_separator = str(accounting_section.get("thousands_separator") or ",")
+    if thousands_separator not in {",", " "}:
+        raise ValueError('[accounting].thousands_separator must be "," or " "')
+
+    currency = currency.upper().strip()
+    if currency not in {"CAD", "USD", "EUR"}:
+        raise ValueError('[accounting].currency must be one of: "CAD", "USD", "EUR"')
+
     standard_config_path_raw = accounting_section.get("standard_config_file") or None
     if isinstance(standard_config_path_raw, str) and not standard_config_path_raw:
         standard_config_path_raw = None
@@ -409,6 +421,7 @@ def load_app_config(config_path: Optional[str] = None) -> AppConfig:
         fiscal_year=fiscal_year,
         standard=standard,
         currency=currency,
+        thousands_separator=thousands_separator,
         database=database_config,
         standard_config=standard_config,
         balance_sheet_inputs=balance_sheet_inputs,

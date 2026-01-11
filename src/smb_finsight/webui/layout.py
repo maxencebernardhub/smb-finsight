@@ -22,7 +22,7 @@ layer on top of the existing computation engine.
 """
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
@@ -96,12 +96,40 @@ class PagePeriodsConfig:
             Sequence of granularities allowed on this page. An empty
             sequence means "no explicit restriction" and the Web UI may
             choose sensible defaults.
+        primary_preset_labels:
+            Optional mapping from primary period preset codes (e.g. "FY") to
+            user-facing labels (e.g. "Current fiscal year").
+            Used to display friendly labels in dropdowns.
+        comparison_preset_labels:
+            Optional mapping from comparison period preset codes (e.g. "PREV_FY") to
+            user-facing labels (e.g. "Previous fiscal year").
+            Used to display friendly labels in dropdowns.
+        granularity_labels:
+            Optional mapping from granularity codes (e.g. "MONTH") to
+            user-facing labels (e.g. "Month").
+            Used to display friendly labels in dropdowns.
+        user_presets:
+            Optional mapping of user-defined presets.
+            Format:
+                {
+                    "Q4_2025": {"label": "Q4 2025", "start": "2025-10-01",
+                    "end": "2025-12-31"},
+                    ...
+                }
+            Keys are preset identifiers used in dropdowns.
+            Values are ISO date strings and a UI label.
+
+
     """
 
     default_primary_preset: str
     default_comparison_preset: str
     default_granularity: Optional[str]
     allowed_granularities: Sequence[str]
+    primary_preset_labels: Mapping[str, str] = field(default_factory=dict)
+    comparison_preset_labels: Mapping[str, str] = field(default_factory=dict)
+    granularity_labels: Mapping[str, str] = field(default_factory=dict)
+    user_presets: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -118,6 +146,11 @@ class PageConfig:
             comparison period on this page.
         periods: Default period presets for this page, or None if the page
             does not use periods directly.
+        ui:
+            Optional mapping of user-facing strings for that page
+            (section headers, control labels, messages). This enables
+            localization via the layout TOML file.
+
     """
 
     id: str
@@ -125,6 +158,7 @@ class PageConfig:
     icon: str
     allow_secondary_period: bool
     periods: Optional[PagePeriodsConfig]
+    ui: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -159,6 +193,9 @@ class DashboardTileConfig:
         show_delta_pct:
             Whether to display the relative difference vs the comparison
             period (percentage change).
+        delta_good_direction:
+            "up" (default) or "down". Controls st.metric delta_color
+            ("normal" vs "inverse").
         tooltip_from:
             Source for tooltip text: "measure_notes", "ratio_notes" or
             "none". The Web UI uses this to decide whether and where to
@@ -174,7 +211,8 @@ class DashboardTileConfig:
     comparison_preset: str
     show_delta_abs: bool
     show_delta_pct: bool
-    tooltip_from: str
+    delta_good_direction: str = "up"
+    tooltip_from: str = "none"
 
 
 @dataclass(frozen=True)
@@ -227,6 +265,26 @@ class DashboardChartConfig:
     default_granularity: Optional[str]
     allowed_granularities: Sequence[str]
     series: Sequence[ChartSeriesConfig]
+
+
+@dataclass(frozen=True)
+class DashboardConfig:
+    """
+    Dashboard configuration loaded from the [dashboard] section.
+
+    Attributes:
+        allow_secondary_period:
+            Whether the Dashboard page allows a comparison period.
+            This is a dashboard-level capability flag.
+        tiles:
+            Sequence of dashboard tile configurations.
+        charts:
+            Sequence of dashboard chart configurations.
+    """
+
+    allow_secondary_period: bool
+    tiles: Sequence[DashboardTileConfig]
+    charts: Sequence[DashboardChartConfig]
 
 
 @dataclass(frozen=True)
@@ -443,10 +501,13 @@ class LayoutConfig:
             language, default_page).
         pages:
             Mapping from page id to :class:`PageConfig`.
+        dashboard:
+            Dashboard page configuration (allow_secondary_period, tiles, charts)
+            loaded from the [dashboard] section.
         dashboard_tiles:
-            Sequence of dashboard tile configurations.
+            (Legacy) Same as `dashboard.tiles`. Kept for backward compatibility.
         dashboard_charts:
-            Sequence of dashboard chart configurations.
+            (Legacy) Same as `dashboard.charts`. Kept for backward compatibility.
         ratios_metrics:
             Sequence of metric tiles for the Ratios & KPIs page.
         ratios_charts:
@@ -463,8 +524,9 @@ class LayoutConfig:
 
     meta: MetaConfig
     pages: Mapping[str, PageConfig]
-    dashboard_tiles: Sequence[DashboardTileConfig]
-    dashboard_charts: Sequence[DashboardChartConfig]
+    dashboard: DashboardConfig
+    dashboard_tiles: Sequence[DashboardTileConfig]  # legacy
+    dashboard_charts: Sequence[DashboardChartConfig]  # legacy
     ratios_metrics: Sequence[RatiosMetricConfig]
     ratios_charts: Sequence[RatiosChartConfig]
     statements: StatementsPageConfig
@@ -535,15 +597,64 @@ def _parse_meta(root: Mapping[str, Any]) -> MetaConfig:
 
 
 def _parse_page_periods(tbl: Mapping[str, Any]) -> PagePeriodsConfig:
+    """Parse the [pages.<id>.periods] table.
+
+    In addition to defaults (primary/comparison presets, granularity),
+    this parser also supports optional label mappings:
+
+    - [pages.<id>.periods.preset_labels]
+    - [pages.<id>.periods.granularity_labels]
+
+    These mappings allow the Web UI to display friendly, localized labels
+    instead of raw codes (e.g. "FY", "YTD_PREV_FY", "MONTH").
+    """
+    primary_labels_tbl = _expect_table(
+        tbl.get("primary_preset_labels"),
+        "pages.*.periods.primary_preset_labels",
+    )
+    comparison_labels_tbl = _expect_table(
+        tbl.get("comparison_preset_labels"),
+        "pages.*.periods.comparison_preset_labels",
+    )
+    gran_labels_tbl = _expect_table(
+        tbl.get("granularity_labels"),
+        "pages.*.periods.granularity_labels",
+    )
+    user_presets_tbl = _expect_table(
+        tbl.get("user_presets"),
+        "pages.*.periods.user_presets",
+    )
+
+    primary_preset_labels = {
+        str(k).upper(): str(v) for k, v in primary_labels_tbl.items()
+    }
+    comparison_preset_labels = {
+        str(k).upper(): str(v) for k, v in comparison_labels_tbl.items()
+    }
+    granularity_labels = {str(k).upper(): str(v) for k, v in gran_labels_tbl.items()}
+
+    user_presets: dict[str, dict[str, str]] = {}
+    for key, val in user_presets_tbl.items():
+        if isinstance(val, Mapping):
+            user_presets[str(key).upper()] = {str(k): str(v) for k, v in val.items()}
+
     return PagePeriodsConfig(
         default_primary_preset=_get_str(tbl, "default_primary_preset", ""),
         default_comparison_preset=_get_str(tbl, "default_comparison_preset", ""),
         default_granularity=_get_str(tbl, "default_granularity", "") or None,
         allowed_granularities=_get_str_list(tbl, "allowed_granularities"),
+        primary_preset_labels=primary_preset_labels,
+        comparison_preset_labels=comparison_preset_labels,
+        granularity_labels=granularity_labels,
+        user_presets=user_presets,
     )
 
 
 def _parse_pages(root: Mapping[str, Any]) -> dict[str, PageConfig]:
+    """Parse the [pages] section.
+
+    Supports per-page UI strings under [pages.<id>.ui] for localization.
+    """
     pages_section = _expect_table(root.get("pages"), "pages")
     pages: dict[str, PageConfig] = {}
 
@@ -557,22 +668,41 @@ def _parse_pages(root: Mapping[str, Any]) -> dict[str, PageConfig]:
             if periods_tbl is not None
             else None
         )
+        ui_tbl_raw = page_tbl.get("ui") or {}
+        ui_tbl = (
+            {
+                str(k): str(v)
+                for k, v in _expect_table(ui_tbl_raw, f"pages.{page_name}.ui").items()
+            }
+            if ui_tbl_raw
+            else {}
+        )
+
         page_cfg = PageConfig(
             id=_get_str(page_tbl, "id", page_name),
             title=_get_str(page_tbl, "title", page_name.capitalize()),
             icon=_get_str(page_tbl, "icon", ""),
             allow_secondary_period=_get_bool(page_tbl, "allow_secondary_period", False),
             periods=periods_cfg,
+            ui=ui_tbl,
         )
         pages[page_cfg.id] = page_cfg
 
     return pages
 
 
-def _parse_dashboard(
-    root: Mapping[str, Any],
-) -> tuple[list[DashboardTileConfig], list[DashboardChartConfig]]:
+def _parse_dashboard(root: Mapping[str, Any]) -> DashboardConfig:
+    """Parse the [dashboard] section.
+
+    Returns a DashboardConfig that groups:
+    - allow_secondary_period (dashboard-level capability flag)
+    - tiles (DashboardTileConfig list)
+    - charts (DashboardChartConfig list)
+    """
     dashboard_tbl = _expect_table(root.get("dashboard"), "dashboard")
+
+    allow_secondary_period = _get_bool(dashboard_tbl, "allow_secondary_period", True)
+
     tiles_raw = dashboard_tbl.get("tiles", [])
     charts_raw = dashboard_tbl.get("charts", [])
 
@@ -586,11 +716,14 @@ def _parse_dashboard(
                     source=_get_str(tile_tbl, "source", "measure"),
                     key=_get_str(tile_tbl, "key", ""),
                     label=_get_str(tile_tbl, "label", ""),
-                    format=_get_str(tile_tbl, "format", ""),
+                    format=_get_str(tile_tbl, "format", "currency"),
                     period_preset=_get_str(tile_tbl, "period_preset", ""),
                     comparison_preset=_get_str(tile_tbl, "comparison_preset", ""),
-                    show_delta_abs=_get_bool(tile_tbl, "show_delta_abs", False),
+                    show_delta_abs=_get_bool(tile_tbl, "show_delta_abs", True),
                     show_delta_pct=_get_bool(tile_tbl, "show_delta_pct", False),
+                    delta_good_direction=_get_str(
+                        tile_tbl, "delta_good_direction", "up"
+                    ),
                     tooltip_from=_get_str(tile_tbl, "tooltip_from", "none"),
                 )
             )
@@ -602,8 +735,8 @@ def _parse_dashboard(
             series_raw = chart_tbl.get("series", [])
             series: list[ChartSeriesConfig] = []
             if isinstance(series_raw, Sequence):
-                for s_idx, s in enumerate(series_raw):
-                    s_tbl = _expect_table(s, f"dashboard.charts[{idx}].series[{s_idx}]")
+                for j, s in enumerate(series_raw):
+                    s_tbl = _expect_table(s, f"dashboard.charts[{idx}].series[{j}]")
                     series.append(
                         ChartSeriesConfig(
                             source=_get_str(s_tbl, "source", "measure"),
@@ -619,8 +752,9 @@ def _parse_dashboard(
                     title=_get_str(chart_tbl, "title", ""),
                     period_preset=_get_str(chart_tbl, "period_preset", ""),
                     comparison_preset=_get_str(chart_tbl, "comparison_preset", ""),
-                    default_granularity=_get_str(chart_tbl, "default_granularity", "")
-                    or None,
+                    default_granularity=(
+                        _get_str(chart_tbl, "default_granularity", "") or None
+                    ),
                     allowed_granularities=_get_str_list(
                         chart_tbl, "allowed_granularities"
                     ),
@@ -628,7 +762,11 @@ def _parse_dashboard(
                 )
             )
 
-    return tiles, charts
+    return DashboardConfig(
+        allow_secondary_period=allow_secondary_period,
+        tiles=tiles,
+        charts=charts,
+    )
 
 
 def _parse_ratios_page(
@@ -808,7 +946,9 @@ def load_layout_config(path: str | Path) -> LayoutConfig:
 
     meta = _parse_meta(data)
     pages = _parse_pages(data)
-    dashboard_tiles, dashboard_charts = _parse_dashboard(data)
+    dashboard_cfg = _parse_dashboard(data)
+    dashboard_tiles = dashboard_cfg.tiles
+    dashboard_charts = dashboard_cfg.charts
     ratios_metrics, ratios_charts = _parse_ratios_page(data)
     statements_cfg = _parse_statements_page(data)
     entries_cfg = _parse_entries_page(data)
@@ -818,8 +958,9 @@ def load_layout_config(path: str | Path) -> LayoutConfig:
     return LayoutConfig(
         meta=meta,
         pages=pages,
-        dashboard_tiles=dashboard_tiles,
-        dashboard_charts=dashboard_charts,
+        dashboard=dashboard_cfg,
+        dashboard_tiles=dashboard_tiles,  # legacy
+        dashboard_charts=dashboard_charts,  # legacy
         ratios_metrics=ratios_metrics,
         ratios_charts=ratios_charts,
         statements=statements_cfg,

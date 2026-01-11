@@ -70,6 +70,7 @@ Design notes
   rules itself. It remains lightweight and focused on orchestration.
 """
 
+import sqlite3
 from dataclasses import dataclass
 from typing import Optional
 
@@ -98,6 +99,7 @@ from .db import (
 from .db import (
     get_entry_by_id as _db_get_entry_by_id,
 )
+from .db import init_database as _db_init_database
 from .db import (
     insert_entry as _db_insert_entry,
 )
@@ -575,6 +577,37 @@ def resolve_duplicate_entry(
         duplicate=updated_duplicate,
         existing=existing,
     )
+
+
+def get_entries_count(app_config: AppConfig, *, include_deleted: bool = False) -> int:
+    """
+    Return the number of accounting entries currently stored in the database.
+
+    This is intended for lightweight UI indicators (e.g., sidebar footer).
+    By default, soft-deleted entries are excluded.
+
+    Parameters
+    ----------
+    app_config:
+        Global application configuration.
+    include_deleted:
+        If True, include soft-deleted entries in the count.
+
+    Returns
+    -------
+    int
+        Number of entries in the database (optionally including deleted).
+    """
+    db_cfg = _get_db_config(app_config)
+    _db_init_database(db_cfg)
+
+    query = "SELECT COUNT(*) FROM entries"
+    if not include_deleted:
+        query += " WHERE is_deleted = 0"
+
+    with sqlite3.connect(db_cfg.path) as conn:
+        cur = conn.execute(query)
+        return int(cur.fetchone()[0])
 
 
 def load_entry(app_config: AppConfig, entry_id: int) -> Optional[AccountingEntry]:

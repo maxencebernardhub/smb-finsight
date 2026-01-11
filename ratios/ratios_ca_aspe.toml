@@ -46,7 +46,13 @@ notes   = "Cost of goods sold as a percentage of revenue, using absolute COGS."
 label   = "Operating expenses / Revenue (%)"
 formula = "(-total_operating_expenses / revenue) * 100"
 unit    = "percent"
-notes   = "Operating expenses as a percentage of revenue, in absolute value."
+notes   = "Operating expenses as a percentage of revenue, absolute value."
+
+[measures.external_charges_abs]
+label   = "External charges"
+formula = "(-external_charges)"
+unit    = "amount"
+notes   = "External charges (suppliers, marketing, IT, etc.), absolute value."
 
 [measures.external_charges_pct]
 label   = "External charges / Revenue (%)"

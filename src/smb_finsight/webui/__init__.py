@@ -8,5 +8,6 @@ Web UI package for SMB FinSight.
 This package contains:
 - configuration helpers for the Web UI (layout loading, state handling),
 - Streamlit application entry point,
-- page definitions for the different views (dashboard, statements, ratios, entries, duplicates, import/config).
+- page definitions for the different views (dashboard, statements, ratios,
+entries, duplicates, import/config).
 """

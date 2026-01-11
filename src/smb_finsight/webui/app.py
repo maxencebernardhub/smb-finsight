@@ -31,6 +31,7 @@ import streamlit as st
 
 from smb_finsight import __version__ as package_version
 from smb_finsight.config import load_app_config
+from smb_finsight.entries_service import get_duplicate_stats, get_entries_count
 from smb_finsight.webui.layout import (
     LayoutConfig,
     PageConfig,
@@ -80,7 +81,7 @@ def _load_page_module(page_id: str):
     Raises:
         ImportError: If the module does not exist or cannot be imported.
     """
-    module_path = f"smb_finsight.webui.pages.{page_id}"
+    module_path = f"smb_finsight.webui.webui_pages.{page_id}"
     try:
         module = __import__(module_path, fromlist=["render"])
     except Exception as exc:  # noqa: BLE001
@@ -166,8 +167,12 @@ def main() -> None:
         # Active accounting standard (raw value from AppConfig.standard)
         st.caption(f"Standard: {app_config.standard}", text_alignment="center")
 
-        # Database status: number of entries loaded
-        st.caption(f"Database: {entries_count} entries loaded", text_alignment="center")
+        # Database status: get entries count and duplicate entries
+        entries_count = get_entries_count(app_config)
+        dup_stats = get_duplicate_stats(app_config)
+
+        st.caption(f"Database entries: {entries_count:,}", text_alignment="center")
+        st.caption(f"Duplicate entries: {dup_stats.pending:,}", text_alignment="center")
 
         # Documentation reference (can be plain text for now)
         st.markdown(

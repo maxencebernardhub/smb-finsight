@@ -10,8 +10,8 @@
 
 [fiscal_year]
 # Default fiscal year used when no custom period is provided.
-start_date = "2025-01-01"
-end_date   = "2025-12-31"
+start_date = "2026-01-01"
+end_date   = "2026-12-31"
 
 # -------------------------------------------------------------------
 # Accounting standard
@@ -26,7 +26,12 @@ end_date   = "2025-12-31"
 standard = "FR_PCG"
 
 # Optional reporting currency (informational, for display).
-currency = "USD"
+# Supported: "CAD", "USD", "EUR"
+currency = "CAD"
+
+# Thousands separator used for display formatting.
+# Supported: "," or " "
+thousands_separator = ","
 
 # Optional path to a standard-specific config file.
 # If empty, SMB FinSight will use the built-in default config
@@ -59,8 +64,8 @@ path = "data/db/smb_finsight.sqlite"
 # Enable or disable ratio and KPI computation.
 enabled = true
 
-# Default level of detail when displaying ratios in the CLI.
-# Possible values (proposal):
+# Default level of detail when displaying ratios.
+# Possible values:
 #   "basic"
 #   "advanced"
 #   "full"

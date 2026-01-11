@@ -48,6 +48,12 @@ formula = "(-total_operating_expenses / revenue) * 100"
 unit    = "percent"
 notes   = "Operating expenses as a percentage of revenue, in absolute value."
 
+[measures.external_charges_abs]
+label   = "External charges"
+formula = "(-external_charges)"
+unit    = "amount"
+notes   = "External charges (suppliers, marketing, IT, etc.), absolute value."
+
 [measures.external_charges_pct]
 label   = "External charges / Revenue (%)"
 formula = "(-external_charges / revenue) * 100"

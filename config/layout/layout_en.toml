@@ -68,6 +68,28 @@ title = "Dashboard"
 icon = "📊"
 allow_secondary_period = true
 
+[pages.dashboard.ui]
+show_selected_period_range = true
+section_key_metrics = "Key metrics"
+section_trends = "Trends"
+default_enable_comparison = false               # false or true. If true, toggle "Enable comparison" activated by default
+
+label_primary_period = "Primary period"
+label_comparison_toggle = "Compare to another period"
+label_comparison_period = "Comparison period"
+label_granularity = "Granularity"
+
+label_custom_from = "From"
+label_custom_to = "To"
+
+label_period_range = "Selected range"
+period_range_format = "{start} – {end}"   # ex: 2025-01-01 – 2025-12-31
+
+error_custom_end_before_start = "End date cannot be earlier than start date."
+
+
+[pages.dashboard.periods]
+
 # Default periods behaviour for Dashboard:
 #   - default_primary_preset: main period used when the user first arrives on the page
 #   - default_comparison_preset: default secondary period (comparison)
@@ -82,11 +104,38 @@ allow_secondary_period = true
 #   MTD            -> month-to-date
 #   LAST_MONTH     -> previous calendar/fiscal month
 #   CUSTOM         -> user-defined period (UI)
-[pages.dashboard.periods]
+
+
 default_primary_preset = "YTD"
-default_comparison_preset = "YTD_PREV_FY"
+default_comparison_preset = "SAME_PERIOD_PREV_FY"
 default_granularity = "MONTH"                    # DAY | WEEK | MONTH | QUARTER | FY (for "whole year")
-allowed_granularities = ["DAY", "WEEK", "MONTH", "QUARTER"]
+allowed_granularities = ["DAY", "WEEK", "MONTH", "QUARTER", "FY"]
+
+[pages.dashboard.periods.primary_preset_labels]
+FY = "Current fiscal year"
+YTD = "Year to date (current FY)"
+MTD = "Month to date"
+LAST_MONTH = "Last month"
+CUSTOM = "Custom period"
+
+[pages.dashboard.periods.comparison_preset_labels]
+FY_PREV = "Previous fiscal year"
+YTD_PREV_FY = "Year to date (previous FY)"
+LAST_MONTH = "Last month"
+PREV_PERIOD = "Previous period"
+SAME_PERIOD_PREV_FY = "Same period previous FY"
+CUSTOM = "Custom period"
+
+[pages.dashboard.periods.granularity_labels]
+DAY = "Day"
+WEEK = "Week"
+MONTH = "Month"
+QUARTER = "Quarter"
+FY = "Fiscal year"
+
+[pages.dashboard.periods.user_presets]
+Q4_2025 = { label = "Q4 2025", start = "2025-10-01", end = "2025-12-31" }
+FY2022  = { label = "FY 2022",  start = "2022-01-01", end = "2022-12-31" }
 
 
 # ----------------- Statements page -----------------
@@ -160,59 +209,97 @@ icon = "⚙️"
 #   key               : measure/ratio/system identifier
 #   label             : display label for the tile
 #   format            : "amount" | "percent" | "number" (optional override of underlying unit)
-#   period_preset     : optional override of the page's primary period preset
-#   comparison_preset : optional override of the page's secondary period preset
 #   show_delta_abs    : whether to show absolute delta vs secondary period
 #   show_delta_pct    : whether to show relative delta vs secondary period
 #   tooltip_from      : "measure_notes" | "ratio_notes" | "none"
 
 [[dashboard.tiles]]
-id = "revenue_ytd"
+id = "revenue"
 source = "measure"
 key = "revenue"
-label = "Revenue (YTD)"
+label = "Revenue"
 format = "amount"
-period_preset = "YTD"            # overrides default_primary_preset for this tile
-comparison_preset = "YTD_PREV_FY"
 show_delta_abs = true
 show_delta_pct = true
+delta_good_direction = "up"
 tooltip_from = "measure_notes"
 
 [[dashboard.tiles]]
-id = "gross_margin_ytd"
+id = "gross_margin"
 source = "measure"
 key = "gross_margin"
-label = "Gross margin (YTD)"
+label = "Gross margin"
 format = "amount"
-period_preset = "YTD"
-comparison_preset = "YTD_PREV_FY"
 show_delta_abs = true
 show_delta_pct = true
+delta_good_direction = "up"
 tooltip_from = "measure_notes"
 
 [[dashboard.tiles]]
-id = "operating_income_ytd"
+id = "operating_income"
 source = "measure"
 key = "operating_income"
-label = "Operating income (YTD)"
+label = "Operating income"
 format = "amount"
-period_preset = "YTD"
-comparison_preset = "YTD_PREV_FY"
 show_delta_abs = true
 show_delta_pct = true
+delta_good_direction = "up"
 tooltip_from = "measure_notes"
 
 [[dashboard.tiles]]
-id = "net_income_ytd"
+id = "net_income"
 source = "measure"
 key = "net_income"
-label = "Net income (YTD)"
+label = "Net income"
 format = "amount"
-period_preset = "YTD"
-comparison_preset = "YTD_PREV_FY"
 show_delta_abs = true
 show_delta_pct = true
+delta_good_direction = "up"
 tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "external_charges_abs"
+source = "measure"
+key = "external_charges_abs"
+label = "External charges"
+format = "amount"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "down"
+tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "roce_pct"
+source = "ratio"
+key = "roce_pct"
+label = "ROCE (%)"
+format = "percent"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "up"
+tooltip_from = "ratio_notes"
+
+[[dashboard.tiles]]
+id = "equity_ratio_pct"
+source = "ratio"
+key = "equity_ratio_pct"
+label = "Equity ratio (%)"
+format = "percent"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "up"
+tooltip_from = "ratio_notes"
+
+[[dashboard.tiles]]
+id = "dso_days"
+source = "ratio"
+key = "dso_days"
+label = "DSO (Days Sales Outstanding)"
+format = "number"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "down"
+tooltip_from = "ratio_notes"
 
 # NOTE:
 # We deliberately do NOT define a "duplicates" tile on the Dashboard.
@@ -227,8 +314,6 @@ tooltip_from = "measure_notes"
 #   id                : unique identifier of the chart
 #   type              : "line" | "bar"
 #   title             : chart title
-#   period_preset     : primary period preset for this chart (optional; falls back to page defaults)
-#   comparison_preset : optional secondary period preset for this chart (if relevant)
 #   default_granularity / allowed_granularities :
 #                      controls how the primary period is split into subperiods.
 #
@@ -242,12 +327,7 @@ tooltip_from = "measure_notes"
 id = "revenue_and_margin_evolution"
 type = "line"
 title = "Revenue & gross margin evolution"
-# Use the page-level period presets (YTD vs YTD_PREV_FY) by default:
-# period_preset and comparison_preset can be omitted or explicitly set here.
-period_preset = "YTD"
-comparison_preset = "YTD_PREV_FY"
-default_granularity = "MONTH"
-allowed_granularities = ["DAY", "WEEK", "MONTH", "QUARTER"]
+
 
 [[dashboard.charts.series]]
 source = "measure"
@@ -264,12 +344,7 @@ label = "Gross margin"
 id = "profitability_evolution"
 type = "bar"
 title = "Profitability evolution"
-# Here, we typically compare FY vs FY_PREV (can be changed later).
-period_preset = "FY"
-comparison_preset = "FY_PREV"
-# For this chart, we consider the entire FY as one bucket (no finer granularity).
-default_granularity = "FY"
-allowed_granularities = ["FY"]
+
 
 [[dashboard.charts.series]]
 source = "measure"
@@ -305,8 +380,6 @@ label = "Net income"
 #   show_delta_abs    : show absolute delta (for percent: points)
 #   show_delta_pct    : show relative change (e.g. +7.5%)
 #   tooltip_from      : typically "ratio_notes"
-#   period_preset     : optional override of primary preset for this metric
-#   comparison_preset : optional override of secondary preset for this metric
 
 [[ratios_page.metrics]]
 id = "gross_margin_pct"
