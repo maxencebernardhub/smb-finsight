@@ -275,7 +275,7 @@ key = "roce_pct"
 label = "ROCE (%)"
 format = "percent"
 show_delta_abs = true
-show_delta_pct = true
+show_delta_pct = false
 delta_good_direction = "up"
 tooltip_from = "ratio_notes"
 
@@ -286,7 +286,7 @@ key = "equity_ratio_pct"
 label = "Equity ratio (%)"
 format = "percent"
 show_delta_abs = true
-show_delta_pct = true
+show_delta_pct = false
 delta_good_direction = "up"
 tooltip_from = "ratio_notes"
 
