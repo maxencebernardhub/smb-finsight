@@ -6,24 +6,62 @@
 """
 WebUI compute pipelines.
 
-This module centralizes compute steps shared by Streamlit pages. It exists to:
-- keep page files (dashboard.py, future ratios.py) thin and focused on UI,
-- compute multi-period outputs once and reuse them across tiles and charts,
-- standardize period labeling conventions used throughout the WebUI.
+This module defines high-level computation pipelines used by the Web UI
+(Streamlit application).
 
-Key conventions:
-- The selected primary/comparison periods are included as-is and are expected to have
-  `period_label` values "PRIMARY" and "COMPARISON" (set upstream by period_ui).
-- Chart buckets are derived from those periods using `split_period(...)`
-and are labeled:
-  - primary buckets:  "P_<...>" (label_prefix="P_")
-  - comparison buckets: "C_<...>" (label_prefix="C_")
+A "pipeline" is responsible for:
+- preparing the list of periods to compute (primary, optional comparison,
+  and optional bucketized sub-periods for charts),
+- calling the core computation engine once (`compute_all_multi_period`),
+- returning pre-structured pandas DataFrames ready for UI rendering.
 
-Why ratios_level="full" on the Dashboard:
-- The dashboard mixes measures and ratios in tiles and charts.
-- For deterministic rendering, we compute all ratios regardless of
-app_config.ratios_level.
-  (Other pages may choose a different policy.)
+Design principles
+-----------------
+1) Separation of concerns:
+   - Core computation logic lives in the engine layer
+     (e.g. compute_all_multi_period, ratios engine).
+   - This module orchestrates computations for UI needs only.
+   - UI pages (dashboard, ratios, statements) should not perform computations
+     directly, but rely on these pipelines.
+
+2) Single computation pass:
+   - Each pipeline computes all required periods in one call to
+     `compute_all_multi_period`.
+   - The resulting multi-period DataFrames are then reused for tiles and charts.
+
+3) Page-specific pipelines:
+   - Each analytical page has its own pipeline function with a clear contract:
+       * Dashboard        -> run_dashboard_pipeline
+       * Ratios & KPIs    -> run_ratios_pipeline
+       * (Future) Statements / Cashflow, etc.
+   - This keeps page logic simple and avoids duplication in Streamlit code.
+
+4) Periods and granularity:
+   - Pipelines receive already-resolved Period objects from the UI layer
+     (period_ui).
+   - Granularity is used to generate bucketized sub-periods for charts.
+     The selected granularity drives period bucketing for both tiles and charts
+     (global per page).
+   - Metric tiles always reflect full primary/comparison periods;
+     bucketized periods are intended for charts only.
+
+5) Ratios levels:
+   - The Web UI always computes ratios at level "full".
+   - Ratio level filtering is currently a CLI concern only.
+   - The UI layout decides which measures/ratios are displayed.
+
+Outputs
+-------
+Each pipeline returns a typed result object (dataclass) containing:
+- computed measures DataFrame,
+- computed ratios DataFrame,
+- the list of periods used for computation,
+- optional bucketized periods for chart rendering.
+
+This approach allows:
+- lightweight page implementations,
+- consistent behavior across pages,
+- easy future extension (new pages, new chart types).
 """
 
 from dataclasses import dataclass
@@ -61,6 +99,35 @@ class DashboardPipelineResult:
     all_periods: list[Any]
 
 
+@dataclass(frozen=True)
+class RatiosPipelineResult:
+    """
+    Output of the Ratios & KPIs compute pipeline.
+
+    Attributes:
+        measures_df:
+            Multi-period measures DataFrame, including PRIMARY/COMPARISON and
+            bucket periods (for future charts).
+        ratios_df:
+            Multi-period ratios DataFrame, including PRIMARY/COMPARISON and
+            bucket periods (for future charts).
+        primary_buckets:
+            Bucket periods for the primary selection (labels prefixed with "P_").
+        comp_buckets:
+            Bucket periods for the comparison selection (labels prefixed with "C_"),
+            or [] when comparison is disabled.
+        all_periods:
+            Period list passed to `compute_all_multi_period()`
+            (primary/comparison + buckets).
+    """
+
+    measures_df: pd.DataFrame
+    ratios_df: pd.DataFrame
+    primary_buckets: list[Any]
+    comp_buckets: list[Any]
+    all_periods: list[Any]
+
+
 def run_dashboard_pipeline(
     *,
     app_config: AppConfig,
@@ -86,7 +153,7 @@ def run_dashboard_pipeline(
         primary_period: Period object labeled "PRIMARY" (from period_ui).
         comparison_period: Optional Period object labeled "COMPARISON" (from period_ui).
         granularity: Bucket granularity used for chart x-axes
-        (DAY/WEEK/MONTH/QUARTER/FY).
+        (DAY/WEEK/MONTH/QUARTER/CY/FY).
 
     Returns:
         DashboardPipelineResult containing computed dataframes and bucket periods.
@@ -104,10 +171,20 @@ def run_dashboard_pipeline(
 
     # Prefix buckets to keep them distinct from PRIMARY/COMPARISON
     # in multi-period outputs.
-    primary_buckets = split_period(primary_period, granularity, label_prefix="P_")
+    primary_buckets = split_period(
+        primary_period,
+        granularity,
+        label_prefix="P_",
+        fiscal_year=app_config.fiscal_year,
+    )
     comp_buckets: list[Any] = []
     if comparison_period is not None:
-        comp_buckets = split_period(comparison_period, granularity, label_prefix="C_")
+        comp_buckets = split_period(
+            comparison_period,
+            granularity,
+            label_prefix="C_",
+            fiscal_year=app_config.fiscal_year,
+        )
 
     all_periods = periods_for_compute + primary_buckets + comp_buckets
 
@@ -124,6 +201,88 @@ def run_dashboard_pipeline(
     return DashboardPipelineResult(
         measures_df=measures_df,
         ratios_df=ratios_df,
+        primary_buckets=primary_buckets,
+        comp_buckets=comp_buckets,
+        all_periods=all_periods,
+    )
+
+
+def run_ratios_pipeline(
+    *,
+    app_config: AppConfig,
+    primary_period: Any,
+    comparison_period: Optional[Any],
+    granularity: str,
+) -> RatiosPipelineResult:
+    """
+    Run the Ratios & KPIs compute pipeline.
+
+    This pipeline mirrors `run_dashboard_pipeline()`:
+    - include the selected primary and optional comparison periods (for tiles),
+    - generate bucketized periods for future charts via `split_period(...)`,
+      using fixed label prefixes:
+        primary buckets -> "P_<...>"
+        comparison buckets -> "C_<...>"
+    - compute all periods once using `compute_all_multi_period()`,
+      then expose measures_df and ratios_df for the UI.
+
+    Args:
+        app_config:
+            Application config. Provides `standard_config` and global settings.
+        primary_period:
+            Period object labeled "PRIMARY" (from period_ui).
+        comparison_period:
+            Optional Period object labeled "COMPARISON" (from period_ui).
+        granularity:
+            Bucket granularity for future charts (DAY/WEEK/MONTH/QUARTER/FY).
+            Note: v1 of the Ratios page uses granularity only for future charts.
+            Tiles always reflect the full selected PRIMARY/COMPARISON periods.
+
+    Returns:
+        RatiosPipelineResult containing computed dataframes and bucket periods.
+
+    Policy:
+        - We force `ratios_level="full"` so the Ratios page can render any ratio key
+          listed in `layout.ratios_page.sections` without being constrained
+          by CLI levels.
+          (Level filtering is currently CLI-only by design.)
+    """
+
+    # Tiles use PRIMARY/COMPARISON periods directly (not bucketized).
+    periods_for_compute = [primary_period]
+    if comparison_period is not None:
+        periods_for_compute.append(comparison_period)
+
+    primary_buckets = split_period(
+        primary_period,
+        granularity,
+        label_prefix="P_",
+        fiscal_year=app_config.fiscal_year,
+    )
+    comp_buckets = (
+        split_period(
+            comparison_period,
+            granularity,
+            label_prefix="C_",
+            fiscal_year=app_config.fiscal_year,
+        )
+        if comparison_period
+        else []
+    )
+
+    all_periods = periods_for_compute + primary_buckets + comp_buckets
+
+    # Compute once. Ratios page policy: always compute full ratios.
+    _, measures_mp, ratios_mp = compute_all_multi_period(
+        app_config=app_config,
+        standard_config=app_config.standard_config,
+        periods=all_periods,
+        ratios_level="full",
+    )
+
+    return RatiosPipelineResult(
+        measures_df=measures_mp.data,
+        ratios_df=ratios_mp.data,
         primary_buckets=primary_buckets,
         comp_buckets=comp_buckets,
         all_periods=all_periods,

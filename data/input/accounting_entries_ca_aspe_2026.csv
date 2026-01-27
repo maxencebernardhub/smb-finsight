@@ -1,0 +1,252 @@
+date,code,description,debit,credit
+2026-01-31,4020,Support package – subscriptions (Jan 2026),0.0,77000.0
+2026-01-31,4100,Maintenance contract renewal (Jan 2026),0.0,25200.0
+2026-01-31,4110,Implementation / professional services (Jan 2026),0.0,23800.0
+2026-01-31,4000,Product sales (Jan 2026),0.0,11200.0
+2026-01-31,4900,Other operating revenue (Jan 2026),0.0,2800.0
+2026-01-31,5070,Subcontracting (delivery) (Jan 2026),19767.77,0.0
+2026-01-31,5030,Direct labour (contractors) (Jan 2026),15374.94,0.0
+2026-01-31,5020,Other COGS (hosting/materials) (Jan 2026),8785.68,0.0
+2026-01-31,6300,Salaries & benefits (Jan 2026),49530.06,0.0
+2026-01-31,6010,Marketing spend (Jan 2026),8313.87,0.0
+2026-01-31,6060,Office rent (Jan 2026),6428.03,0.0
+2026-01-31,6050,Utilities (Jan 2026),952.8,0.0
+2026-01-31,6230,Cloud/SaaS subscriptions (Jan 2026),4383.61,0.0
+2026-01-31,6240,Developer tools (Jan 2026),2630.17,0.0
+2026-01-31,6530,Security & monitoring (Jan 2026),1753.45,0.0
+2026-01-31,6070,Professional fees (Jan 2026),9769.25,0.0
+2026-01-31,6100,Travel & client meals (Jan 2026),939.09,0.0
+2026-01-31,6085,Insurance premium (Q1 2026),4167.21,0.0
+2026-01-31,6200,Depreciation & amortization (Jan 2026),6500.0,0.0
+2026-01-31,7100,Finance costs (Jan 2026),2899.07,0.0
+2026-01-31,8000,Income tax provision (Jan 2026),5512.19,0.0
+2026-02-28,4020,Support package – subscriptions (Feb 2026),0.0,79750.0
+2026-02-28,4100,Maintenance contract renewal (Feb 2026),0.0,26100.0
+2026-02-28,4110,Implementation / professional services (Feb 2026),0.0,24650.0
+2026-02-28,4000,Product sales (Feb 2026),0.0,11600.0
+2026-02-28,4900,Other operating revenue (Feb 2026),0.0,2900.0
+2026-02-28,5070,Subcontracting (delivery) (Feb 2026),20080.1,0.0
+2026-02-28,5030,Direct labour (contractors) (Feb 2026),15617.85,0.0
+2026-02-28,5020,Other COGS (hosting/materials) (Feb 2026),8924.49,0.0
+2026-02-28,6300,Salaries & benefits (Feb 2026),50014.31,0.0
+2026-02-28,6010,Marketing spend (Feb 2026),8005.29,0.0
+2026-02-28,6060,Office rent (Feb 2026),6538.97,0.0
+2026-02-28,6050,Utilities (Feb 2026),903.96,0.0
+2026-02-28,6230,Cloud/SaaS subscriptions (Feb 2026),3915.95,0.0
+2026-02-28,6240,Developer tools (Feb 2026),2349.57,0.0
+2026-02-28,6530,Security & monitoring (Feb 2026),1566.38,0.0
+2026-02-28,6070,Professional fees (Feb 2026),7997.2,0.0
+2026-02-28,6100,Travel & client meals (Feb 2026),2759.76,0.0
+2026-02-28,6400,Training & recruiting (Feb 2026),2009.75,0.0
+2026-02-28,6200,Depreciation & amortization (Feb 2026),6500.0,0.0
+2026-02-28,7100,Finance costs (Feb 2026),3395.72,0.0
+2026-02-28,8000,Income tax provision (Feb 2026),7099.6,0.0
+2026-03-31,4020,Support package – subscriptions (Mar 2026),0.0,82500.0
+2026-03-31,4100,Maintenance contract renewal (Mar 2026),0.0,27000.0
+2026-03-31,4110,Implementation / professional services (Mar 2026),0.0,25500.0
+2026-03-31,4000,Product sales (Mar 2026),0.0,12000.0
+2026-03-31,4900,Other operating revenue (Mar 2026),0.0,3000.0
+2026-03-31,5070,Subcontracting (delivery) (Mar 2026),20271.01,0.0
+2026-03-31,5030,Direct labour (contractors) (Mar 2026),15766.34,0.0
+2026-03-31,5020,Other COGS (hosting/materials) (Mar 2026),9009.34,0.0
+2026-03-31,6300,Salaries & benefits (Mar 2026),51174.04,0.0
+2026-03-31,6010,Marketing spend (Mar 2026),11076.71,0.0
+2026-03-31,6060,Office rent (Mar 2026),6457.51,0.0
+2026-03-31,6050,Utilities (Mar 2026),788.65,0.0
+2026-03-31,6230,Cloud/SaaS subscriptions (Mar 2026),3789.14,0.0
+2026-03-31,6240,Developer tools (Mar 2026),2273.48,0.0
+2026-03-31,6530,Security & monitoring (Mar 2026),1515.65,0.0
+2026-03-31,6070,Professional fees (Mar 2026),9507.84,0.0
+2026-03-31,6100,Travel & client meals (Mar 2026),2241.39,0.0
+2026-03-31,6320,Repairs & maintenance (Mar 2026),2422.26,0.0
+2026-03-31,6200,Depreciation & amortization (Mar 2026),6500.0,0.0
+2026-03-31,7100,Finance costs (Mar 2026),3347.03,0.0
+2026-03-31,8000,Income tax provision (Mar 2026),6858.68,0.0
+2026-04-30,4020,Support package – subscriptions (Apr 2026),0.0,85250.0
+2026-04-30,4100,Maintenance contract renewal (Apr 2026),0.0,27900.0
+2026-04-30,4110,Implementation / professional services (Apr 2026),0.0,26350.0
+2026-04-30,4000,Product sales (Apr 2026),0.0,12400.0
+2026-04-30,4900,Other operating revenue (Apr 2026),0.0,3100.0
+2026-04-30,5070,Subcontracting (delivery) (Apr 2026),22933.11,0.0
+2026-04-30,5030,Direct labour (contractors) (Apr 2026),17836.87,0.0
+2026-04-30,5020,Other COGS (hosting/materials) (Apr 2026),10192.5,0.0
+2026-04-30,6300,Salaries & benefits (Apr 2026),52850.16,0.0
+2026-04-30,6010,Marketing spend (Apr 2026),12581.02,0.0
+2026-04-30,6060,Office rent (Apr 2026),6585.65,0.0
+2026-04-30,6050,Utilities (Apr 2026),922.72,0.0
+2026-04-30,6230,Cloud/SaaS subscriptions (Apr 2026),4573.25,0.0
+2026-04-30,6240,Developer tools (Apr 2026),2743.95,0.0
+2026-04-30,6530,Security & monitoring (Apr 2026),1829.3,0.0
+2026-04-30,6070,Professional fees (Apr 2026),7927.51,0.0
+2026-04-30,6100,Travel & client meals (Apr 2026),2495.52,0.0
+2026-04-30,6085,Insurance premium (Q2 2026),4009.25,0.0
+2026-04-30,6200,Depreciation & amortization (Apr 2026),6500.0,0.0
+2026-04-30,7100,Finance costs (Apr 2026),3025.85,0.0
+2026-04-30,8000,Income tax provision (Apr 2026),6322.1,0.0
+2026-05-31,4020,Support package – subscriptions (May 2026),0.0,88000.0
+2026-05-31,4100,Maintenance contract renewal (May 2026),0.0,28800.0
+2026-05-31,4110,Implementation / professional services (May 2026),0.0,27200.0
+2026-05-31,4000,Product sales (May 2026),0.0,12800.0
+2026-05-31,4900,Other operating revenue (May 2026),0.0,3200.0
+2026-05-31,5070,Subcontracting (delivery) (May 2026),20778.52,0.0
+2026-05-31,5030,Direct labour (contractors) (May 2026),16161.08,0.0
+2026-05-31,5020,Other COGS (hosting/materials) (May 2026),9234.9,0.0
+2026-05-31,6300,Salaries & benefits (May 2026),52557.07,0.0
+2026-05-31,6010,Marketing spend (May 2026),10145.41,0.0
+2026-05-31,6060,Office rent (May 2026),6442.27,0.0
+2026-05-31,6050,Utilities (May 2026),927.1,0.0
+2026-05-31,6230,Cloud/SaaS subscriptions (May 2026),4063.96,0.0
+2026-05-31,6240,Developer tools (May 2026),2438.37,0.0
+2026-05-31,6530,Security & monitoring (May 2026),1625.58,0.0
+2026-05-31,6070,Professional fees (May 2026),6715.56,0.0
+2026-05-31,6100,Travel & client meals (May 2026),1247.96,0.0
+2026-05-31,6400,Training & recruiting (May 2026),2400.47,0.0
+2026-05-31,6200,Depreciation & amortization (May 2026),6500.0,0.0
+2026-05-31,7100,Finance costs (May 2026),3479.46,0.0
+2026-05-31,8000,Income tax provision (May 2026),7673.71,0.0
+2026-06-30,4020,Support package – subscriptions (Jun 2026),0.0,90750.0
+2026-06-30,4100,Maintenance contract renewal (Jun 2026),0.0,29700.0
+2026-06-30,4110,Implementation / professional services (Jun 2026),0.0,28050.0
+2026-06-30,4000,Product sales (Jun 2026),0.0,13200.0
+2026-06-30,4900,Other operating revenue (Jun 2026),0.0,3300.0
+2026-06-30,5070,Subcontracting (delivery) (Jun 2026),23196.51,0.0
+2026-06-30,5030,Direct labour (contractors) (Jun 2026),18041.73,0.0
+2026-06-30,5020,Other COGS (hosting/materials) (Jun 2026),10309.56,0.0
+2026-06-30,6300,Salaries & benefits (Jun 2026),52707.71,0.0
+2026-06-30,6010,Marketing spend (Jun 2026),13537.28,0.0
+2026-06-30,6060,Office rent (Jun 2026),6412.48,0.0
+2026-06-30,6050,Utilities (Jun 2026),861.76,0.0
+2026-06-30,6230,Cloud/SaaS subscriptions (Jun 2026),4704.26,0.0
+2026-06-30,6240,Developer tools (Jun 2026),2822.56,0.0
+2026-06-30,6530,Security & monitoring (Jun 2026),1881.7,0.0
+2026-06-30,6070,Professional fees (Jun 2026),8294.0,0.0
+2026-06-30,6100,Travel & client meals (Jun 2026),2123.51,0.0
+2026-06-30,6200,Depreciation & amortization (Jun 2026),6500.0,0.0
+2026-06-30,7100,Finance costs (Jun 2026),3318.15,0.0
+2026-06-30,8000,Income tax provision (Jun 2026),8556.41,0.0
+2026-07-31,4020,Support package – subscriptions (Jul 2026),0.0,92400.0
+2026-07-31,4100,Maintenance contract renewal (Jul 2026),0.0,30240.0
+2026-07-31,4110,Implementation / professional services (Jul 2026),0.0,28560.0
+2026-07-31,4000,Product sales (Jul 2026),0.0,13440.0
+2026-07-31,4900,Other operating revenue (Jul 2026),0.0,3360.0
+2026-07-31,5070,Subcontracting (delivery) (Jul 2026),24185.95,0.0
+2026-07-31,5030,Direct labour (contractors) (Jul 2026),18811.3,0.0
+2026-07-31,5020,Other COGS (hosting/materials) (Jul 2026),10749.31,0.0
+2026-07-31,6300,Salaries & benefits (Jul 2026),53509.76,0.0
+2026-07-31,6010,Marketing spend (Jul 2026),7330.01,0.0
+2026-07-31,6060,Office rent (Jul 2026),6452.02,0.0
+2026-07-31,6050,Utilities (Jul 2026),833.27,0.0
+2026-07-31,6230,Cloud/SaaS subscriptions (Jul 2026),3906.26,0.0
+2026-07-31,6240,Developer tools (Jul 2026),2343.75,0.0
+2026-07-31,6530,Security & monitoring (Jul 2026),1562.5,0.0
+2026-07-31,6070,Professional fees (Jul 2026),10066.02,0.0
+2026-07-31,6100,Travel & client meals (Jul 2026),2928.45,0.0
+2026-07-31,6085,Insurance premium (Q3 2026),4122.16,0.0
+2026-07-31,6200,Depreciation & amortization (Jul 2026),6500.0,0.0
+2026-07-31,7100,Finance costs (Jul 2026),3299.48,0.0
+2026-07-31,8000,Income tax provision (Jul 2026),7209.32,0.0
+2026-08-31,4020,Support package – subscriptions (Aug 2026),0.0,93500.0
+2026-08-31,4100,Maintenance contract renewal (Aug 2026),0.0,30600.0
+2026-08-31,4110,Implementation / professional services (Aug 2026),0.0,28900.0
+2026-08-31,4000,Product sales (Aug 2026),0.0,13600.0
+2026-08-31,4900,Other operating revenue (Aug 2026),0.0,3400.0
+2026-08-31,5070,Subcontracting (delivery) (Aug 2026),24950.83,0.0
+2026-08-31,5030,Direct labour (contractors) (Aug 2026),19406.2,0.0
+2026-08-31,5020,Other COGS (hosting/materials) (Aug 2026),11089.26,0.0
+2026-08-31,6300,Salaries & benefits (Aug 2026),55271.63,0.0
+2026-08-31,6010,Marketing spend (Aug 2026),8272.76,0.0
+2026-08-31,6060,Office rent (Aug 2026),6434.12,0.0
+2026-08-31,6050,Utilities (Aug 2026),908.15,0.0
+2026-08-31,6230,Cloud/SaaS subscriptions (Aug 2026),3959.31,0.0
+2026-08-31,6240,Developer tools (Aug 2026),2375.59,0.0
+2026-08-31,6530,Security & monitoring (Aug 2026),1583.72,0.0
+2026-08-31,6070,Professional fees (Aug 2026),7969.83,0.0
+2026-08-31,6100,Travel & client meals (Aug 2026),2982.51,0.0
+2026-08-31,6320,Repairs & maintenance (Aug 2026),1835.14,0.0
+2026-08-31,6200,Depreciation & amortization (Aug 2026),6500.0,0.0
+2026-08-31,7100,Finance costs (Aug 2026),3020.37,0.0
+2026-08-31,8000,Income tax provision (Aug 2026),9341.63,0.0
+2026-09-30,4020,Support package – subscriptions (Sep 2026),0.0,94600.0
+2026-09-30,4100,Maintenance contract renewal (Sep 2026),0.0,30960.0
+2026-09-30,4110,Implementation / professional services (Sep 2026),0.0,29240.0
+2026-09-30,4000,Product sales (Sep 2026),0.0,13760.0
+2026-09-30,4900,Other operating revenue (Sep 2026),0.0,3440.0
+2026-09-30,5070,Subcontracting (delivery) (Sep 2026),23833.670000000002,0.0
+2026-09-30,5030,Direct labour (contractors) (Sep 2026),18537.31,0.0
+2026-09-30,5020,Other COGS (hosting/materials) (Sep 2026),10592.75,0.0
+2026-09-30,6300,Salaries & benefits (Sep 2026),53709.09,0.0
+2026-09-30,6010,Marketing spend (Sep 2026),7390.82,0.0
+2026-09-30,6060,Office rent (Sep 2026),6398.51,0.0
+2026-09-30,6050,Utilities (Sep 2026),925.0,0.0
+2026-09-30,6230,Cloud/SaaS subscriptions (Sep 2026),4501.88,0.0
+2026-09-30,6240,Developer tools (Sep 2026),2701.13,0.0
+2026-09-30,6530,Security & monitoring (Sep 2026),1800.75,0.0
+2026-09-30,6070,Professional fees (Sep 2026),7019.64,0.0
+2026-09-30,6100,Travel & client meals (Sep 2026),880.09,0.0
+2026-09-30,6400,Training & recruiting (Sep 2026),2572.43,0.0
+2026-09-30,6200,Depreciation & amortization (Sep 2026),6500.0,0.0
+2026-09-30,7100,Finance costs (Sep 2026),3517.52,0.0
+2026-09-30,8000,Income tax provision (Sep 2026),7840.15,0.0
+2026-10-31,4020,Support package – subscriptions (Oct 2026),0.0,96250.0
+2026-10-31,4100,Maintenance contract renewal (Oct 2026),0.0,31500.0
+2026-10-31,4110,Implementation / professional services (Oct 2026),0.0,29750.0
+2026-10-31,4000,Product sales (Oct 2026),0.0,14000.0
+2026-10-31,4900,Other operating revenue (Oct 2026),0.0,3500.0
+2026-10-31,5070,Subcontracting (delivery) (Oct 2026),25885.01,0.0
+2026-10-31,5030,Direct labour (contractors) (Oct 2026),20132.78,0.0
+2026-10-31,5020,Other COGS (hosting/materials) (Oct 2026),11504.45,0.0
+2026-10-31,6300,Salaries & benefits (Oct 2026),58538.41,0.0
+2026-10-31,6010,Marketing spend (Oct 2026),11272.33,0.0
+2026-10-31,6060,Office rent (Oct 2026),6557.39,0.0
+2026-10-31,6050,Utilities (Oct 2026),938.84,0.0
+2026-10-31,6230,Cloud/SaaS subscriptions (Oct 2026),4240.389999999999,0.0
+2026-10-31,6240,Developer tools (Oct 2026),2544.24,0.0
+2026-10-31,6530,Security & monitoring (Oct 2026),1696.16,0.0
+2026-10-31,6070,Professional fees (Oct 2026),6110.93,0.0
+2026-10-31,6100,Travel & client meals (Oct 2026),2335.22,0.0
+2026-10-31,6085,Insurance premium (Q4 2026),4036.85,0.0
+2026-10-31,6200,Depreciation & amortization (Oct 2026),6500.0,0.0
+2026-10-31,7100,Finance costs (Oct 2026),3158.25,0.0
+2026-10-31,8000,Income tax provision (Oct 2026),7713.03,0.0
+2026-11-30,4020,Support package – subscriptions (Nov 2026),0.0,97900.0
+2026-11-30,4100,Maintenance contract renewal (Nov 2026),0.0,32040.0
+2026-11-30,4110,Implementation / professional services (Nov 2026),0.0,30260.0
+2026-11-30,4000,Product sales (Nov 2026),0.0,14240.0
+2026-11-30,4900,Other operating revenue (Nov 2026),0.0,3560.0
+2026-11-30,5070,Subcontracting (delivery) (Nov 2026),26266.539999999997,0.0
+2026-11-30,5030,Direct labour (contractors) (Nov 2026),20429.52,0.0
+2026-11-30,5020,Other COGS (hosting/materials) (Nov 2026),11674.01,0.0
+2026-11-30,6300,Salaries & benefits (Nov 2026),59142.36,0.0
+2026-11-30,6010,Marketing spend (Nov 2026),12859.35,0.0
+2026-11-30,6060,Office rent (Nov 2026),6500.15,0.0
+2026-11-30,6050,Utilities (Nov 2026),810.56,0.0
+2026-11-30,6230,Cloud/SaaS subscriptions (Nov 2026),4625.44,0.0
+2026-11-30,6240,Developer tools (Nov 2026),2775.27,0.0
+2026-11-30,6530,Security & monitoring (Nov 2026),1850.18,0.0
+2026-11-30,6070,Professional fees (Nov 2026),9642.53,0.0
+2026-11-30,6100,Travel & client meals (Nov 2026),1472.08,0.0
+2026-11-30,6400,Training & recruiting (Nov 2026),2958.42,0.0
+2026-11-30,6200,Depreciation & amortization (Nov 2026),6500.0,0.0
+2026-11-30,7100,Finance costs (Nov 2026),3269.74,0.0
+2026-11-30,8000,Income tax provision (Nov 2026),6774.11,0.0
+2026-12-31,4020,Support package – subscriptions (Dec 2026),0.0,99000.0
+2026-12-31,4100,Maintenance contract renewal (Dec 2026),0.0,32400.0
+2026-12-31,4110,Implementation / professional services (Dec 2026),0.0,30600.0
+2026-12-31,4000,Product sales (Dec 2026),0.0,14400.0
+2026-12-31,4900,Other operating revenue (Dec 2026),0.0,3600.0
+2026-12-31,5070,Subcontracting (delivery) (Dec 2026),25864.35,0.0
+2026-12-31,5030,Direct labour (contractors) (Dec 2026),20116.72,0.0
+2026-12-31,5020,Other COGS (hosting/materials) (Dec 2026),11495.27,0.0
+2026-12-31,6300,Salaries & benefits (Dec 2026),57726.43,0.0
+2026-12-31,6010,Marketing spend (Dec 2026),16105.35,0.0
+2026-12-31,6060,Office rent (Dec 2026),6507.89,0.0
+2026-12-31,6050,Utilities (Dec 2026),765.15,0.0
+2026-12-31,6230,Cloud/SaaS subscriptions (Dec 2026),4022.26,0.0
+2026-12-31,6240,Developer tools (Dec 2026),2413.36,0.0
+2026-12-31,6530,Security & monitoring (Dec 2026),1608.9,0.0
+2026-12-31,6070,Professional fees (Dec 2026),4663.94,0.0
+2026-12-31,6100,Travel & client meals (Dec 2026),3061.33,0.0
+2026-12-31,6320,Repairs & maintenance (Dec 2026),2525.36,0.0
+2026-12-31,6200,Depreciation & amortization (Dec 2026),6500.0,0.0
+2026-12-31,7100,Finance costs (Dec 2026),3412.27,0.0
+2026-12-31,8000,Income tax provision (Dec 2026),7407.05,0.0

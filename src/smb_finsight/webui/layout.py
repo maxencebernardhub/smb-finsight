@@ -13,7 +13,7 @@ This module is responsible for:
 The layout TOML file defines:
 - page metadata (titles, icons, default periods),
 - dashboard tiles and charts (measures & ratios),
-- ratios/KPIs metrics and charts,
+- ratios/KPIs sections (measures/ratios tiles + draft charts),
 - statements, entries, duplicates and import/config behaviour.
 
 It is intentionally separate from the core engine configuration (see
@@ -90,8 +90,8 @@ class PagePeriodsConfig:
             comparison (e.g. "FY_PREV", "YTD_PREV_FY"). May be an empty
             string if the page does not use a default comparison.
         default_granularity:
-            Default sub-period granularity for charts (e.g. "DAY", "WEEK",
-            "MONTH", "QUARTER", "FY"). Not all pages need to use this.
+            Default sub-period granularity for charts (DAY/WEEK/MONTH/QUARTER/CY/FY).
+            FY = “Fiscal year”. CY = "Calendar year".Not all pages need to use this.
         allowed_granularities:
             Sequence of granularities allowed on this page. An empty
             sequence means "no explicit restriction" and the Web UI may
@@ -224,11 +224,15 @@ class ChartSeriesConfig:
         source: "measure" or "ratio".
         key: Identifier of the measure/ratio to plot.
         label: Label used in the chart legend.
+        format:
+            Optional formatting hint ("amount" | "percent" | "number").
+            When empty, the UI may infer a default format.
     """
 
     source: str
     key: str
     label: str
+    format: str = ""
 
 
 @dataclass(frozen=True)
@@ -288,78 +292,69 @@ class DashboardConfig:
 
 
 @dataclass(frozen=True)
-class RatiosMetricConfig:
+class RatiosTileSpec:
     """
-    Configuration for a single metric tile on the Ratios & KPIs page.
+    One tile spec inside a Ratios section (either a measure or a ratio).
 
-    Attributes:
-        id: Unique identifier of the metric tile.
-        source:
-            Data source type: typically "ratio", but may also be "measure"
-            if some measures are displayed on the ratios page.
-        key:
-            Identifier of the ratio/measure.
-        label:
-            Human-readable label shown on the tile.
-        format:
-            UI formatting hint: "percent", "amount", "number", or empty for
-            auto-detection based on unit.
-        comparison:
-            Whether this metric should use the secondary period when it is
-            enabled on the page.
-        show_delta_abs:
-            Whether to show the absolute delta vs the secondary period
-            (for percentages this is typically "points").
-        show_delta_pct:
-            Whether to show the relative change (%) vs the secondary period.
-        tooltip_from:
-            Source for tooltip text: "ratio_notes", "measure_notes" or
-            "none".
-        period_preset:
-            Optional override of the page default primary period preset
-            (empty string -> use page default).
-        comparison_preset:
-            Optional override of the page default secondary period preset
-            (empty string -> use page default).
+    Required:
+      - source: "measure" | "ratio"
+      - key
+      - delta_good_direction: "up" | "down"
+
+    Optional overrides:
+      - label
+      - show_delta_abs / show_delta_pct
+      - tooltip_from: if provided, replaces pack notes text
     """
 
-    id: str
-    source: str
+    source: str  # "measure" | "ratio"
     key: str
-    label: str
-    format: str
-    comparison: bool
-    show_delta_abs: bool
-    show_delta_pct: bool
-    tooltip_from: str
-    period_preset: str
-    comparison_preset: str
+    delta_good_direction: str  # "up" | "down"
+    label: Optional[str] = None
+    show_delta_abs: Optional[bool] = None
+    show_delta_pct: Optional[bool] = None
+    tooltip_from: Optional[str] = None
 
 
 @dataclass(frozen=True)
-class RatiosChartConfig:
+class RatiosChartDraftSpec:
     """
-    Configuration for a single chart on the Ratios & KPIs page.
+    First-draft chart config for Ratios sections (not rendered yet by the app).
 
-    Attributes:
-        id: Unique identifier of the chart.
-        type: Chart type ("bar", "line", etc.).
-        title: Title displayed above the chart.
-        period_preset:
-            Primary period preset used for this chart (empty -> page default).
-        comparison_preset:
-            Secondary period preset used for this chart (empty -> page default).
-        series:
-            Sequence of :class:`ChartSeriesConfig` describing the plotted
-            ratios/measures.
+    Parsed now so the layout is future-proof; can be ignored by the page
+    until charts support is implemented.
     """
 
     id: str
-    type: str
     title: str
-    period_preset: str
-    comparison_preset: str
-    series: Sequence[ChartSeriesConfig]
+    type: str
+    default_granularity: Optional[str] = None
+    allowed_granularities: Sequence[str] = ()
+    series: Sequence["ChartSeriesConfig"] = ()
+    stack: Optional[bool] = None
+
+
+@dataclass(frozen=True)
+class RatiosSectionConfig:
+    """
+    One semantic section in Ratios & KPIs page.
+
+    Order matters: sections are displayed in the TOML order.
+    """
+
+    id: str
+    title: str
+    tiles: Sequence[RatiosTileSpec] = field(default_factory=list)
+    charts: Sequence[RatiosChartDraftSpec] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class RatiosPageConfig:
+    """
+    Full Ratios & KPIs page content definition (sections, tiles, draft charts).
+    """
+
+    sections: Sequence[RatiosSectionConfig] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -504,14 +499,8 @@ class LayoutConfig:
         dashboard:
             Dashboard page configuration (allow_secondary_period, tiles, charts)
             loaded from the [dashboard] section.
-        dashboard_tiles:
-            (Legacy) Same as `dashboard.tiles`. Kept for backward compatibility.
-        dashboard_charts:
-            (Legacy) Same as `dashboard.charts`. Kept for backward compatibility.
-        ratios_metrics:
-            Sequence of metric tiles for the Ratios & KPIs page.
-        ratios_charts:
-            Sequence of charts for the Ratios & KPIs page.
+        ratios_page:
+            RatiosPageConfig : sections + tiles + charts draft
         statements:
             Statements page specific options.
         entries:
@@ -525,10 +514,7 @@ class LayoutConfig:
     meta: MetaConfig
     pages: Mapping[str, PageConfig]
     dashboard: DashboardConfig
-    dashboard_tiles: Sequence[DashboardTileConfig]  # legacy
-    dashboard_charts: Sequence[DashboardChartConfig]  # legacy
-    ratios_metrics: Sequence[RatiosMetricConfig]
-    ratios_charts: Sequence[RatiosChartConfig]
+    ratios_page: RatiosPageConfig
     statements: StatementsPageConfig
     entries: EntriesPageConfig
     duplicates: DuplicatesPageConfig
@@ -538,6 +524,15 @@ class LayoutConfig:
 # ---------------------------------------------------------------------------
 # Internal helpers for parsing sections
 # ---------------------------------------------------------------------------
+
+
+def _validate_good_direction(value: str, ctx: str) -> str:
+    v = str(value).strip().lower()
+    if v not in {"up", "down"}:
+        raise LayoutConfigError(
+            f"{ctx}: delta_good_direction must be 'up' or 'down', got: {value!r}"
+        )
+    return v
 
 
 def _expect_table(data: Any, section: str) -> Mapping[str, Any]:
@@ -625,6 +620,7 @@ def _parse_page_periods(tbl: Mapping[str, Any]) -> PagePeriodsConfig:
         "pages.*.periods.user_presets",
     )
 
+    # Normalize codes to uppercase to make config case-insensitive.
     primary_preset_labels = {
         str(k).upper(): str(v) for k, v in primary_labels_tbl.items()
     }
@@ -716,7 +712,7 @@ def _parse_dashboard(root: Mapping[str, Any]) -> DashboardConfig:
                     source=_get_str(tile_tbl, "source", "measure"),
                     key=_get_str(tile_tbl, "key", ""),
                     label=_get_str(tile_tbl, "label", ""),
-                    format=_get_str(tile_tbl, "format", "currency"),
+                    format=_get_str(tile_tbl, "format", "amount"),
                     period_preset=_get_str(tile_tbl, "period_preset", ""),
                     comparison_preset=_get_str(tile_tbl, "comparison_preset", ""),
                     show_delta_abs=_get_bool(tile_tbl, "show_delta_abs", True),
@@ -742,6 +738,7 @@ def _parse_dashboard(root: Mapping[str, Any]) -> DashboardConfig:
                             source=_get_str(s_tbl, "source", "measure"),
                             key=_get_str(s_tbl, "key", ""),
                             label=_get_str(s_tbl, "label", ""),
+                            format=_get_str(s_tbl, "format", ""),
                         )
                     )
 
@@ -769,64 +766,180 @@ def _parse_dashboard(root: Mapping[str, Any]) -> DashboardConfig:
     )
 
 
-def _parse_ratios_page(
-    root: Mapping[str, Any],
-) -> tuple[list[RatiosMetricConfig], list[RatiosChartConfig]]:
+def _parse_ratios_page(root: Mapping[str, Any]) -> RatiosPageConfig:
+    """
+    Parse the [ratios_page] section using the new schema based on sections.
+
+    Expected TOML structure:
+
+      [ratios_page]
+      [[ratios_page.sections]]
+      id = "..."
+      title = "..."
+
+      [[ratios_page.sections.tiles]]
+      source = "measure"
+      key = "revenue_abs"
+      delta_good_direction = "up"
+      # optional overrides:
+      # label = "..."
+      # show_delta_abs = true
+      # show_delta_pct = true
+      # tooltip_from = "custom tooltip text"
+
+      [[ratios_page.sections.tiles]]
+      source = "ratio"
+      key = "gross_margin_pct"
+      delta_good_direction = "up"
+      ...
+
+      [[ratios_page.sections.charts]]
+      id = "revenue_evolution"
+      title = "Revenue evolution"
+      type = "area_line"
+      series = [
+        { source = "measure", key = "revenue_abs",
+        label = "Revenue", format = "amount" },
+      ]
+    """
     ratios_tbl = _expect_table(root.get("ratios_page"), "ratios_page")
-    metrics_raw = ratios_tbl.get("metrics", [])
-    charts_raw = ratios_tbl.get("charts", [])
+    sections_raw = ratios_tbl.get("sections", [])
 
-    metrics: list[RatiosMetricConfig] = []
-    if isinstance(metrics_raw, Sequence):
-        for idx, metric in enumerate(metrics_raw):
-            metric_tbl = _expect_table(metric, f"ratios_page.metrics[{idx}]")
-            metrics.append(
-                RatiosMetricConfig(
-                    id=_get_str(metric_tbl, "id", f"metric_{idx}"),
-                    source=_get_str(metric_tbl, "source", "ratio"),
-                    key=_get_str(metric_tbl, "key", ""),
-                    label=_get_str(metric_tbl, "label", ""),
-                    format=_get_str(metric_tbl, "format", ""),
-                    comparison=_get_bool(metric_tbl, "comparison", False),
-                    show_delta_abs=_get_bool(metric_tbl, "show_delta_abs", False),
-                    show_delta_pct=_get_bool(metric_tbl, "show_delta_pct", False),
-                    tooltip_from=_get_str(metric_tbl, "tooltip_from", "none"),
-                    period_preset=_get_str(metric_tbl, "period_preset", ""),
-                    comparison_preset=_get_str(metric_tbl, "comparison_preset", ""),
-                )
+    if not isinstance(sections_raw, Sequence) or isinstance(sections_raw, (str, bytes)):
+        return RatiosPageConfig(sections=[])
+
+    sections: list[RatiosSectionConfig] = []
+    for i, sec in enumerate(sections_raw):
+        sec_tbl = _expect_table(sec, f"ratios_page.sections[{i}]")
+
+        tiles = _parse_ratios_tiles_list(
+            sec_tbl.get("tiles"),
+            ctx=f"ratios_page.sections[{i}].tiles",
+        )
+
+        charts = _parse_ratios_charts_list(
+            sec_tbl.get("charts"), ctx=f"ratios_page.sections[{i}].charts"
+        )
+
+        sections.append(
+            RatiosSectionConfig(
+                id=_get_str(sec_tbl, "id", f"section_{i}"),
+                title=_get_str(sec_tbl, "title", ""),
+                tiles=tiles,
+                charts=charts,
+            )
+        )
+
+    return RatiosPageConfig(sections=sections)
+
+
+def _parse_ratios_tiles_list(raw: Any, ctx: str) -> list[RatiosTileSpec]:
+    """
+    Parse a list of Ratios tiles (measures or ratios) inside a section.
+
+    Each item is a TOML table with:
+      - source (required: "measure" | "ratio")
+      - key (required)
+      - delta_good_direction (required: "up" | "down")
+      - optional overrides: label, show_delta_abs, show_delta_pct, tooltip_from
+    """
+    if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes)):
+        return []
+
+    tiles: list[RatiosTileSpec] = []
+    for j, item in enumerate(raw):
+        item_tbl = _expect_table(item, f"{ctx}[{j}]")
+
+        source = _get_str(item_tbl, "source", "").strip().lower()
+        if source not in {"measure", "ratio"}:
+            raise LayoutConfigError(
+                f"{ctx}[{j}]: invalid 'source'={source!r}. "
+                f"Expected 'measure' or 'ratio'."
             )
 
-    charts: list[RatiosChartConfig] = []
-    if isinstance(charts_raw, Sequence):
-        for idx, chart in enumerate(charts_raw):
-            chart_tbl = _expect_table(chart, f"ratios_page.charts[{idx}]")
-            series_raw = chart_tbl.get("series", [])
-            series: list[ChartSeriesConfig] = []
-            if isinstance(series_raw, Sequence):
-                for s_idx, s in enumerate(series_raw):
-                    s_tbl = _expect_table(
-                        s, f"ratios_page.charts[{idx}].series[{s_idx}]"
-                    )
-                    series.append(
-                        ChartSeriesConfig(
-                            source=_get_str(s_tbl, "source", "ratio"),
-                            key=_get_str(s_tbl, "key", ""),
-                            label=_get_str(s_tbl, "label", ""),
-                        )
-                    )
+        key = _get_str(item_tbl, "key", "")
+        if not key:
+            raise LayoutConfigError(f"{ctx}[{j}]: missing required field 'key'.")
 
-            charts.append(
-                RatiosChartConfig(
-                    id=_get_str(chart_tbl, "id", f"ratio_chart_{idx}"),
-                    type=_get_str(chart_tbl, "type", "bar"),
-                    title=_get_str(chart_tbl, "title", ""),
-                    period_preset=_get_str(chart_tbl, "period_preset", ""),
-                    comparison_preset=_get_str(chart_tbl, "comparison_preset", ""),
-                    series=series,
-                )
+        dgd_raw = _get_str(item_tbl, "delta_good_direction", "")
+        dgd = _validate_good_direction(dgd_raw, ctx=f"{ctx}[{j}]")
+
+        # Optional overrides: only apply when present in TOML
+        label = _get_str(item_tbl, "label", "") or None
+        show_delta_abs = (
+            item_tbl.get("show_delta_abs") if "show_delta_abs" in item_tbl else None
+        )
+        show_delta_pct = (
+            item_tbl.get("show_delta_pct") if "show_delta_pct" in item_tbl else None
+        )
+        tooltip_from = _get_str(item_tbl, "tooltip_from", "") or None
+
+        tiles.append(
+            RatiosTileSpec(
+                source=source,
+                key=key,
+                delta_good_direction=dgd,
+                label=label,
+                show_delta_abs=show_delta_abs,
+                show_delta_pct=show_delta_pct,
+                tooltip_from=tooltip_from,
             )
+        )
 
-    return metrics, charts
+    return tiles
+
+
+def _parse_ratios_charts_list(raw: Any, ctx: str) -> list[RatiosChartDraftSpec]:
+    """
+    Chart config for Ratios sections.
+
+    These specs are rendered by the Ratios page (charts under each section).
+    """
+    if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes)):
+        return []
+
+    charts: list[RatiosChartDraftSpec] = []
+    for j, ch in enumerate(raw):
+        ch_tbl = _expect_table(ch, f"{ctx}[{j}]")
+
+        chart_id = _get_str(ch_tbl, "id", "")
+        if not chart_id:
+            raise LayoutConfigError(f"{ctx}[{j}]: missing required field 'id'.")
+
+        chart_type = _get_str(ch_tbl, "type", "")
+        if not chart_type:
+            raise LayoutConfigError(f"{ctx}[{j}]: missing required field 'type'.")
+
+        # series is a list of inline tables: { source="ratio", key="..." }
+        series_raw = ch_tbl.get("series", [])
+        series: list[ChartSeriesConfig] = []
+        if isinstance(series_raw, Sequence) and not isinstance(
+            series_raw, (str, bytes)
+        ):
+            for k, s in enumerate(series_raw):
+                s_tbl = _expect_table(s, f"{ctx}[{j}].series[{k}]")
+                series.append(
+                    ChartSeriesConfig(
+                        source=_get_str(s_tbl, "source", "measure"),
+                        key=_get_str(s_tbl, "key", ""),
+                        label=_get_str(s_tbl, "label", ""),
+                        format=_get_str(s_tbl, "format", ""),
+                    )
+                )
+
+        charts.append(
+            RatiosChartDraftSpec(
+                id=chart_id,
+                title=_get_str(ch_tbl, "title", ""),
+                type=chart_type,
+                default_granularity=_get_str(ch_tbl, "default_granularity", "") or None,
+                allowed_granularities=_get_str_list(ch_tbl, "allowed_granularities"),
+                series=series,
+                stack=(ch_tbl.get("stack") if "stack" in ch_tbl else None),
+            )
+        )
+
+    return charts
 
 
 def _parse_statements_page(root: Mapping[str, Any]) -> StatementsPageConfig:
@@ -947,9 +1060,7 @@ def load_layout_config(path: str | Path) -> LayoutConfig:
     meta = _parse_meta(data)
     pages = _parse_pages(data)
     dashboard_cfg = _parse_dashboard(data)
-    dashboard_tiles = dashboard_cfg.tiles
-    dashboard_charts = dashboard_cfg.charts
-    ratios_metrics, ratios_charts = _parse_ratios_page(data)
+    ratios_page = _parse_ratios_page(data)
     statements_cfg = _parse_statements_page(data)
     entries_cfg = _parse_entries_page(data)
     duplicates_cfg = _parse_duplicates_page(data)
@@ -959,10 +1070,7 @@ def load_layout_config(path: str | Path) -> LayoutConfig:
         meta=meta,
         pages=pages,
         dashboard=dashboard_cfg,
-        dashboard_tiles=dashboard_tiles,  # legacy
-        dashboard_charts=dashboard_charts,  # legacy
-        ratios_metrics=ratios_metrics,
-        ratios_charts=ratios_charts,
+        ratios_page=ratios_page,
         statements=statements_cfg,
         entries=entries_cfg,
         duplicates=duplicates_cfg,

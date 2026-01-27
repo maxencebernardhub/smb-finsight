@@ -23,7 +23,7 @@ end_date   = "2026-12-31"
 #   "CA_ASPE"
 #   "US_GAAP"
 #   "IFRS"
-standard = "FR_PCG"
+standard = "CA_ASPE"
 
 # Optional reporting currency (informational, for display).
 # Supported: "CAD", "USD", "EUR"
@@ -42,7 +42,7 @@ thousands_separator = ","
 #
 # Example (for a Canadian company under ASPE):
 #   standard_config_file = "config/standard_ca_aspe.toml"
-standard_config_file = "config/standards/standard_fr_pcg.toml"
+standard_config_file = "config/standards/standard_ca_aspe.toml"
 
 # -------------------------------------------------------------------
 # Database
@@ -78,15 +78,15 @@ default_level = "basic"
 # All fields below are optional. If a value is missing, any ratio that
 # depends on it will simply not be computed (it will be reported as N/A).
 
-total_assets         = 158045.05  # Total Assets
-total_equity         = 50000.00  # Total Equity
-financial_debt       = 25486.58  # Financial debt (short + long term)
-cash_and_equivalents = 103615.84  # Cash and cash equivalents
-accounts_receivable  = 35819.25  # Trade receivables
-accounts_payable     = 27695.62  # Trade payables
-inventory            = 2486.69  # Inventory
-working_capital      = 84635.35  # Working capital (optional)
-interest_expense     = 248.69  # Interest expense on financial debt
+total_assets         = 520000.00  # Total Assets
+total_equity         = 345000.00  # Total Equity
+financial_debt       = 85000.00  # Financial debt (short + long term)
+cash_and_equivalents = 285000.00  # Cash and cash equivalents
+accounts_receivable  = 165000.00  # Trade receivables
+accounts_payable     = 90000.00  # Trade payables
+inventory            = 15000.00  # Inventory
+working_capital      = 275000.00  # Working capital (optional)
+interest_expense     = 3800.00  # Interest expense on financial debt
 
 # -------------------------------------------------------------------
 # Optional inputs - Human resources
@@ -94,7 +94,7 @@ interest_expense     = 248.69  # Interest expense on financial debt
 [inputs.hr]
 # Average headcount (or FTE) over the period.
 # Used for productivity ratios (revenue per FTE, VA per FTE, etc.).
-average_headcount = 52.0
+average_headcount = 11.5
 
 # -------------------------------------------------------------------
 # Optional inputs - Period parameters

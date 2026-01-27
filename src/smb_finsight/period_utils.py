@@ -7,7 +7,12 @@ Preset-based period helpers.
 
 This module provides:
 - Period presets used by WebUI (and potentially CLI in the future)
-- Granularity splitting (DAY/WEEK/MONTH/QUARTER/FY)
+- Granularity splitting (DAY/WEEK/MONTH/QUARTER/CY/FY)
+
+Notes on granularities:
+- CY splits into calendar years (YYYY).
+- FY splits into fiscal years using fiscal_year.start_date (month/day)
+and labels buckets as FY<end_year>.
 
 Presets supported:
 - FY, FY_PREV
@@ -27,7 +32,7 @@ import calendar
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Optional
+from typing import Any, Optional
 
 from .config import FiscalYear
 from .periods import Period
@@ -143,6 +148,10 @@ def period_from_preset(
         Required when preset=CUSTOM (user-defined range).
     label:
         Optional label override. If not provided, a standard label is used.
+    user_presets:
+        Optional mapping for user-defined presets (e.g., from layout TOML).
+        Each preset must define ISO dates: {"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}.
+
 
     Returns
     -------
@@ -226,6 +235,7 @@ def _add_months(d: date, months: int) -> date:
     return date(y, m, day)
 
 
+# Similar to _shift_year, but implemented via date.replace() for relative presets.
 def _shift_year_safe(d: date, years: int) -> date:
     """Shift year keeping month/day when possible; clamp Feb 29 to Feb 28."""
     try:
@@ -303,6 +313,7 @@ def split_period(
     granularity: str,
     *,
     label_prefix: str = "",
+    fiscal_year: Any | None = None,
 ) -> list[Period]:
     """
     Split a Period into sub-periods based on granularity.
@@ -312,26 +323,71 @@ def split_period(
     - WEEK: ISO weeks (Mon..Sun)
     - MONTH: calendar months
     - QUARTER: calendar quarters
-    - FY: no split (single bucket)
+    - CY: calendar years labeled "YYYY"
+    - FY: fiscal years computed from fiscal_year.start_date (month/day),
+    labeled "FY<end_year>"
 
     Labels are stable and sortable. Example for MONTH:
     - 2025-01, 2025-02, ...
     With prefix: P_2025-01, C_2024-01, ...
     """
     g = (granularity or "").strip().upper()
-    if g not in {"DAY", "WEEK", "MONTH", "QUARTER", "FY"}:
+    if g not in {"DAY", "WEEK", "MONTH", "QUARTER", "CY", "FY"}:
         raise PeriodPresetError(f"Unknown granularity: {granularity!r}")
 
-    if g == "FY":
-        return [
-            Period(
-                start=period.start,
-                end=period.end,
-                label=f"{label_prefix}{period.label}",
-            )
-        ]
-
     buckets: list[Period] = []
+
+    if g == "CY":
+        # Split by calendar year (calendar-year buckets).
+        year = period.start.year
+        while year <= period.end.year:
+            y_start = date(year, 1, 1)
+            y_end = date(year, 12, 31)
+            start = max(period.start, y_start)
+            end = min(period.end, y_end)
+            if start <= end:
+                lbl = f"{year}"
+                buckets.append(
+                    Period(start=start, end=end, label=f"{label_prefix}{lbl}")
+                )
+            year += 1
+        return buckets
+
+    if g == "FY":
+        if fiscal_year is None:
+            raise PeriodPresetError("split_period(FY) requires fiscal_year=...")
+
+        fy_start_month = fiscal_year.start_date.month
+        fy_start_day = fiscal_year.start_date.day
+
+        def _fy_start_for(d: date) -> date:
+            """Fiscal-year start date for the FY that contains date d."""
+            candidate = date(d.year, fy_start_month, fy_start_day)
+            return (
+                candidate
+                if d >= candidate
+                else date(d.year - 1, fy_start_month, fy_start_day)
+            )
+
+        cur = period.start
+
+        while cur <= period.end:
+            fy_start = _fy_start_for(cur)
+            fy_next_start = date(fy_start.year + 1, fy_start_month, fy_start_day)
+            fy_end = fy_next_start - timedelta(days=1)
+
+            b_start = max(period.start, fy_start)
+            b_end = min(period.end, fy_end)
+
+            # Convention: FY label by end year (common in finance)
+            label = f"FY{fy_end.year}"
+            buckets.append(
+                Period(start=b_start, end=b_end, label=f"{label_prefix}{label}")
+            )
+
+            cur = fy_end + timedelta(days=1)
+
+        return buckets
 
     if g == "DAY":
         cur = period.start
@@ -354,8 +410,9 @@ def split_period(
             lbl = _iso_week_label(cur)
             buckets.append(Period(start=start, end=end, label=f"{label_prefix}{lbl}"))
             cur = sunday + timedelta(days=1)
-        # de-dup possible if period.start in middle of week; ensure unique labels by
-        # merging same label
+        # Defensive: if boundaries create repeated ISO week labels,
+        # merge same-label buckets.
+
         return _merge_same_label(buckets)
 
     if g == "MONTH":
@@ -389,6 +446,7 @@ def split_period(
 def _merge_same_label(periods: list[Period]) -> list[Period]:
     """
     Merge consecutive periods with the same label (defensive for week/month loops).
+    Assumes periods are generated in chronological order.
     """
     if not periods:
         return periods

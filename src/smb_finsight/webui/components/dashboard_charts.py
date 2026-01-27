@@ -27,7 +27,7 @@ from typing import Any, Optional
 import pandas as pd
 import streamlit as st
 
-from smb_finsight.webui.components.charts import _render_single_or_side_by_side_chart
+from smb_finsight.webui.components.charts import render_configured_chart
 from smb_finsight.webui.utils import _as_list, _to_mapping
 
 
@@ -64,6 +64,10 @@ class DashboardChartsContext:
     primary_preset_label: str
     comparison_preset_label: Optional[str]
 
+    # Formatting for tooltips (shared with tiles)
+    currency_code: str
+    thousands_separator: str
+
 
 def _norm(s: str) -> str:
     """Normalize a title for robust comparisons
@@ -81,27 +85,29 @@ def _render_chart_container(*, ch: Any, ctx: DashboardChartsContext) -> None:
     ch_map = _to_mapping(ch)
 
     title = ch_map.get("title") or ch_map.get("id") or "Chart"
-    kind = (ch_map.get("kind") or "line").lower()
+    kind = (ch_map.get("kind") or ch_map.get("type") or "line").lower().strip()
     series = _as_list(ch_map.get("series"))
 
     # Delegate actual series rendering + mode selection to the generic charts component.
-    with st.container(border=True):
-        _render_single_or_side_by_side_chart(
+    with st.container(border=True, height="stretch"):
+        render_configured_chart(
             title=str(title),
             kind=kind,
+            series=[_to_mapping(s) for s in series],
             measures_df=ctx.measures_df,
             ratios_df=ctx.ratios_df,
             granularity=ctx.granularity,
-            primary_preset_code=ctx.primary_preset_code,
-            comparison_preset_code=ctx.comparison_preset_code,
             primary_period=ctx.primary_period,
             comparison_period=ctx.comparison_period,
-            primary_buckets=ctx.primary_buckets,
-            comp_buckets=ctx.comp_buckets,
-            series=[_to_mapping(s) for s in series],
-            comparison_enabled=ctx.comparison_enabled,
+            primary_preset_code=ctx.primary_preset_code,
+            comparison_preset_code=ctx.comparison_preset_code,
             primary_preset_label=ctx.primary_preset_label,
             comparison_preset_label=ctx.comparison_preset_label,
+            primary_buckets=ctx.primary_buckets,
+            comparison_buckets=ctx.comp_buckets or [],
+            comparison_enabled=ctx.comparison_enabled,
+            currency_code=ctx.currency_code,
+            thousands_separator=ctx.thousands_separator,
         )
 
 

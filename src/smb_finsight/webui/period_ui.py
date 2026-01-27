@@ -7,10 +7,11 @@
 Period selection UI (WebUI).
 
 This module renders the period controls used by WebUI pages
-(Dashboard, and future Ratios & KPIs):
+(Dashboard and Ratios & KPIs pages):
 - primary period preset (FY/YTD/MTD/LAST_MONTH/CUSTOM + optional user-defined presets),
 - optional comparison period preset (FY_PREV/YTD_PREV_FY/... + CUSTOM + user presets),
-- chart granularity selector (DAY/WEEK/MONTH/QUARTER/FY).
+- chart granularity selector (DAY/WEEK/MONTH/QUARTER/CY/FY). Granularity is global
+to the page (no per-chart override).
 
 Configuration source:
 - In layout_en.toml, presets and labels are typically configured under:
@@ -111,13 +112,18 @@ def render_period_controls(
             - default_granularity, allowed_granularities
             - primary_preset_labels, comparison_preset_labels
             - granularity_labels
-            - user_presets (optional)
+            - user_presets (optional):
+                Mapping of preset_code ->
+                {start="YYYY-MM-DD", end="YYYY-MM-DD", label="..."}.
         page.ui:
             - label_primary_period
             - label_comparison_toggle
             - label_comparison_period
             - label_custom_from, label_custom_to
             - label_granularity
+            - help_primary_period
+            - help_comparison_period
+            - help_granularity
             - error_custom_end_before_start
             - default_enable_comparison (optional)
     """
@@ -207,7 +213,7 @@ def render_period_controls(
 
     # Primary
     with c1:
-        with st.container(border=True):
+        with st.container(border=True, height="stretch"):
             primary_idx = (
                 primary_options.index(default_primary_preset)
                 if default_primary_preset in primary_options
@@ -218,6 +224,7 @@ def render_period_controls(
                 options=primary_options,
                 index=primary_idx,
                 format_func=fmt_primary,
+                help=ui.get("help_primary_period", "Select the primary period"),
             )
 
             if primary_preset == "CUSTOM":
@@ -240,7 +247,7 @@ def render_period_controls(
 
     # Comparison
     with c2:
-        with st.container(border=True):
+        with st.container(border=True, height="stretch"):
             if allow_secondary_period:
                 raw = ui.get("default_enable_comparison", False)
                 default_enable = (
@@ -269,6 +276,9 @@ def render_period_controls(
                     options=comparison_options,
                     index=comp_idx,
                     format_func=fmt_comparison,
+                    help=ui.get(
+                        "help_comparison_period", "Select the comparison period"
+                    ),
                 )
 
                 if comparison_preset == "CUSTOM":
@@ -291,9 +301,9 @@ def render_period_controls(
 
     # Granularity
     with c3:
-        with st.container(border=True):
+        with st.container(border=True, height="stretch"):
             if not allowed_granularities:
-                allowed_granularities = ["DAY", "WEEK", "MONTH", "QUARTER", "FY"]
+                allowed_granularities = ["DAY", "WEEK", "MONTH", "QUARTER", "CY", "FY"]
 
             granularity = st.selectbox(
                 ui.get("label_granularity", "Granularity"),
@@ -302,6 +312,7 @@ def render_period_controls(
                 if default_granularity in allowed_granularities
                 else 0,
                 format_func=fmt_granularity,
+                help=ui.get("help_granularity", "Granularity affects charts."),
             )
 
     # ---- Build Period objects ------------------------------------------------
@@ -357,11 +368,20 @@ def render_period_controls(
                 user_presets=user_presets,
             )
 
+    if comparison_enabled and comparison_period is None:
+        comparison_enabled = False
+        comparison_preset = None
+        st.warning(
+            "Comparison period could not be computed; comparison has been disabled."
+        )
+
     # Display a compact summary to make selections explicit to the user.
+    prim_label = ui.get("label_primary_period", "Primary period")
+    comp_label = ui.get("label_comparison_period", "Comparison period")
     st.markdown(
-        f"###### Primary period: {primary_period.start} – {primary_period.end}"
+        f"###### {prim_label}: {primary_period.start} – {primary_period.end}"
         + (
-            f" | Comparison period: {comparison_period.start} – {comparison_period.end}"
+            f" | {comp_label}: {comparison_period.start} – {comparison_period.end}"
             if comparison_period is not None
             else ""
         )

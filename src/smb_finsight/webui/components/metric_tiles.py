@@ -85,7 +85,8 @@ def render_metric_tiles(
     if not tiles:
         return
 
-    cols = st.columns(4) if len(tiles) >= 4 else st.columns(max(1, len(tiles)))
+    # cols = st.columns(4) if len(tiles) >= 4 else st.columns(max(1, len(tiles)))
+    cols = st.columns(5)
 
     for i, tile in enumerate(tiles):
         t = _to_mapping(tile)
@@ -97,6 +98,12 @@ def render_metric_tiles(
         tooltip_from = t.get("tooltip_from", "")
         help_text = ""
 
+        # Optional direct tooltip override (used by Ratios page tiles).
+        # If present, it wins over measure/ratio notes sourcing.
+        tooltip_text = (t.get("tooltip_text") or "").strip()
+        if tooltip_text:
+            help_text = tooltip_text
+
         show_delta_abs = bool(t.get("show_delta_abs", True))
         show_delta_pct = bool(t.get("show_delta_pct", False))
         delta_good_direction = (t.get("delta_good_direction") or "up").lower()
@@ -106,14 +113,15 @@ def render_metric_tiles(
 
         # Optional tooltip sourcing from compute notes
         # (kept outside TOML to avoid duplication).
-        if tooltip_from == "measure_notes" and source != "ratio":
-            notes = _measure_notes(measures_df, key or "")
-            if notes:
-                help_text = notes
-        elif tooltip_from == "ratio_notes" and source == "ratio":
-            notes = _ratio_notes(ratios_df, key or "")
-            if notes:
-                help_text = notes
+        if not help_text:
+            if tooltip_from == "measure_notes" and source != "ratio":
+                notes = _measure_notes(measures_df, key or "")
+                if notes:
+                    help_text = notes
+            elif tooltip_from == "ratio_notes" and source == "ratio":
+                notes = _ratio_notes(ratios_df, key or "")
+                if notes:
+                    help_text = notes
 
         if key:
             if source == "ratio":
@@ -150,9 +158,57 @@ def render_metric_tiles(
                     thousands_separator=thousands_separator,
                 )
 
+        # Keep a consistent tile height: when comparison is enabled but the delta
+        # cannot be computed (e.g., missing value / division by zero), Streamlit
+        # would hide the delta line if delta=None, shrinking the container.
+        # We force a placeholder delta in that case.
+        placeholder_delta = False
+        if (
+            comparison_enabled
+            and (show_delta_abs or show_delta_pct)
+            and delta_str is None
+        ):
+            delta_str = "—"
+            placeholder_delta = True
+
         # Streamlit supports delta_color: normal / inverse / off
         # "down" means negative delta is good (green) => inverse
-        delta_color = "normal" if delta_good_direction == "up" else "inverse"
+
+        # delta_color = "normal" if delta_good_direction == "up" else "inverse"
+        base_delta_color = "normal" if delta_good_direction == "up" else "inverse"
+
+        # Disable delta coloring when:
+        # - we display a placeholder delta (no meaningful comparison)
+        # - the delta is effectively zero (avoid useless arrow + colored background)
+        eps = 1e-12
+
+        is_zero_abs = (delta_abs is not None) and (abs(delta_abs) < eps)
+        is_zero_pct = (delta_pct is not None) and (abs(delta_pct) < eps)
+
+        # Determine if displayed deltas are "zero" given what is enabled for this tile
+        if placeholder_delta:
+            effective_delta_color = "off"
+        else:
+            # If only abs is shown -> abs zero => off
+            # If only pct is shown -> pct zero => off
+            # If both are shown -> both must be zero to turn off
+            if show_delta_abs and show_delta_pct:
+                is_effectively_zero = is_zero_abs and (is_zero_pct or delta_pct is None)
+            elif show_delta_abs:
+                is_effectively_zero = is_zero_abs
+            elif show_delta_pct:
+                is_effectively_zero = is_zero_pct
+            else:
+                is_effectively_zero = False
+
+            effective_delta_color = (
+                "off"
+                if (comparison_enabled and is_effectively_zero)
+                else base_delta_color
+            )
+
+        # If delta is neutral (gray), also disable the arrow to avoid misleading cues.
+        effective_delta_arrow = "off" if effective_delta_color == "off" else "auto"
 
         with cols[i % len(cols)]:
             with st.container(border=True):
@@ -165,6 +221,7 @@ def render_metric_tiles(
                         thousands_separator=thousands_separator,
                     ),
                     delta=delta_str,
-                    delta_color=delta_color,
+                    delta_color=effective_delta_color,
+                    delta_arrow=effective_delta_arrow,
                     help=help_text,
                 )

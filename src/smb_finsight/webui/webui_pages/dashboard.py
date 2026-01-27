@@ -99,16 +99,14 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
     st.title(_get(page, "title", "Dashboard"))
 
     # ---- Pull dashboard sections from global layout -------------------------
-    # dash = layout.dashboard
-
     currency_code = app_config.currency
     thousands_separator = getattr(app_config, "thousands_separator", ",")
 
     # Feature-flag: some pages may forbid comparisons even if presets exist.
     allow_secondary_period = bool(_get(page, "allow_secondary_period", True))
 
-    tiles = list(layout.dashboard_tiles or [])
-    charts = list(layout.dashboard_charts or [])
+    tiles = list(layout.dashboard.tiles or [])
+    charts = list(layout.dashboard.charts or [])
 
     # UI labels are stored in page.ui
     ui = _to_mapping(_get(page, "ui", {}))
@@ -175,6 +173,8 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
         comparison_enabled=(comparison_period is not None),
         primary_preset_label=selection.primary_preset_label,
         comparison_preset_label=selection.comparison_preset_label,
+        currency_code=currency_code,
+        thousands_separator=thousands_separator,
     )
 
     render_dashboard_trends_charts(charts=charts, ctx=ctx)

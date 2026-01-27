@@ -5,184 +5,117 @@
 
 [meta]
 standard    = "US_GAAP"
-version     = "0.2.5"
+version     = "0.3.0"
 description = "Derived measures and financial ratios for US GAAP, based on normalized canonical measures."
 
 # -------------------------------------------------------------------
 # Derived measures (measures.*)
 # -------------------------------------------------------------------
 
-[measures.gross_margin]
-label   = "Gross profit"
-formula = "revenue + cost_of_goods_sold"
+[measures.revenue_abs]
+label   = "Revenue"
+formula = "revenue"
 unit    = "amount"
-notes   = "Revenue minus cost of goods sold (charges recorded as negative)."
+category = "profitability_amount"
+notes   = "Revenue in absolute value."
 
-[measures.gross_margin_pct]
-label   = "Gross profit margin (%)"
-formula = "(gross_margin / revenue) * 100"
-unit    = "percent"
-notes   = "Gross profit as a percentage of revenue."
+[measures.gross_margin_abs]
+label   = "Gross profit"
+formula = "gross_margin"
+unit    = "amount"
+category = "profitability_amount"
+notes   = "Gross profit in absolute value (revenue minus cost of goods sold; expenses are negative)."
 
-[measures.operating_margin_pct]
-label   = "Operating profit margin (%)"
-formula = "(operating_income / revenue) * 100"
-unit    = "percent"
-notes   = "Operating income (EBIT) as a percentage of revenue."
+[measures.ebitda_abs]
+label   = "EBITDA"
+formula = "operating_income - depreciation_amortization"
+unit    = "amount"
+category = "profitability_amount"
+notes   = "Earnings before interest, tax, depreciation and amortization (in absolute value)."
 
-[measures.net_margin_pct]
-label   = "Net income margin (%)"
-formula = "(net_income / revenue) * 100"
-unit    = "percent"
-notes   = "Net income as a percentage of revenue."
+[measures.operating_income_abs]
+label   = "Operating income (EBIT)"
+formula = "operating_income"
+unit    = "amount"
+category = "profitability_amount"
+notes   = "Operating income (EBIT) in absolute value."
 
-[measures.cogs_ratio_pct]
-label   = "Cost of goods sold / Revenue (%)"
-formula = "(-cost_of_goods_sold / revenue) * 100"
-unit    = "percent"
-notes   = "Cost of goods sold as a percentage of revenue, using absolute COGS."
+[measures.income_before_tax_abs]
+label   = "Income before income taxes"
+formula = "total_operating_income"
+unit    = "amount"
+category = "tax"
+notes   = "Pre-tax income as defined in the normalized statement (total_operating_income)."
 
-[measures.operating_expense_ratio_pct]
-label   = "Operating expenses / Revenue (%)"
-formula = "(-total_operating_expenses / revenue) * 100"
-unit    = "percent"
-notes   = "Operating expenses as a percentage of revenue, in absolute value."
+[measures.net_income_abs]
+label   = "Net income"
+formula = "net_income"
+unit    = "amount"
+category = "profitability_amount"
+notes   = "Net income in absolute value."
+
+[measures.cogs_abs]
+label   = "Cost of goods sold (COGS)"
+formula = "(-cost_of_goods_sold)"
+unit    = "amount"
+category = "efficiency_cost"
+notes   = "Cost of goods sold in absolute value."
+
+[measures.operating_expenses_abs]
+label   = "Operating expenses"
+formula = "(-total_operating_expenses)"
+unit    = "amount"
+category = "efficiency_cost"
+notes   = "Operating expenses in absolute value."
 
 [measures.external_charges_abs]
 label   = "External charges"
 formula = "(-external_charges)"
 unit    = "amount"
-notes   = "External charges (suppliers, marketing, IT, etc.), absolute value."
+category = "efficiency_cost"
+notes   = "External charges (suppliers, marketing, IT, etc.), in absolute value."
 
-[measures.external_charges_pct]
-label   = "External charges / Revenue (%)"
-formula = "(-external_charges / revenue) * 100"
-unit    = "percent"
-notes   = "External charges (suppliers, marketing, IT, etc.) as a percentage of revenue, absolute value."
-
-[measures.personnel_expenses_pct]
-label   = "Personnel expenses / Revenue (%)"
-formula = "(-personnel_expenses / revenue) * 100"
-unit    = "percent"
-notes   = "Personnel expenses as a percentage of revenue, absolute value."
-
-[measures.finance_cost_ratio_pct]
-label   = "Interest and finance costs / Revenue (%)"
-formula = "(-financial_expenses / revenue) * 100"
-unit    = "percent"
-notes   = "Finance costs as a percentage of revenue."
-
-# --- Income before tax & tax rate ----------------------------------
-
-[measures.income_before_tax]
-label   = "Income before income taxes"
-formula = "total_operating_income"
+[measures.personnel_expenses_abs]
+label   = "Personnel expenses"
+formula = "(-personnel_expenses)"
 unit    = "amount"
-notes   = "Pre-tax income as defined in the normalized statement (total_operating_income)."
+category = "efficiency_cost"
+notes   = "Personnel expenses in absolute value."
 
-[measures.effective_tax_rate_pct]
-label   = "Effective tax rate (%)"
-formula = "(-income_tax_expense / income_before_tax) * 100"
-unit    = "percent"
-notes   = "Effective tax burden relative to pre-tax income."
-
-# --- EBITDA & coverage ---------------------------------------------
-
-[measures.ebitda]
-label   = "EBITDA"
-formula = "operating_income - depreciation_amortization"
+[measures.finance_cost_abs]
+label   = "Finance costs"
+formula = "(-financial_expenses)"
 unit    = "amount"
-notes   = "Earnings before interest, tax, depreciation and amortization."
+category = "efficiency_cost"
+notes   = "Finance costs in absolute value."
 
-[measures.ebitda_margin_pct]
-label   = "EBITDA margin (%)"
-formula = "(ebitda / revenue) * 100"
-unit    = "percent"
-notes   = "EBITDA as a percentage of revenue."
-
-[measures.interest_coverage]
-label   = "Interest coverage (EBIT / interest)"
-formula = "operating_income / (-financial_expenses)"
-unit    = "ratio"
-notes   = "Ability to cover finance costs with operating income (EBIT)."
-
-# --- Productivity / per FTE ----------------------------------------
+[measures.income_tax_abs]
+label   = "Income tax expense"
+formula = "(-income_tax_expense)"
+unit    = "amount"
+category = "tax"
+notes   = "Income tax burden."
 
 [measures.revenue_per_fte]
-label   = "Revenue per employee (FTE)"
+label   = "Revenue per FTE"
 formula = "revenue / average_headcount"
 unit    = "amount"
+category = "productivity"
 notes   = "Revenue divided by average headcount (full-time equivalent)."
-
-# --- Balance sheet & return ratios ---------------------------------
 
 [measures.capital_employed]
 label   = "Capital employed"
 formula = "total_equity + financial_debt - cash_and_equivalents"
 unit    = "amount"
+category = "structure"
 notes   = "Approximate capital employed: equity + financial debt - cash & equivalents."
-
-[measures.roce_pct]
-label   = "ROCE (%)"
-formula = "(operating_income / capital_employed) * 100"
-unit    = "percent"
-notes   = "Return on capital employed."
-
-[measures.roe_pct]
-label   = "ROE (%)"
-formula = "(net_income / total_equity) * 100"
-unit    = "percent"
-notes   = "Return on equity."
-
-[measures.roa_pct]
-label   = "ROA (%)"
-formula = "(net_income / total_assets) * 100"
-unit    = "percent"
-notes   = "Return on assets."
-
-[measures.equity_ratio_pct]
-label   = "Equity ratio (%)"
-formula = "(total_equity / total_assets) * 100"
-unit    = "percent"
-notes   = "Share of equity in total assets."
-
-[measures.debt_to_equity]
-label   = "Debt to equity"
-formula = "financial_debt / total_equity"
-unit    = "ratio"
-notes   = "Financial debt relative to equity."
 
 [measures.net_debt]
 label   = "Net debt"
 formula = "financial_debt - cash_and_equivalents"
 unit    = "amount"
+category = "structure"
 notes   = "Net debt: financial debt minus cash and equivalents."
-
-[measures.gearing]
-label   = "Gearing (Net debt / Equity)"
-formula = "net_debt / total_equity"
-unit    = "ratio"
-notes   = "Net debt relative to equity."
-
-# --- Working capital & rotation ------------------------------------
-
-[measures.dso_days]
-label   = "DSO (Days Sales Outstanding)"
-formula = "(accounts_receivable / revenue) * period_days"
-unit    = "days"
-notes   = "Average collection period for trade receivables."
-
-[measures.dpo_days]
-label   = "DPO (Days Payables Outstanding)"
-formula = "(accounts_payable / -cost_of_goods_sold) * period_days"
-unit    = "days"
-notes   = "Average payment period for suppliers (COGS in absolute value)."
-
-[measures.dio_days]
-label   = "DIO (Days Inventory Outstanding)"
-formula = "(inventory / -cost_of_goods_sold) * period_days"
-unit    = "days"
-notes   = "Average inventory holding period (stock rotation, COGS in absolute value)."
 
 # -------------------------------------------------------------------
 # Ratios - BASIC level
@@ -190,18 +123,24 @@ notes   = "Average inventory holding period (stock rotation, COGS in absolute va
 
 [ratios.basic.gross_margin_pct]
 label   = "Gross profit margin (%)"
-formula = "gross_margin_pct"
+formula = "(gross_margin / revenue)"
 unit    = "percent"
+category = "profitability_margin"
+notes   = "Gross profit as a percentage of revenue."
 
 [ratios.basic.operating_margin_pct]
 label   = "Operating profit margin (%)"
-formula = "operating_margin_pct"
+formula = "(operating_income / revenue)"
 unit    = "percent"
+category = "profitability_margin"
+notes   = "Operating income (EBIT) as a percentage of revenue."
 
 [ratios.basic.net_margin_pct]
 label   = "Net income margin (%)"
-formula = "net_margin_pct"
+formula = "(net_income / revenue)"
 unit    = "percent"
+category = "profitability_margin"
+notes   = "Net income as a percentage of revenue."
 
 # -------------------------------------------------------------------
 # Ratios - ADVANCED level
@@ -209,94 +148,137 @@ unit    = "percent"
 
 [ratios.advanced.cogs_ratio_pct]
 label   = "Cost of goods sold / Revenue (%)"
-formula = "cogs_ratio_pct"
+formula = "(-cost_of_goods_sold / revenue)"
 unit    = "percent"
+category = "efficiency_cost"
+notes   = "Cost of goods sold as a percentage of revenue."
 
 [ratios.advanced.operating_expense_ratio_pct]
 label   = "Operating expenses / Revenue (%)"
-formula = "operating_expense_ratio_pct"
+formula = "(-total_operating_expenses / revenue)"
 unit    = "percent"
+category = "efficiency_cost"
+notes   = "Operating expenses as a percentage of revenue."
 
 [ratios.advanced.external_charges_pct]
 label   = "External charges / Revenue (%)"
-formula = "external_charges_pct"
+formula = "(-external_charges / revenue)"
 unit    = "percent"
+category = "efficiency_cost"
+notes   = "External charges as a percentage of revenue."
 
 [ratios.advanced.personnel_expenses_pct]
 label   = "Personnel expenses / Revenue (%)"
-formula = "personnel_expenses_pct"
+formula = "(-personnel_expenses / revenue)"
 unit    = "percent"
+category = "efficiency_cost"
+notes   = "Personnel expenses as a percentage of revenue."
 
 [ratios.advanced.finance_cost_ratio_pct]
-label   = "Interest and finance costs / Revenue (%)"
-formula = "finance_cost_ratio_pct"
+label   = "Finance costs / Revenue (%)"
+formula = "(-financial_expenses / revenue)"
 unit    = "percent"
+category = "efficiency_cost"
+notes   = "Finance costs as a percentage of revenue."
 
 [ratios.advanced.ebitda_margin_pct]
 label   = "EBITDA margin (%)"
-formula = "ebitda_margin_pct"
+formula = "(ebitda_abs / revenue)"
 unit    = "percent"
+category = "profitability_margin"
+notes   = "EBITDA as a percentage of revenue."
 
-[ratios.advanced.revenue_per_fte]
-label   = "Revenue per employee (FTE)"
-formula = "revenue_per_fte"
-unit    = "amount"
+[ratios.advanced.effective_tax_rate_pct]
+label   = "Effective tax rate (%)"
+formula = "(-income_tax_expense / income_before_tax_abs)"
+unit    = "percent"
+category = "tax"
+notes   = "Effective tax burden relative to pre-tax income."
+
+[ratios.advanced.roce_pct]
+label   = "ROCE (%)"
+formula = "(operating_income / capital_employed)"
+unit    = "percent"
+category = "returns"
+notes   = "Return on capital employed."
+
+[ratios.advanced.roe_pct]
+label   = "ROE (%)"
+formula = "(net_income / total_equity)"
+unit    = "percent"
+category = "returns"
+notes   = "Return on equity."
+
+[ratios.advanced.roa_pct]
+label   = "ROA (%)"
+formula = "(net_income / total_assets)"
+unit    = "percent"
+category = "returns"
+notes   = "Return on assets."
 
 # -------------------------------------------------------------------
 # Ratios - FULL level
 # -------------------------------------------------------------------
 
-[ratios.full.effective_tax_rate_pct]
-label   = "Effective tax rate (%)"
-formula = "effective_tax_rate_pct"
-unit    = "percent"
-
-[ratios.full.interest_coverage]
-label   = "Interest coverage (EBIT / interest)"
-formula = "interest_coverage"
+[ratios.full.finance_cost_coverage]
+label   = "EBIT / finance costs"
+formula = "operating_income / (-financial_expenses)"
 unit    = "ratio"
-
-[ratios.full.roce_pct]
-label   = "ROCE (%)"
-formula = "roce_pct"
-unit    = "percent"
-
-[ratios.full.roe_pct]
-label   = "ROE (%)"
-formula = "roe_pct"
-unit    = "percent"
-
-[ratios.full.roa_pct]
-label   = "ROA (%)"
-formula = "roa_pct"
-unit    = "percent"
+category = "structure"
+notes   = "Ability to cover finance costs with operating income (EBIT)."
 
 [ratios.full.equity_ratio_pct]
 label   = "Equity ratio (%)"
-formula = "equity_ratio_pct"
+formula = "(total_equity / total_assets)"
 unit    = "percent"
+category = "structure"
+notes   = "Share of equity in total assets."
 
 [ratios.full.debt_to_equity]
 label   = "Debt to equity"
-formula = "debt_to_equity"
+formula = "financial_debt / total_equity"
 unit    = "ratio"
+category = "structure"
+notes   = "Financial debt relative to equity."
 
 [ratios.full.gearing]
-label   = "Net debt to equity"
-formula = "gearing"
+label   = "Gearing (Net debt / Equity)"
+formula = "net_debt / total_equity"
 unit    = "ratio"
+category = "structure"
+notes   = "Net debt relative to equity."
 
 [ratios.full.dso_days]
-label   = "DSO (Days Sales Outstanding)"
-formula = "dso_days"
+label   = "Days Sales Outstanding (days)"
+formula = "(accounts_receivable / revenue) * period_days"
 unit    = "days"
+category = "working_capital"
+notes   = "Average collection period for trade receivables."
 
 [ratios.full.dpo_days]
-label   = "DPO (Days Payables Outstanding)"
-formula = "dpo_days"
+label   = "Days Payables Outstanding (days)"
+formula = "(accounts_payable / -cost_of_goods_sold) * period_days"
 unit    = "days"
+category = "working_capital"
+notes   = "Average payment period for suppliers (COGS in absolute value)."
 
 [ratios.full.dio_days]
-label   = "DIO (Days Inventory Outstanding)"
-formula = "dio_days"
+label   = "Days Inventory Outstanding (days)"
+formula = "(inventory / -cost_of_goods_sold) * period_days"
 unit    = "days"
+category = "working_capital"
+notes   = "Average inventory holding period (stock rotation, COGS in absolute value)."
+
+[ratios.full.cash_conversion_cycle_days]
+label = "Cash conversion cycle (days)"
+formula = "dso_days + dio_days - dpo_days"
+unit = "days"
+category = "working_capital"
+notes = "CCC = DSO + DIO - DPO. Lower is generally better."
+
+[ratios.full.net_debt_to_ebitda]
+label = "Net debt / EBITDA"
+formula = "net_debt / ebitda_abs"
+unit = "ratio"
+category = "structure"
+notes = "Leverage ratio: net debt divided by EBITDA."
