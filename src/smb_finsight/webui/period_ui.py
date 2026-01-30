@@ -7,11 +7,15 @@
 Period selection UI (WebUI).
 
 This module renders the period controls used by WebUI pages
-(Dashboard and Ratios & KPIs pages):
+(Dashboard and Ratios & KPIs & Statements pages):
 - primary period preset (FY/YTD/MTD/LAST_MONTH/CUSTOM + optional user-defined presets),
 - optional comparison period preset (FY_PREV/YTD_PREV_FY/... + CUSTOM + user presets),
-- chart granularity selector (DAY/WEEK/MONTH/QUARTER/CY/FY). Granularity is global
-to the page (no per-chart override).
+- Optional chart granularity selector (DAY/WEEK/MONTH/QUARTER/CY/FY). Granularity is
+global to the page (no per-chart override).
+
+NB: Some pages may hide granularity and use the third slot for a custom control via
+third_slot_renderer (e.g., the Statements page view level selector); ; its return value
+is surfaced in PeriodControlsResult.third_slot_value.
 
 Configuration source:
 - In layout_en.toml, presets and labels are typically configured under:
@@ -31,7 +35,7 @@ and can be bucketized later.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import streamlit as st
 
@@ -90,6 +94,8 @@ class PeriodControlsResult:
     comparison_enabled: bool
     primary_preset_label: str
     comparison_preset_label: Optional[str]
+    # Optional value returned by a custom renderer injected in the 3rd column.
+    third_slot_value: Any = None
 
 
 def render_period_controls(
@@ -97,35 +103,54 @@ def render_period_controls(
     page: Any,
     app_config: Any,
     allow_secondary_period: bool,
+    show_granularity: bool = True,
+    third_slot_renderer: Optional[Callable[[], Any]] = None,
 ) -> PeriodControlsResult:
     """
-    Render period controls (primary, optional comparison, and granularity).
+    Render period controls (primary, optional comparison, and optional granularity).
 
     Args:
         page: Parsed PageConfig for the current page (e.g., layout.pages["dashboard"]).
         app_config: AppConfig (used for fiscal year boundaries).
         allow_secondary_period: Whether comparison selection is enabled for this page.
+        show_granularity: Whether to display the granularity selector (used by
+            chart-heavy pages).
+        third_slot_renderer:
+            Optional callback used to render custom UI in the 3rd column (c3) when
+            ``show_granularity`` is False. This is typically used by pages that need
+            a third control (e.g., "View level" on the Statements page). The callback
+            may return a value (e.g., selected view level), which will be exposed as
+            ``PeriodControlsResult.third_slot_value``.
 
     Layout keys used (from page.periods and page.ui):
         page.periods:
             - default_primary_preset, default_comparison_preset
-            - default_granularity, allowed_granularities
             - primary_preset_labels, comparison_preset_labels
-            - granularity_labels
             - user_presets (optional):
                 Mapping of preset_code ->
                 {start="YYYY-MM-DD", end="YYYY-MM-DD", label="..."}.
+            - (optional, used only when show_granularity=True):
+                default_granularity, allowed_granularities, granularity_labels
         page.ui:
             - label_primary_period
             - label_comparison_toggle
             - label_comparison_period
             - label_custom_from, label_custom_to
-            - label_granularity
+            - label_granularity (only when show_granularity=True)
             - help_primary_period
             - help_comparison_period
-            - help_granularity
+            - help_granularity (only when show_granularity=True)
             - error_custom_end_before_start
             - default_enable_comparison (optional)
+
+    Notes:
+        - The controls are laid out in three columns (primary, comparison, and
+          a third slot).
+        - When ``show_granularity`` is True, the third slot shows the granularity
+          selector.
+        - When ``show_granularity`` is False, the third slot can be populated by
+          ``third_slot_renderer`` (if provided). If provided, the return value is
+          propagated via third_slot_value.
     """
 
     page_periods = _get(page, "periods", None)
@@ -136,7 +161,11 @@ def render_period_controls(
 
     primary_labels = _to_mapping(periods_cfg.get("primary_preset_labels", {}))
     comparison_labels = _to_mapping(periods_cfg.get("comparison_preset_labels", {}))
-    granularity_labels = _to_mapping(periods_cfg.get("granularity_labels", {}))
+    granularity_labels = (
+        _to_mapping(periods_cfg.get("granularity_labels", {}))
+        if show_granularity
+        else {}
+    )
 
     # NEW: user-defined presets from layout_en.toml
     user_presets = _to_mapping(periods_cfg.get("user_presets", {}))
@@ -200,6 +229,8 @@ def render_period_controls(
     today = date.today()
     fy = app_config.fiscal_year
 
+    # Always reserve 3 columns so pages can reuse the 3rd slot
+    # (e.g., Statements uses it for "View level" instead of granularity).
     c1, c2, c3 = st.columns([1.2, 1.2, 1.0])
 
     primary_preset: str
@@ -210,6 +241,8 @@ def render_period_controls(
     primary_custom_end: Optional[date] = None
     comparison_custom_start: Optional[date] = None
     comparison_custom_end: Optional[date] = None
+
+    third_slot_value: Any = None
 
     # Primary
     with c1:
@@ -256,6 +289,9 @@ def render_period_controls(
                 comparison_enabled = st.toggle(
                     ui.get("label_comparison_toggle", "Enable comparison"),
                     value=default_enable,
+                    help=ui.get(
+                        "help_comparison_toggle", "Enable or disable comparison period."
+                    ),
                 )
             else:
                 comparison_enabled = False
@@ -299,21 +335,42 @@ def render_period_controls(
                             key="c_end",
                         )
 
-    # Granularity
-    with c3:
-        with st.container(border=True, height="stretch"):
-            if not allowed_granularities:
-                allowed_granularities = ["DAY", "WEEK", "MONTH", "QUARTER", "CY", "FY"]
+    # Granularity (optional)
+    if show_granularity:
+        with c3:
+            with st.container(border=True, height="stretch"):
+                if not allowed_granularities:
+                    allowed_granularities = [
+                        "DAY",
+                        "WEEK",
+                        "MONTH",
+                        "QUARTER",
+                        "CY",
+                        "FY",
+                    ]
 
-            granularity = st.selectbox(
-                ui.get("label_granularity", "Granularity"),
-                options=allowed_granularities,
-                index=allowed_granularities.index(default_granularity)
-                if default_granularity in allowed_granularities
-                else 0,
-                format_func=fmt_granularity,
-                help=ui.get("help_granularity", "Granularity affects charts."),
-            )
+                granularity = st.selectbox(
+                    ui.get("label_granularity", "Granularity"),
+                    options=allowed_granularities,
+                    index=allowed_granularities.index(default_granularity)
+                    if default_granularity in allowed_granularities
+                    else 0,
+                    format_func=fmt_granularity,
+                    help=ui.get("help_granularity", "Granularity affects charts."),
+                )
+    else:
+        # Selector hidden: keep a stable value for downstream code.
+        if not allowed_granularities:
+            allowed_granularities = ["DAY", "WEEK", "MONTH", "QUARTER", "CY", "FY"]
+        if default_granularity not in allowed_granularities:
+            default_granularity = allowed_granularities[0]
+        granularity = default_granularity
+
+        # Allow the calling page to render its own control in the third column.
+        if third_slot_renderer is not None:
+            with c3:
+                with st.container(border=True, height="stretch"):
+                    third_slot_value = third_slot_renderer()
 
     # ---- Build Period objects ------------------------------------------------
     custom_range_error_msg = ui.get(
@@ -398,4 +455,5 @@ def render_period_controls(
         comparison_preset_label=fmt_comparison(comparison_preset)
         if comparison_preset is not None
         else None,
+        third_slot_value=third_slot_value,
     )

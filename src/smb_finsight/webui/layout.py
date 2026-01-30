@@ -146,10 +146,14 @@ class PageConfig:
             comparison period on this page.
         periods: Default period presets for this page, or None if the page
             does not use periods directly.
+        default_view:
+            Optional per-page default view level (used by the Statements page).
+            Typically one of: "simplified", "regular", "detailed", "complete".
+            Empty string means "no default view configured / not applicable".
         ui:
-            Optional mapping of user-facing strings for that page
-            (section headers, control labels, messages). This enables
-            localization via the layout TOML file.
+            Optional mapping of user-facing values for that page (strings
+            and nested tables). This enables localization and structured UI
+            mappings (e.g. view_labels).
 
     """
 
@@ -158,7 +162,8 @@ class PageConfig:
     icon: str
     allow_secondary_period: bool
     periods: Optional[PagePeriodsConfig]
-    ui: Mapping[str, str] = field(default_factory=dict)
+    default_view: str = ""
+    ui: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -360,23 +365,64 @@ class RatiosPageConfig:
 @dataclass(frozen=True)
 class StatementsPageConfig:
     """
-    Configuration options for the Statements page.
+    Configuration options for the Statements page (Income Statement).
+
+    These options control how statements are rendered in the Web UI.
+
+    Notes:
+        - When comparison is enabled, deltas can be displayed as absolute values
+          and/or percentages (see ``show_delta_abs`` / ``show_delta_pct``).
+        - Delta computation basis is intentionally *derived* from
+          ``amount_display_mode``:
+            * ``engine_signed`` -> deltas computed on signed engine amounts
+            * ``traditional``  -> deltas computed on absolute displayed amounts
 
     Attributes:
-        show_delta_columns:
-            In comparison mode, whether to show delta (absolute/percent)
-            columns in addition to the two period amounts.
+        comparison_mode:
+            Rendering mode when a comparison period is selected:
+            - "side_by_side": display two statements (primary vs comparison).
+            - "columns": display one statement with multiple columns
+              (primary amount, optional comparison amount, optional deltas).
+        secondary_statement_display:
+            Rendering mode when a standard provides a secondary statement mapping:
+            - "tabs": primary and secondary statements in separate tabs.
+            - "stacked": secondary statement rendered below the primary statement.
         hide_zero_lines_in_comparison:
             If True, hide lines where both periods are zero (and therefore
-            the delta is also zero).
+            deltas are also zero).
         hide_zero_lines_single_period:
             If True, hide zero lines even in single-period mode; if False,
             always show the full statement structure.
+        amount_display_mode:
+            - "engine_signed": show engine values as-is (revenues +, expenses -).
+            - "traditional": show abs(amount) but indicate negatives from engine.
+        negative_amount_indicator:
+            How to indicate negative underlying values when
+            ``amount_display_mode="traditional"``:
+            - "parentheses": (1,234)
+            - "background": highlighted cells
+            - "both": parentheses + highlighted cells
+        legend_text:
+            If non-empty, the Web UI should display this legend below the table(s).
+        show_comp_amount_column:
+            In ``comparison_mode="columns"``, whether to show the comparison
+            period amount column (the primary amount column is always shown).
+        show_delta_abs:
+            Whether to show absolute deltas when comparison is enabled.
+        show_delta_pct:
+            Whether to show percentage deltas when comparison is enabled.
     """
 
-    show_delta_columns: bool
+    comparison_mode: str
+    secondary_statement_display: str
     hide_zero_lines_in_comparison: bool
     hide_zero_lines_single_period: bool
+    amount_display_mode: str
+    negative_amount_indicator: str
+    legend_text: str
+    show_comp_amount_column: bool
+    show_delta_abs: bool
+    show_delta_pct: bool
 
 
 @dataclass(frozen=True)
@@ -667,7 +713,7 @@ def _parse_pages(root: Mapping[str, Any]) -> dict[str, PageConfig]:
         ui_tbl_raw = page_tbl.get("ui") or {}
         ui_tbl = (
             {
-                str(k): str(v)
+                str(k): v
                 for k, v in _expect_table(ui_tbl_raw, f"pages.{page_name}.ui").items()
             }
             if ui_tbl_raw
@@ -680,6 +726,7 @@ def _parse_pages(root: Mapping[str, Any]) -> dict[str, PageConfig]:
             icon=_get_str(page_tbl, "icon", ""),
             allow_secondary_period=_get_bool(page_tbl, "allow_secondary_period", False),
             periods=periods_cfg,
+            default_view=_get_str(page_tbl, "default_view", ""),
             ui=ui_tbl,
         )
         pages[page_cfg.id] = page_cfg
@@ -944,14 +991,56 @@ def _parse_ratios_charts_list(raw: Any, ctx: str) -> list[RatiosChartDraftSpec]:
 
 def _parse_statements_page(root: Mapping[str, Any]) -> StatementsPageConfig:
     tbl = _expect_table(root.get("statements_page"), "statements_page")
+
+    comparison_mode = _get_str(tbl, "comparison_mode", "side_by_side").strip().lower()
+    if comparison_mode not in {"side_by_side", "columns"}:
+        raise LayoutConfigError(
+            "statements_page: comparison_mode must be 'side_by_side' or 'columns', "
+            f"got: {comparison_mode!r}"
+        )
+
+    secondary_display = (
+        _get_str(tbl, "secondary_statement_display", "tabs").strip().lower()
+    )
+    if secondary_display not in {"tabs", "stacked"}:
+        raise LayoutConfigError(
+            "statements_page: secondary_statement_display must be 'tabs' or 'stacked', "
+            f"got: {secondary_display!r}"
+        )
+
+    amount_display_mode = (
+        _get_str(tbl, "amount_display_mode", "traditional").strip().lower()
+    )
+    if amount_display_mode not in {"engine_signed", "traditional"}:
+        raise LayoutConfigError(
+            "statements_page: amount_display_mode must be 'engine_signed' "
+            f"or 'traditional', got: {amount_display_mode!r}"
+        )
+
+    negative_indicator = (
+        _get_str(tbl, "negative_amount_indicator", "both").strip().lower()
+    )
+    if negative_indicator not in {"parentheses", "background", "both"}:
+        raise LayoutConfigError(
+            "statements_page: negative_amount_indicator must be 'parentheses', "
+            f"'background' or 'both', got: {negative_indicator!r}"
+        )
+
     return StatementsPageConfig(
-        show_delta_columns=_get_bool(tbl, "show_delta_columns", True),
+        comparison_mode=comparison_mode,
+        secondary_statement_display=secondary_display,
         hide_zero_lines_in_comparison=_get_bool(
             tbl, "hide_zero_lines_in_comparison", True
         ),
         hide_zero_lines_single_period=_get_bool(
             tbl, "hide_zero_lines_single_period", False
         ),
+        amount_display_mode=amount_display_mode,
+        negative_amount_indicator=negative_indicator,
+        legend_text=_get_str(tbl, "legend_text", ""),
+        show_comp_amount_column=_get_bool(tbl, "show_comp_amount_column", True),
+        show_delta_abs=_get_bool(tbl, "show_delta_abs", True),
+        show_delta_pct=_get_bool(tbl, "show_delta_pct", False),
     )
 
 

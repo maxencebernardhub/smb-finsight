@@ -22,10 +22,11 @@ baseFontWeight = 400
 # -------------- LIGHT THEME --------------
 # Main app colors when "Light" mode is active.
 [theme.light]
-primaryColor = "#CC7C5E"            # Accent (buttons, radio, sliders)
+primaryColor = "#899bcb"            # Accent (buttons, radio, sliders)
 backgroundColor = "#FAF9F5"         # Main background (very light slate)
 secondaryBackgroundColor = "#F5F4EE" # Cards / widgets / containers
 textColor = "#141413"               # Nearly black text
+dataframeHeaderBackgroundColor = "#cfd9f5"
 font = "sans serif"
 
 # Sidebar colors in Light mode.
@@ -39,8 +40,9 @@ textColor = "#141413"
 [theme.dark]
 primaryColor = "#6060F6"             
 backgroundColor = "#1F293B"          # Dark blue
-secondaryBackgroundColor = "#1F293B" 
+secondaryBackgroundColor = "#2d384d" 
 textColor = "#E3E8EF"                # Light gray text
+dataframeHeaderBackgroundColor = "#556480"
 font = "sans serif"
 
 # Sidebar colors in Dark mode.

@@ -95,8 +95,9 @@ label_custom_from = "From"
 label_custom_to = "To"
 
 # Tooltips / help
-help_primary_period = "Select the primary period."
-help_comparison_period = "Optionally select a comparison period."
+help_primary_period = "Select the primary reporting period."
+help_comparison_toggle = "Enable to compare against another period."
+help_comparison_period = "Select the comparison period."
 help_granularity = "Granularity affects charts. Metrics always reflect the full selected period."
 
 error_custom_end_before_start = "End date cannot be earlier than start date."
@@ -164,17 +165,55 @@ icon = "📑"
 # - false -> primary period only (no comparison selector, no deltas)
 allow_secondary_period = true
 
-# default_view: controls statement detail level in the UI
-default_view = "regular"         # simplified | regular | detailed | complete
+# View level control
+# simplified | regular | detailed | complete
+default_view = "detailed"         # simplified | regular | detailed | complete
 
-# comparison_mode:
-#   - "columns" -> show both periods + deltas in columns
-comparison_mode = "columns"      # columns -> both periods + deltas in same table
+[pages.statements.ui]
+label_primary_period = "Primary period"
+label_comparison_toggle = "Compare to another period"
+label_comparison_period = "Comparison period"
+label_view = "View level"
+label_header_line = "REVENUE / EXPENSE"
+label_header_amount = "$"
+
+help_primary_period = "Select the primary reporting period."
+help_comparison_toggle = "Enable to compare against another period."
+help_comparison_period = "Select the comparison period."
+help_view = "Controls how much detail is shown in the statement."
+
+view_labels = { simplified = "Simplified", regular = "Regular", detailed = "Detailed", complete = "Complete" }
+
+label_primary_statement = "Income statement"
+label_secondary_statement = "Secondary statement"
+
+msg_no_entries = "No accounting entries found for the selected period."
+
 
 # Default periods for the Statements page:
 [pages.statements.periods]
+
 default_primary_preset = "FY"
 default_comparison_preset = "FY_PREV"
+
+[pages.statements.periods.primary_preset_labels]
+FY = "Current fiscal year"
+YTD = "Year to date (current FY)"
+MTD = "Month to date"
+LAST_MONTH = "Last month"
+CUSTOM = "Custom period"
+
+[pages.statements.periods.comparison_preset_labels]
+FY_PREV = "Previous fiscal year"
+YTD_PREV_FY = "Year to date (previous FY)"
+LAST_MONTH = "Last month"
+PREV_PERIOD = "Previous period"
+SAME_PERIOD_PREV_FY = "Same period previous FY"
+CUSTOM = "Custom period"
+
+[pages.statements.periods.user_presets]
+Q4_2025 = { label = "Q4 2025", start = "2025-10-01", end = "2025-12-31" }
+FY2022  = { label = "FY 2022",  start = "2022-01-01", end = "2022-12-31" }
 
 
 # ----------------- Ratios & KPIs page -----------------
@@ -210,8 +249,9 @@ label_custom_from = "From"
 label_custom_to = "To"
 
 # Tooltips / help
-help_primary_period = "Select the primary period."
-help_comparison_period = "Optionally select a comparison period."
+help_primary_period = "Select the primary reporting period."
+help_comparison_toggle = "Enable to compare against another period."
+help_comparison_period = "Select the comparison period."
 help_granularity = "Granularity affects charts. Metrics always reflect the full selected period."
 
 error_custom_end_before_start = "End date cannot be earlier than start date."
@@ -1051,18 +1091,48 @@ series = [
 # These options control how the income statement is displayed.
 
 [statements_page]
-# In comparison mode, show delta columns (absolute and/or percent)?
-show_delta_columns = true
 
-# In comparison mode:
+# Comparison rendering:
+# - "side_by_side" : two statements (primary vs comparison)
+# - "columns"      : one statement with multiple columns (amounts + deltas)
+comparison_mode = "side_by_side"  # "side_by_side" | "columns"
+
+# Secondary statement rendering when it exists:
+# - "tabs"    : primary + secondary in tabs
+# - "stacked" : primary then secondary below
+secondary_statement_display = "tabs"  # "tabs" | "stacked"
+
+# Zero-line behavior in comparison mode:
 #   true  -> hide lines where both periods are zero (and delta is zero)
 #   false -> show all lines, even if both periods are zero
 hide_zero_lines_in_comparison = true
 
-# In single-period mode:
+# Zero-line behavior in single-period mode:
 #   true  -> hide lines where the amount is zero
 #   false -> show the full structure, including zero lines
 hide_zero_lines_single_period = false
+
+# "engine_signed" : show engine values as-is (revenues +, expenses -)
+# "traditional"   : show abs(amount) but indicate negatives from engine
+amount_display_mode = "traditional"  # "engine_signed" | "traditional"
+
+# How to indicate values that are negative in engine (when mode="traditional"):
+# - "parentheses" : (1,234)
+# - "color"  : colored cells
+# - "both"        : parentheses + highlighted cells
+negative_amount_indicator = "both"  # "parentheses" | "color" | "both"
+
+# If non-empty, display a legend below the table(s)
+legend_text = "Parentheses / highlighted cells indicate values that are negative in the underlying data."
+
+# Show amount column for comparison period when comparison_mode="columns"?
+show_comp_amount_column = true
+
+# Show delta when comparison is activated?
+# if engine_signed => deltas on signed amounts; if traditional => deltas on abs(amount)
+show_delta_abs = true
+show_delta_pct = false
+
 
 
 # -------------------------------------------------------------------

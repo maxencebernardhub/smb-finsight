@@ -58,7 +58,7 @@ path = "data/db/smb_finsight.sqlite"
 
 
 # -------------------------------------------------------------------
-# Ratios & KPIs configuration (generic)
+# Ratios & KPIs configuration (for CLI only)
 # -------------------------------------------------------------------
 [ratios]
 # Enable or disable ratio and KPI computation.
@@ -105,7 +105,7 @@ average_headcount = 11.5
 period_days = 365
 
 # -------------------------------------------------------------------
-# Display options (generic)
+# Display options (for CLI only)
 # -------------------------------------------------------------------
 [display]
 # Default output mode for tables:
