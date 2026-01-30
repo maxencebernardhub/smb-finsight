@@ -33,7 +33,8 @@ Design principles
    - Each analytical page has its own pipeline function with a clear contract:
        * Dashboard        -> run_dashboard_pipeline
        * Ratios & KPIs    -> run_ratios_pipeline
-       * (Future) Statements / Cashflow, etc.
+       * Statements       -> run_statements_pipeline
+       * Future: Cashflow, etc.
    - This keeps page logic simple and avoids duplication in Streamlit code.
 
 4) Periods and granularity:
@@ -125,6 +126,20 @@ class RatiosPipelineResult:
     ratios_df: pd.DataFrame
     primary_buckets: list[Any]
     comp_buckets: list[Any]
+    all_periods: list[Any]
+
+
+@dataclass(frozen=True)
+class StatementsPipelineResult:
+    """
+    Output of the Statements compute pipeline.
+
+    Attributes:
+        primary_df: Multi-period income statement DataFrame for the selected periods.
+        all_periods: Period list passed to `compute_all_multi_period()`.
+    """
+
+    primary_df: pd.DataFrame
     all_periods: list[Any]
 
 
@@ -286,4 +301,41 @@ def run_ratios_pipeline(
         primary_buckets=primary_buckets,
         comp_buckets=comp_buckets,
         all_periods=all_periods,
+    )
+
+
+def run_statements_pipeline(
+    *,
+    app_config: AppConfig,
+    primary_period: Any,
+    comparison_period: Optional[Any],
+) -> StatementsPipelineResult:
+    """
+    Run the Statements compute pipeline.
+
+    v0.5.x policy: compute the income statement(s) for PRIMARY and optional COMPARISON.
+    (Comparison rendering is handled at the page/build layer.)
+
+    Args:
+        app_config: Application config.
+        primary_period: Period labeled "PRIMARY" (from period_ui).
+        comparison_period: Optional Period labeled "COMPARISON" (from period_ui).
+
+    Returns:
+        StatementsPipelineResult.
+    """
+    periods_for_compute = [primary_period]
+    if comparison_period is not None:
+        periods_for_compute.append(comparison_period)
+
+    statements_mp, _, _ = compute_all_multi_period(
+        app_config=app_config,
+        standard_config=app_config.standard_config,
+        periods=periods_for_compute,
+        ratios_level="full",
+    )
+
+    return StatementsPipelineResult(
+        primary_df=statements_mp.primary,
+        all_periods=periods_for_compute,
     )
