@@ -27,12 +27,63 @@ from smb_finsight.views import apply_view_level_filter, build_complete_view
 _ALLOWED_VIEWS = {"simplified", "regular", "detailed", "complete"}
 
 
+def hide_zero_lines_single_period(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Hide zero-amount lines for a single-period statement while preserving hierarchy.
+
+    Rules:
+    - Always keep level 0 and 1 rows (structural totals/sections).
+    - For level >= 2: keep a row if:
+        - its amount is non-zero, OR
+        - any descendant row is kept (i.e., a non-zero exists somewhere in its subtree).
+    Works for complete view too (levels 2/3/4 may be filtered).
+    """
+    if df.empty or "level" not in df.columns or "amount" not in df.columns:
+        return df
+
+    levels = pd.to_numeric(df["level"], errors="coerce").fillna(0).astype(int)
+    amounts = pd.to_numeric(df["amount"], errors="coerce").fillna(0.0)
+
+    keep = [False] * len(df)
+
+    # stack[l] == whether there is any kept row in the subtree at level l or deeper
+    stack: list[bool] = []
+
+    for i in reversed(range(len(df))):
+        lvl = int(levels.iat[i])
+        amt = float(amounts.iat[i])
+
+        # Descendant kept = any kept info deeper than current level
+        descendant_kept = any(stack[lvl + 1 :]) if len(stack) > lvl + 1 else False
+
+        # Trim stack to current level
+        if len(stack) > lvl + 1:
+            stack = stack[: lvl + 1]
+        if len(stack) < lvl + 1:
+            stack.extend([False] * (lvl + 1 - len(stack)))
+
+        # Keep rule
+        if lvl <= 1:
+            k = True
+        else:
+            k = (amt != 0.0) or descendant_kept
+
+        keep[i] = k
+
+        # Propagate to parent: subtree under this level contains kept
+        # if k or descendant_kept
+        stack[lvl] = k or descendant_kept
+
+    return df.loc[keep].copy()
+
+
 def build_statement_view(
     *,
     app_config: AppConfig,
     df_statement: pd.DataFrame,
     period: Any,
     view_level: str,
+    hide_zero_lines: bool = False,
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Build a statement dataframe ready for rendering for a given view level.
@@ -42,6 +93,7 @@ def build_statement_view(
         df_statement: Statement dataframe already filtered to a single period label.
         period: Period object for this dataframe (used for DB entry lookup in complete).
         view_level: simplified|regular|detailed|complete (case-insensitive).
+        hide_zero_lines: Whether to hide zero-amount lines for single-period views.
 
     Returns:
         (df_view, warnings)
@@ -60,6 +112,10 @@ def build_statement_view(
         df_out = apply_view_level_filter(df_statement, level)
         if "display_order" in df_out.columns:
             df_out = df_out.sort_values(["display_order"], kind="mergesort")
+
+        if hide_zero_lines:
+            df_out = hide_zero_lines_single_period(df_out)
+
         return df_out, warnings
 
     # --- Complete view ---------------------------------------------------
@@ -67,6 +123,9 @@ def build_statement_view(
     out_base = apply_view_level_filter(df_statement, "detailed")
     if "display_order" in out_base.columns:
         out_base = out_base.sort_values(["display_order"], kind="mergesort")
+
+    if hide_zero_lines:
+        out_base = hide_zero_lines_single_period(out_base)
 
     try:
         # Load accounting entries for this period
@@ -112,6 +171,9 @@ def build_statement_view(
             template=template,
             name_by_code=name_by_code,
         )
+
+        if hide_zero_lines:
+            df_complete = hide_zero_lines_single_period(df_complete)
 
         return df_complete, warnings
     except Exception as exc:  # noqa: BLE001

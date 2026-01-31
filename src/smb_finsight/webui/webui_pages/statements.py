@@ -103,6 +103,7 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
             df_statement=df,
             period=primary_period,
             view_level=view_level,
+            hide_zero_lines=getattr(stmt_cfg, "hide_zero_lines_single_period", False),
         )
         for w in warnings:
             st.warning(w)
