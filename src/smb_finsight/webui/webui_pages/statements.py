@@ -12,7 +12,8 @@ and relies on shared helpers for period selection and core computations.
 Step 1 scope:
 - Render period controls (PRIMARY only).
 - Render a view-level selector in the third slot (column 3).
-- Compute and display ONE primary income statement (no comparison, no secondary yet).
+- Compute and display the primary income statement and an optional secondary statement
+  when configured for the selected standard (no comparison yet).
 """
 
 from collections.abc import Mapping
@@ -32,7 +33,10 @@ from smb_finsight.webui.utils import _get, _to_mapping
 
 
 def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> None:
-    """Render the Income Statement page (single statement, no comparison yet)."""
+    """
+    Render the Income Statement page (single statement and optional secondary
+    statement, no comparison yet).
+    """
 
     st.title(_get(page, "title", "Income Statement"))
 
@@ -72,12 +76,14 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
             primary_period=primary_period,
             comparison_period=None,  # step 1: no comparison yet
         )
-        df = pipe.primary_df
+        df_primary_all = pipe.primary_df
+        df_secondary_all = pipe.secondary_df
     except Exception as exc:  # noqa: BLE001
         st.error(f"Failed to compute income statement: {exc}")
-        df = pd.DataFrame()
+        df_primary_all = pd.DataFrame()
+        df_secondary_all = pd.DataFrame()
 
-    if df.empty:
+    if df_primary_all.empty:
         st.info(
             ui.get(
                 "msg_no_entries", "No accounting entries found for the selected period."
@@ -86,9 +92,13 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
         return
 
     label = getattr(primary_period, "label", "PRIMARY")
-    if "period_label" in df.columns:
-        df = df[df["period_label"].astype(str) == str(label)]
-    if df.empty:
+
+    df_primary = df_primary_all
+    if "period_label" in df_primary.columns:
+        df_primary = df_primary[
+            df_primary["period_label"].astype(str) == str(label)
+        ].copy()
+    if df_primary.empty:
         st.info(
             ui.get(
                 "msg_no_entries", "No accounting entries found for the selected period."
@@ -96,27 +106,103 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
         )
         return
 
+    df_secondary = None
+    if df_secondary_all is not None and not df_secondary_all.empty:
+        df_secondary = df_secondary_all
+        if "period_label" in df_secondary.columns:
+            df_secondary = df_secondary[
+                df_secondary["period_label"].astype(str) == str(label)
+            ].copy()
+        if df_secondary.empty:
+            df_secondary = None
+
     # Apply view-level filtering (shared with CLI)
+    hide_zero = getattr(stmt_cfg, "hide_zero_lines_single_period", False)
     try:
-        df_view, warnings = build_statement_view(
+        df_primary_view, warnings = build_statement_view(
             app_config=app_config,
-            df_statement=df,
+            df_statement=df_primary,
             period=primary_period,
             view_level=view_level,
-            hide_zero_lines=getattr(stmt_cfg, "hide_zero_lines_single_period", False),
+            hide_zero_lines=hide_zero,
+            statement_role="primary",
         )
         for w in warnings:
             st.warning(w)
 
+        df_secondary_view = None
+        if df_secondary is not None:
+            df_secondary_view, warnings2 = build_statement_view(
+                app_config=app_config,
+                df_statement=df_secondary,
+                period=primary_period,
+                view_level=view_level,
+                hide_zero_lines=hide_zero,
+                statement_role="secondary",
+            )
+            for w in warnings2:
+                st.warning(w)
+
     except Exception as exc:  # noqa: BLE001
         st.warning(f"View filtering failed (showing full statement): {exc}")
-        df_view = df
+        df_primary_view = df_primary
+        df_secondary_view = df_secondary
+
+    primary_title = getattr(
+        app_config.standard_config, "primary_statement_label", ""
+    ) or ui.get("label_primary_statement", "Income statement")
+    secondary_title = getattr(
+        app_config.standard_config, "secondary_statement_label", ""
+    ) or ui.get("label_secondary_statement", "Secondary statement")
 
     st.space(size="small")
-    st.subheader(ui.get("label_primary_statement", "Income statement"))
 
-    render_statement_table(
-        df_view=df_view,
-        ui=ui,
-        stmt_cfg=stmt_cfg,
+    display_mode = (
+        str(getattr(stmt_cfg, "secondary_statement_display", "tabs") or "tabs")
+        .strip()
+        .lower()
     )
+    if display_mode not in {"tabs", "stacked"}:
+        st.warning(
+            f"Invalid secondary_statement_display='{display_mode}', "
+            f"falling back to 'tabs'."
+        )
+        display_mode = "tabs"
+
+    if df_secondary_view is None:
+        st.subheader(primary_title)
+        render_statement_table(
+            df_view=df_primary_view,
+            ui=ui,
+            stmt_cfg=stmt_cfg,
+        )
+    else:
+        if display_mode == "stacked":
+            st.subheader(primary_title)
+            render_statement_table(
+                df_view=df_primary_view,
+                ui=ui,
+                stmt_cfg=stmt_cfg,
+            )
+
+            st.space(size="small")
+            st.subheader(secondary_title)
+            render_statement_table(
+                df_view=df_secondary_view,
+                ui=ui,
+                stmt_cfg=stmt_cfg,
+            )
+        else:
+            tab1, tab2 = st.tabs([primary_title, secondary_title])
+            with tab1:
+                render_statement_table(
+                    df_view=df_primary_view,
+                    ui=ui,
+                    stmt_cfg=stmt_cfg,
+                )
+            with tab2:
+                render_statement_table(
+                    df_view=df_secondary_view,
+                    ui=ui,
+                    stmt_cfg=stmt_cfg,
+                )

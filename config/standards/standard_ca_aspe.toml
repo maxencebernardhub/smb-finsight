@@ -8,7 +8,7 @@
 income_statement = "../../mapping/income_statement_ca_aspe.csv"
 
 # No secondary statement at this stage (can be added later if needed)
-secondary_mapping = ""
+secondary_mapping = "../../mapping/sig_fr_pcg.csv"
 
 # Optional: chart of accounts reference file for CA ASPE.
 # This file can be extended/customized by the user.

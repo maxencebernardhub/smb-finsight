@@ -136,10 +136,12 @@ class StatementsPipelineResult:
 
     Attributes:
         primary_df: Multi-period income statement DataFrame for the selected periods.
+        secondary_df: Optional multi-period income statement DataFrame
         all_periods: Period list passed to `compute_all_multi_period()`.
     """
 
     primary_df: pd.DataFrame
+    secondary_df: Optional[pd.DataFrame]
     all_periods: list[Any]
 
 
@@ -337,5 +339,6 @@ def run_statements_pipeline(
 
     return StatementsPipelineResult(
         primary_df=statements_mp.primary,
+        secondary_df=statements_mp.secondary,
         all_periods=periods_for_compute,
     )

@@ -14,7 +14,7 @@ in Streamlit pages:
 No Streamlit calls here: we return warnings as strings so the UI can display them.
 """
 
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
 
@@ -84,6 +84,7 @@ def build_statement_view(
     period: Any,
     view_level: str,
     hide_zero_lines: bool = False,
+    statement_role: Literal["primary", "secondary"] = "primary",
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Build a statement dataframe ready for rendering for a given view level.
@@ -94,6 +95,10 @@ def build_statement_view(
         period: Period object for this dataframe (used for DB entry lookup in complete).
         view_level: simplified|regular|detailed|complete (case-insensitive).
         hide_zero_lines: Whether to hide zero-amount lines for single-period views.
+        statement_role:
+            Which statement this dataframe corresponds to:
+            - "primary": uses standard_config.income_statement_mapping for complete view
+            - "secondary": uses standard_config.secondary_mapping for complete view
 
     Returns:
         (df_view, warnings)
@@ -156,14 +161,18 @@ def build_statement_view(
         tx = filter_unknown_accounts(tx_raw, known_codes)
 
         # Mapping template required to map account codes -> statement rows
-        mapping_path = app_config.standard_config.income_statement_mapping
-        if mapping_path is None:
+        if statement_role == "secondary":
+            mpath = app_config.standard_config.secondary_mapping
+        else:
+            mpath = app_config.standard_config.income_statement_mapping
+
+        if mpath is None:
             warnings.append(
-                "No income statement mapping configured. Falling back to detailed view."
+                "No mapping configured for complete view. Falling back to detailed view"
             )
             return out_base, warnings
 
-        template = Template.from_csv(str(mapping_path))
+        template = Template.from_csv(str(mpath))
 
         df_complete = build_complete_view(
             out_base=out_base,
