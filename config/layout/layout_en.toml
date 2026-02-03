@@ -175,7 +175,7 @@ label_comparison_toggle = "Compare to another period"
 label_comparison_period = "Comparison period"
 label_view = "View level"
 label_header_line = "REVENUE / EXPENSE"
-label_header_amount = "$"
+label_header_amount = "AMOUNT ($)"
 
 help_primary_period = "Select the primary reporting period."
 help_comparison_toggle = "Enable to compare against another period."
@@ -1092,11 +1092,6 @@ series = [
 
 [statements_page]
 
-# Comparison rendering:
-# - "side_by_side" : two statements (primary vs comparison)
-# - "columns"      : one statement with multiple columns (amounts + deltas)
-comparison_mode = "side_by_side"  # "side_by_side" | "columns"
-
 # Secondary statement rendering when it exists:
 # - "tabs"    : primary + secondary in tabs
 # - "stacked" : primary then secondary below
@@ -1123,16 +1118,7 @@ amount_display_mode = "traditional"  # "engine_signed" | "traditional"
 negative_amount_indicator = "both"  # "parentheses" | "color" | "both"
 
 # If non-empty, display a legend below the table(s)
-legend_text = "Parentheses / highlighted cells indicate values that are negative in the underlying data."
-
-# Show amount column for comparison period when comparison_mode="columns"?
-show_comp_amount_column = true
-
-# Show delta when comparison is activated?
-# if engine_signed => deltas on signed amounts; if traditional => deltas on abs(amount)
-show_delta_abs = true
-show_delta_pct = false
-
+legend_text = "Parentheses / colored amounts indicate values that are negative in the underlying data."
 
 
 # -------------------------------------------------------------------

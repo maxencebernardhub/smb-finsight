@@ -400,8 +400,8 @@ class StatementsPageConfig:
             How to indicate negative underlying values when
             ``amount_display_mode="traditional"``:
             - "parentheses": (1,234)
-            - "background": highlighted cells
-            - "both": parentheses + highlighted cells
+            - "color": colored amounts
+            - "both": parentheses + colored amounts
         legend_text:
             If non-empty, the Web UI should display this legend below the table(s).
         show_comp_amount_column:
@@ -1020,10 +1020,10 @@ def _parse_statements_page(root: Mapping[str, Any]) -> StatementsPageConfig:
     negative_indicator = (
         _get_str(tbl, "negative_amount_indicator", "both").strip().lower()
     )
-    if negative_indicator not in {"parentheses", "background", "both"}:
+    if negative_indicator not in {"parentheses", "color", "both"}:
         raise LayoutConfigError(
             "statements_page: negative_amount_indicator must be 'parentheses', "
-            f"'background' or 'both', got: {negative_indicator!r}"
+            f"'color' or 'both', got: {negative_indicator!r}"
         )
 
     return StatementsPageConfig(
