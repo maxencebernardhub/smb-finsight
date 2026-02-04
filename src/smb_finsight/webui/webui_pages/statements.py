@@ -81,7 +81,7 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
         view_level = "regular"
 
     # ---------------------------------------------------------------------
-    # Compute statement (single period)
+    # Compute statements via pipeline (primary + optional secondary)
     # ---------------------------------------------------------------------
     try:
         pipe = run_statements_pipeline(
@@ -139,6 +139,11 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
         .strip()
         .lower()
     )
+
+    # ---------------------------------------------------------------------
+    # Build views for primary period
+    # ---------------------------------------------------------------------
+
     try:
         df_primary_view, warnings = build_statement_view(
             app_config=app_config,
@@ -192,7 +197,7 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
         display_mode = "tabs"
 
     # ---------------------------------------------------------------------
-    # Rendering: single-period OR comparison ("columns")
+    # Rendering helpers: single-period OR comparison ("columns")
     # ---------------------------------------------------------------------
     def _render_primary_single() -> None:
         st.subheader(primary_title)
@@ -252,6 +257,10 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
                 ),
             )
 
+    # ---------------------------------------------------------------------
+    # Single-period rendering
+    # ---------------------------------------------------------------------
+
     if not comparison_active:
         if df_secondary_view is None:
             _render_primary_single()
@@ -264,8 +273,9 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
                 _render_secondary_single()
         return
 
-    # --- comparison_active: build comparison columns for primary
-    # (+ optional secondary) ---
+    # ---------------------------------------------------------------------
+    # Comparison rendering
+    # ---------------------------------------------------------------------
     comp_label = getattr(comparison_period, "label", "COMPARISON")
     df_comp_primary = df_primary_all
     if "period_label" in df_comp_primary.columns:

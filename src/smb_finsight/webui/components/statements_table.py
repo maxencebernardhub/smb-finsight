@@ -31,12 +31,12 @@ def _format_amount(
     """
     Format an amount according to statements rules.
 
-    - "traditional": display abs(amount) by convention; negative shown by
-    parentheses or minus.
+    - "traditional": display abs(amount) by convention; negatives may be shown with
+      parentheses depending on negative_amount_indicator ("parentheses" or "both").
     - "engine_signed": display signed values (minus sign when negative).
 
     negative_amount_indicator:
-        - parentheses / minus / color / both
+        - parentheses / color / both
     Note: This helper only returns text; color styling is handled separately.
     """
     mode = str(amount_display_mode or "engine_signed").strip().lower()
@@ -53,12 +53,20 @@ def _format_amount(
     if mode == "traditional":
         if x < 0 and neg in {"parentheses", "both"}:
             return f"({s})"
-        if x < 0 and neg == "minus":
-            return f"-{s}"
         return s
 
     # engine_signed (or other): show minus for negative
     return f"-{s}" if x < 0 else s
+
+
+def _base_style_for_level(level: int) -> str:
+    if level <= 1:
+        return "font-weight:700; background-color:rgba(148, 163, 184, 0.25);"
+    if level == 2:
+        return "font-weight:500; background-color:rgba(148, 163, 184, 0.15);"
+    if level == 3:
+        return "font-weight:400; background-color:rgba(148, 163, 184, 0.07);"
+    return "font-weight:300;"
 
 
 def render_statement_table(
@@ -99,18 +107,15 @@ def render_statement_table(
     # ---------------------------------------------------------------------
     df = df_view.copy()
 
-    # Indent labels based on hierarchy level
-    def _indent_name(row: pd.Series) -> str:
-        try:
-            lvl = int(row.get("level", 0) or 0)
-        except Exception:  # noqa: BLE001
-            lvl = 0
-        name = str(row.get("name", ""))
-        return ("\u00a0" * 6 * max(lvl, 0)) + name
+    # --- build "Line" (vectorized, avoids per-row apply) ---
+    levels = pd.to_numeric(df.get("level", 0), errors="coerce").fillna(0).astype(int)
+    names = df.get("name", "").astype(str)
+    df["Line"] = [
+        _indent_label(n, int(lvl)) for n, lvl in zip(names.tolist(), levels.tolist())
+    ]
 
-    df["Line"] = df.apply(_indent_name, axis=1)
-
-    amounts = pd.to_numeric(df.get("amount", 0), errors="coerce").fillna(0.0)
+    # --- format amounts via shared helper ---
+    engine_amount = pd.to_numeric(df.get("amount", 0.0), errors="coerce").fillna(0.0)
 
     display_mode = (
         str(getattr(stmt_cfg, "amount_display_mode", "engine_signed")).strip().lower()
@@ -121,24 +126,13 @@ def render_statement_table(
         .lower()
     )
 
-    engine_amount = amounts
-    shown_amount = (
-        engine_amount.abs() if display_mode == "traditional" else engine_amount
-    )
-
-    def _fmt_amount(val: float, is_negative_engine: bool) -> str:
-        s = f"{val:,.2f}"
-        if (
-            display_mode == "traditional"
-            and is_negative_engine
-            and neg_indicator in {"parentheses", "both"}
-        ):
-            return f"({s})"
-        return s
-
     df["Amount"] = [
-        _fmt_amount(float(a), bool(e < 0))
-        for a, e in zip(shown_amount.tolist(), engine_amount.tolist())
+        _format_amount(
+            v=float(v),
+            amount_display_mode=display_mode,
+            negative_amount_indicator=neg_indicator,
+        )
+        for v in engine_amount.tolist()
     ]
 
     # ---------------------------------------------------------------------
@@ -161,23 +155,9 @@ def render_statement_table(
         style_line: list[str] = []
         style_amt: list[str] = []
 
-        # Level styles (keep exactly your current look)
-        if lvl <= 1:
-            base = "font-weight:700; background-color:rgba(148, 163, 184, 0.25);"
-            style_line.append(base)
-            style_amt.append(base)
-        elif lvl == 2:
-            base = "font-weight:500; background-color:rgba(148, 163, 184, 0.15);"
-            style_line.append(base)
-            style_amt.append(base)
-        elif lvl == 3:
-            base = "font-weight:400; background-color:rgba(148, 163, 184, 0.07);"
-            style_line.append(base)
-            style_amt.append(base)
-        else:
-            base = "font-weight:300;"
-            style_line.append(base)
-            style_amt.append(base)
+        base = _base_style_for_level(lvl)
+        style_line.append(base)
+        style_amt.append(base)
 
         # Negative indicator: Amount font color (traditional only)
         if (
@@ -212,31 +192,9 @@ def _indent_label(name: str, level: int) -> str:
     return ("\u00a0" * 6 * max(int(level), 0)) + str(name)
 
 
-def _fmt_traditional_amount(
-    *,
-    engine_value: float,
-    neg_indicator: str,
-) -> str:
-    """
-    Traditional amount formatting:
-      - show abs(value)
-      - parentheses if engine_value < 0 and neg_indicator includes parentheses/both
-      - minus sign is NOT used here (traditional display convention).
-    """
-    try:
-        eng = float(engine_value)
-    except Exception:  # noqa: BLE001
-        eng = 0.0
-    shown = abs(eng)
-    s = f"{shown:,.2f}"
-    if eng < 0 and neg_indicator in {"parentheses", "both"}:
-        return f"({s})"
-    return s
-
-
 def _fmt_signed_delta_with_plus(value: float) -> str:
     """
-    Signed delta formatting used in traditional comparison mode:
+    Signed delta formatting for Delta columns (comparison mode):
       - keep sign (no parentheses, no color)
       - add explicit '+' for positive values
     Examples: -123.00, +123.00, 0.00
@@ -332,17 +290,27 @@ def render_statement_comparison_table(
     col_a = str(primary_label or "PRIMARY")
     col_b = str(comparison_label or "COMPARISON")
 
-    df["Line"] = df.apply(
-        lambda r: _indent_label(r.get("name", ""), r.get("level", 0)), axis=1
-    )
+    levels = pd.to_numeric(df.get("level", 0), errors="coerce").fillna(0).astype(int)
+    names = df.get("name", "").astype(str)
+    df["Line"] = [
+        _indent_label(n, int(lvl)) for n, lvl in zip(names.tolist(), levels.tolist())
+    ]
 
     if display_mode == "traditional":
         df[col_a] = [
-            _fmt_traditional_amount(engine_value=float(v), neg_indicator=neg_indicator)
+            _format_amount(
+                v=float(v),
+                amount_display_mode="traditional",
+                negative_amount_indicator=neg_indicator,
+            )
             for v in a.tolist()
         ]
         df[col_b] = [
-            _fmt_traditional_amount(engine_value=float(v), neg_indicator=neg_indicator)
+            _format_amount(
+                v=float(v),
+                amount_display_mode="traditional",
+                negative_amount_indicator=neg_indicator,
+            )
             for v in b.tolist()
         ]
         # Delta columns: signed with explicit '+' and no parentheses/colors.
@@ -367,14 +335,7 @@ def render_statement_comparison_table(
         idx = row.name
         lvl = int(lvl_s.loc[idx]) if idx in lvl_s.index else 0
 
-        if lvl <= 1:
-            base = "font-weight:700; background-color:rgba(148, 163, 184, 0.25);"
-        elif lvl == 2:
-            base = "font-weight:500; background-color:rgba(148, 163, 184, 0.15);"
-        elif lvl == 3:
-            base = "font-weight:400; background-color:rgba(148, 163, 184, 0.07);"
-        else:
-            base = "font-weight:300;"
+        base = _base_style_for_level(lvl)
 
         styles = [base] * len(out_cols)
 

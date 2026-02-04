@@ -1105,7 +1105,7 @@ hide_zero_lines_in_comparison = true
 # Zero-line behavior in single-period mode:
 #   true  -> hide lines where the amount is zero
 #   false -> show the full structure, including zero lines
-hide_zero_lines_single_period = false
+hide_zero_lines_single_period = true
 
 # "engine_signed" : show engine values as-is (revenues +, expenses -)
 # "traditional"   : show abs(amount) but indicate negatives from engine

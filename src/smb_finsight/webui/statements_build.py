@@ -28,6 +28,51 @@ from smb_finsight.views import apply_view_level_filter, build_complete_view
 _ALLOWED_VIEWS = {"simplified", "regular", "detailed", "complete"}
 
 
+def _hide_zero_lines_hierarchical(
+    df: pd.DataFrame,
+    *,
+    levels: pd.Series,
+    non_zero_mask: pd.Series,
+    always_keep_max_level: int = 1,
+) -> pd.DataFrame:
+    """
+    Generic hierarchy-preserving zero-line filter.
+
+    Keeps all rows with level <= always_keep_max_level.
+    For deeper levels, keeps a row if:
+      - non_zero_mask[row] is True, OR
+      - any descendant row is kept (subtree contains something kept).
+    """
+    if df.empty:
+        return df
+
+    lvls = pd.to_numeric(levels, errors="coerce").fillna(0).astype(int)
+    nz = non_zero_mask.fillna(False).astype(bool)
+
+    keep = [False] * len(df)
+    stack: list[bool] = []
+
+    for i in reversed(range(len(df))):
+        lvl = int(lvls.iat[i])
+
+        if len(stack) > lvl + 1:
+            stack = stack[: lvl + 1]
+        if len(stack) < lvl + 1:
+            stack.extend([False] * (lvl + 1 - len(stack)))
+
+        descendant_kept = any(stack[lvl + 1 :]) if len(stack) > lvl + 1 else False
+
+        if lvl <= always_keep_max_level:
+            k = True
+        else:
+            k = bool(nz.iat[i]) or descendant_kept
+
+        keep[i] = k
+        stack[lvl] = k or descendant_kept
+
+    return df.loc[keep].copy()
+
+
 def hide_zero_lines_single_period(df: pd.DataFrame) -> pd.DataFrame:
     """
     Hide zero-amount lines for a single-period statement while preserving hierarchy.
@@ -42,40 +87,10 @@ def hide_zero_lines_single_period(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty or "level" not in df.columns or "amount" not in df.columns:
         return df
 
-    levels = pd.to_numeric(df["level"], errors="coerce").fillna(0).astype(int)
+    levels = df["level"]
     amounts = pd.to_numeric(df["amount"], errors="coerce").fillna(0.0)
-
-    keep = [False] * len(df)
-
-    # stack[l] == whether there is any kept row in the subtree at level l or deeper
-    stack: list[bool] = []
-
-    for i in reversed(range(len(df))):
-        lvl = int(levels.iat[i])
-        amt = float(amounts.iat[i])
-
-        # Descendant kept = any kept info deeper than current level
-        descendant_kept = any(stack[lvl + 1 :]) if len(stack) > lvl + 1 else False
-
-        # Trim stack to current level
-        if len(stack) > lvl + 1:
-            stack = stack[: lvl + 1]
-        if len(stack) < lvl + 1:
-            stack.extend([False] * (lvl + 1 - len(stack)))
-
-        # Keep rule
-        if lvl <= 1:
-            k = True
-        else:
-            k = (amt != 0.0) or descendant_kept
-
-        keep[i] = k
-
-        # Propagate to parent: subtree under this level contains kept
-        # if k or descendant_kept
-        stack[lvl] = k or descendant_kept
-
-    return df.loc[keep].copy()
+    non_zero = amounts != 0.0
+    return _hide_zero_lines_hierarchical(df, levels=levels, non_zero_mask=non_zero)
 
 
 def hide_zero_lines_comparison_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -98,11 +113,7 @@ def hide_zero_lines_comparison_columns(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty or "level" not in df.columns:
         return df
 
-    levels = pd.to_numeric(df["level"], errors="coerce").fillna(0).astype(int)
-    # In comparison mode, we keep signed amounts for rendering.
-    # For zero-line filtering, we use "what the user sees" in the amount columns:
-    # abs() in traditional mode, signed amounts otherwise
-    # (via filter_amount_* if present).
+    levels = df["level"]
 
     a = pd.to_numeric(
         df.get("filter_amount_primary", df.get("amount_primary", 0.0)),
@@ -114,33 +125,8 @@ def hide_zero_lines_comparison_columns(df: pd.DataFrame) -> pd.DataFrame:
     ).fillna(0.0)
     d = pd.to_numeric(df.get("delta_abs", 0.0), errors="coerce").fillna(0.0)
 
-    keep = [False] * len(df)
-    stack: list[bool] = []
-
-    for i in reversed(range(len(df))):
-        lvl = int(levels.iat[i])
-
-        descendant_kept = any(stack[lvl + 1 :]) if len(stack) > lvl + 1 else False
-
-        if len(stack) > lvl + 1:
-            stack = stack[: lvl + 1]
-        if len(stack) < lvl + 1:
-            stack.extend([False] * (lvl + 1 - len(stack)))
-
-        if lvl <= 1:
-            k = True
-        else:
-            non_zero = (
-                (float(a.iat[i]) != 0.0)
-                or (float(b.iat[i]) != 0.0)
-                or (float(d.iat[i]) != 0.0)
-            )
-            k = non_zero or descendant_kept
-
-        keep[i] = k
-        stack[lvl] = k or descendant_kept
-
-    return df.loc[keep].copy()
+    non_zero = (a != 0.0) | (b != 0.0) | (d != 0.0)
+    return _hide_zero_lines_hierarchical(df, levels=levels, non_zero_mask=non_zero)
 
 
 def build_statement_view(
@@ -195,9 +181,6 @@ def build_statement_view(
     if "display_order" in out_base.columns:
         out_base = out_base.sort_values(["display_order"], kind="mergesort")
 
-    if hide_zero_lines:
-        out_base = hide_zero_lines_single_period(out_base)
-
     try:
         # Load accounting entries for this period
         tx_raw = load_entries(app_config.database, period.start, period.end)
@@ -208,6 +191,8 @@ def build_statement_view(
             or tx_raw.empty
             or "code" not in getattr(tx_raw, "columns", [])
         ):
+            if hide_zero_lines:
+                out_base = hide_zero_lines_single_period(out_base)
             return out_base, warnings
 
         # Chart of accounts is required for account names
@@ -253,6 +238,8 @@ def build_statement_view(
         return df_complete, warnings
     except Exception as exc:  # noqa: BLE001
         warnings.append(f"Complete view failed; falling back to detailed. ({exc})")
+        if hide_zero_lines:
+            out_base = hide_zero_lines_single_period(out_base)
         return out_base, warnings
 
 
@@ -335,14 +322,29 @@ def build_statement_comparison_columns(
         "display_order_primary" in merged.columns
         or "display_order_comparison" in merged.columns
     ):
-        merged["display_order"] = merged.get("display_order_primary").combine_first(
-            merged.get("display_order_comparison")
-        )
-    for c in ["id", "level", "name", "type"]:
-        if f"{c}_primary" in merged.columns or f"{c}_comparison" in merged.columns:
-            merged[c] = merged.get(f"{c}_primary").combine_first(
-                merged.get(f"{c}_comparison")
+        if (
+            "display_order_primary" in merged.columns
+            and "display_order_comparison" in merged.columns
+        ):
+            merged["display_order"] = merged["display_order_primary"].where(
+                merged["display_order_primary"].notna(),
+                merged["display_order_comparison"],
             )
+        elif "display_order_primary" in merged.columns:
+            merged["display_order"] = merged["display_order_primary"]
+        elif "display_order_comparison" in merged.columns:
+            merged["display_order"] = merged["display_order_comparison"]
+
+    for c in ["id", "level", "name", "type"]:
+        p = f"{c}_primary"
+        q = f"{c}_comparison"
+
+        if p in merged.columns and q in merged.columns:
+            merged[c] = merged[p].where(merged[p].notna(), merged[q])
+        elif p in merged.columns:
+            merged[c] = merged[p]
+        elif q in merged.columns:
+            merged[c] = merged[q]
 
     # Signed amounts used by the renderer (negatives must stay negative)
     merged["amount_primary"] = pd.to_numeric(
