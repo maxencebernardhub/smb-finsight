@@ -363,9 +363,111 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
             f"{batch_filter_result}{toggles_filter_result}{result_info}"
         )
 
-        # Minimal table for now: read-only view.
-        # We'll move to st.data_editor + selection later.
-        st.dataframe(df, width="stretch", hide_index=True)
+        # ------------------------------------------------------------
+        # Build a display dataframe (subset + derived columns + labels)
+        # ------------------------------------------------------------
+        df_view = df.copy()
+
+        # Build a batch label column from import_batches:
+        # - use notes when present,
+        # - else fallback to created_at
+        batch_label_map: dict[int, str] = {}
+        if batch_options:
+            # batch_options already follow the rule notes else created_at
+            # (built earlier)
+            batch_label_map = {bid: blabel for bid, blabel in batch_options}
+
+        if "import_batch_id" in df_view.columns:
+            df_view["batch"] = df_view["import_batch_id"].map(batch_label_map)
+
+            # If mapping missing (rare), fallback to id as string
+            df_view["batch"] = df_view["batch"].fillna(
+                df_view["import_batch_id"].astype(str)
+            )
+
+        # Columns to display (in order)
+        display_cols = [
+            "id",
+            "date",
+            "code",
+            "description",
+            "amount",
+            "batch",
+            "updated_at",
+        ]
+        display_cols = [c for c in display_cols if c in df_view.columns]
+        df_view = df_view[display_cols]
+
+        # Insert a selection checkbox column (read/write).
+        # This prepares row-level actions (Edit/Delete/Restore) for the next steps.
+        df_view.insert(0, "_selected", False)
+
+        colcfg = {}
+
+        # Use DB id as index (hidden) so we can map selected rows back to entries later.
+        if "id" in df_view.columns:
+            df_view = df_view.set_index("id")
+
+        if "_selected" in df_view.columns:
+            colcfg["_selected"] = st.column_config.CheckboxColumn(
+                label="",
+                help=ui.get(
+                    "help_select_column", "Select one or more rows for actions."
+                ),
+            )
+
+        if "date" in df_view.columns:
+            colcfg["date"] = st.column_config.DateColumn(
+                label=ui.get("column_date", "Date"),
+                format="YYYY-MM-DD",
+            )
+
+        if "code" in df_view.columns:
+            colcfg["code"] = st.column_config.TextColumn(
+                label=ui.get("column_code", "Account code"),
+            )
+
+        if "description" in df_view.columns:
+            colcfg["description"] = st.column_config.TextColumn(
+                label=ui.get("column_description", "Description"),
+            )
+
+        if "amount" in df_view.columns:
+            colcfg["amount"] = st.column_config.NumberColumn(
+                label=ui.get("column_amount", "Amount"),
+                format="%.2f",
+            )
+
+        if "batch" in df_view.columns:
+            colcfg["batch"] = st.column_config.TextColumn(
+                label=ui.get("column_import_batch", "Import batch"),
+            )
+
+        if "updated_at" in df_view.columns:
+            colcfg["updated_at"] = st.column_config.DatetimeColumn(
+                label=ui.get("column_updated_at", "Last updated"),
+                format="YYYY-MM-DD HH:mm",
+            )
+
+        # -----------------------------------------------------------------
+        # Table area (left) + actions placeholder (right)
+        # -----------------------------------------------------------------
+        table_col, actions_col = st.columns([5.5, 0.5], vertical_alignment="top")
+
+        with table_col:
+            st.data_editor(
+                df_view,
+                hide_index=True,
+                width="stretch",
+                disabled=[c for c in df_view.columns if c != "_selected"],
+                column_config=colcfg,
+                key="entries__table_editor",
+            )
+
+        with actions_col:
+            # Placeholder for future action buttons (Edit/Delete/Restore, etc.)
+            st.subheader("Actions")
+            st.caption("Actions will be added in the next steps.")
 
         return
 
