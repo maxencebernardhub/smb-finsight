@@ -298,22 +298,139 @@ FY2022  = { label = "FY 2022",  start = "2022-01-01", end = "2022-12-31" }
 id = "entries"
 title = "Entries"
 icon = "📘"
-# Periods here are usually handled at filter level; page-level presets remain simple.
-# (We can add [pages.entries.periods] later if needed.)
+
+[pages.entries.ui]
+
+# ----- Sub-view selector (segmented control / pills)
+subviews_entries = "Entries"
+subviews_import = "Import"
+subviews_duplicates = "Duplicates ({count})"
+subviews_recycle_bin = "Recycle bin"
+
+# ----- General actions
+button_add_entry = "Add entry"
+button_edit_entry = "Edit"
+button_soft_delete = "Delete"
+button_restore = "Restore"
+button_confirm = "Confirm"
+button_cancel = "Cancel"
+
+# ----- Badges / info
+badge_unknown_accounts = "Unknown accounts detected"
+
+# ----- Filters (Entries & Duplicates)
+filter_period = "Period"
+filter_code = "Account code"
+filter_description = "Description contains"
+filter_amount = "Amount"
+filter_amount_min = "Min amount"
+filter_amount_max = "Max amount"
+filter_import_batch = "Import batch"
+filter_resolution_status = "Resolution status"
+
+# ----- Toggles
+toggle_include_deleted = "Include deleted entries"
+toggle_reject_unknown_accounts = "Reject unknown accounts (prefix matching)"
+toggle_unknown_only = "Show unknown accounts only"
+
+# ----- Table column labels (Entries)
+column_date = "Date"
+column_code = "Account code"
+column_description = "Description"
+column_amount = "Amount"
+column_import_batch = "Import batch"
+column_updated_at = "Last updated"
+
+# ----- Table column labels (Duplicates)
+resolution_status = "Resolution status"
+resolution_at = "Resolved at"
+resolved_by = "Resolved by"
+resolution_comment = "Resolution notes"
+
+# ----- Table column labels (Recycle bin)
+column_deleted_reason = "Deletion reason"
+column_deleted_at = "Deleted at"
+
+# ----- Import view
+import_title = "Import accounting entries"
+import_label_input = "Import label"
+import_upload_help = "Upload a CSV file containing accounting entries."
+import_button = "Import"
+import_summary_inserted = "Entries inserted"
+import_summary_duplicates = "Duplicates detected"
+import_summary_unknown = "Unknown accounts rejected"
+import_download_unknown = "Download rejected unknown accounts (CSV)"
+
+# ----- Import history
+import_history_title = "Import history"
+import_history_button_entries = "Display entries"
+import_history_button_duplicates = "Display duplicates"
+
+# ----- Duplicate resolution
+duplicate_button_keep = "Keep"
+duplicate_button_discard = "Discard"
+duplicate_resolution_comment = "Resolution comment"
+duplicate_resolution_dialog_title = "Resolve duplicate entries"
+duplicate_warning_detected = "This entry was detected as a duplicate and has been routed to the Duplicates view for review."
+
+# ----- Dialog titles
+dialog_add_entry_title = "Add entry"
+dialog_edit_entry_title = "Edit entry"
+dialog_delete_title = "Delete selected entries"
+dialog_restore_title = "Restore selected entries"
+
+# ----- Custom period inputs
+label_custom_from = "From"
+label_custom_to = "To"
+
+# ----- Placeholders
+placeholder_filter_code = "e.g. 606 or 606*"
+placeholder_filter_description = "e.g. rent, invoice, amazon"
+placeholder_filter_amount_min = "e.g. 0 or -100.00"
+placeholder_filter_amount_max = "e.g. 1000.00"
+
+# ----- Tooltips / help
+help_period = "Select the period covered by desired entries."
+help_filter_code = 'Type an account code (e.g. "606") or use "\*" for prefix (e.g. "606\*").'
+help_filter_description = "Filter entries whose description contains this text."
+help_filter_amount = "Filter entries with a minimum or maximum amount value."
+help_filter_import_batch = "Filter entries with import batch."
+help_toggle_unknown_only = "Activate this if you want to list only entries with unknown account codes."
+help_toggle_include_deleted = "Activate this if you want to include deleted entries."
+
+# ----- Warning or error messages
+error_custom_end_before_start = "End date cannot be earlier than start date."
+warning_amount_min_gt_max = "Min amount cannot be greater than max amount."
+
+# ----- For the batch control
+option_import_batch_all = "All batches"
 
 
-# ----------------- Duplicates page -----------------
-[pages.duplicates]
-id = "duplicates"
-title = "Duplicates"
-icon = "🧬"
-# Even if allow_secondary_period is not useful here, we keep it false/omitted.
+# ----- Entries - Period configuration ----- 
+# ------------------------------------------
+[pages.entries.periods]
+
+# Default period preset when opening the Entries page
+default_primary_preset = "ALL"
+
+[pages.entries.periods.primary_preset_labels]
+ALL = "All periods"
+FY = "Current fiscal year"
+YTD = "Year to date (current FY)"
+MTD = "Month to date"
+LAST_MONTH = "Last month"
+CUSTOM = "Custom period"
+
+[pages.entries.periods.user_presets]
+Q4_2025 = { label = "Q4 2025", start = "2025-10-01", end = "2025-12-31" }
+FY2022  = { label = "FY 2022",  start = "2022-01-01", end = "2022-12-31" }
 
 
-# ----------------- Import & Config page -----------------
-[pages.import_config]
-id = "import_config"
-title = "Import & Configuration"
+
+# ----------------- Config page -----------------
+[pages.config]
+id = "config"
+title = "Configuration"
 icon = "⚙️"
 
 
@@ -1127,58 +1244,51 @@ legend_text = "Parentheses / colored amounts indicate values that are negative i
 # Controls which columns are visible and how manual entries behave.
 
 [entries_page]
-# Columns to display in the entries table, in order.
-# Valid identifiers (depending on DB schema) include:
-#   "date", "account_code", "description", "debit", "credit", "amount",
-#   "import_batch", "is_deleted", "created_at", "updated_at"
-columns = ["date", "account_code", "description", "amount", "import_batch", "is_deleted"]
 
-[entries_page.filters]
-# Default period preset when opening the Entries page.
-default_period_preset = "YTD"
-# Whether to show deleted entries by default.
-show_deleted_by_default = false
-
+# ------------------------------------------------------------
+# Manual entry (Add / Edit dialogs)
+# ------------------------------------------------------------
 [entries_page.manual_entry]
-# Input mode for manual entries:
-#   "amount"       -> a single signed amount field (positive/negative)
-#   "debit_credit" -> two fields: debit and credit
+
+# Default input mode for dialogs:
+# - "amount"        → single signed amount
+# - "debit_credit"  → debit / credit inputs, converted to amount
 input_mode = "amount"
 
-# Behaviour when the user tries to save an entry with an unknown account code:
-#   true  -> block save and show an error
-#   false -> allow save (unknown accounts may later be flagged by other mechanisms)
-require_known_account = true
+# Default value for the toggle:
+# "Reject unknown accounts (prefix matching)"
+toggle_default_reject_unknown_accounts = true
+
+# ------------------------------------------------------------
+# Import behavior
+# ------------------------------------------------------------
+[entries_page.import]
+
+# Default state of "Reject unknown accounts" toggle for CSV import
+default_reject_unknown_accounts = true
+
+# ------------------------------------------------------------
+# Pagination defaults
+# ------------------------------------------------------------
+[entries_page.pagination]
+
+# Default number of rows per page
+default_limit = 200
+
+# Allowed page size options exposed to the user
+allowed_limits = [50, 100, 200, 500, 1000]
+
+# Hard cap to avoid UI freezing on large datasets
+max_limit = 2000
+
 
 
 # -------------------------------------------------------------------
-# DUPLICATES PAGE OPTIONS
+# CONFIG PAGE OPTIONS
 # -------------------------------------------------------------------
-# Controls how duplicate entries are presented and whether navigation
-# should highlight pending duplicates.
+# Controls behaviour of the Configuration page.
 
-[duplicates_page]
-# Default status filter when opening the page:
-#   "pending" | "kept" | "discarded"
-default_status_filter = "pending"
-
-# Whether to display summary tiles with counts (pending/kept/discarded)
-show_stats_tiles = true
-
-# Whether to show a visual indicator in the navigation when there are
-# pending duplicates (e.g., a badge next to the "Duplicates" menu item).
-show_nav_badge_when_pending = true
-
-# Optional label used in the navigation badge (could be "!", "•", etc.)
-nav_badge_label = "•"
-
-
-# -------------------------------------------------------------------
-# IMPORT & CONFIG PAGE OPTIONS
-# -------------------------------------------------------------------
-# Controls behaviour of the Import & Configuration page.
-
-[import_config_page]
+[config_page]
 # Directory (relative to project root) where CSV files are stored/read from.
 input_dir = "data/input"
 

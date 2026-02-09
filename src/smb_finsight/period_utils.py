@@ -15,6 +15,7 @@ Notes on granularities:
 and labels buckets as FY<end_year>.
 
 Presets supported:
+- ALL (no time filtering; very wide date span)
 - FY, FY_PREV
 - YTD, YTD_PREV_FY
 - MTD
@@ -137,7 +138,7 @@ def period_from_preset(
     Parameters
     ----------
     preset:
-        One of: FY, FY_PREV, YTD, YTD_PREV_FY, MTD, LAST_MONTH, CUSTOM
+        One of: ALL, FY, FY_PREV, YTD, YTD_PREV_FY, MTD, LAST_MONTH, CUSTOM
     fy:
         Current fiscal year boundaries.
     as_of:
@@ -169,6 +170,15 @@ def period_from_preset(
 
     # Helper: current FY "as-of" date clamped inside FY
     today_in_fy = _clamp(today, fy.start_date, fy.end_date)
+
+    if p == "ALL":
+        # "All periods" means no date filtering in the UI.
+        # We model it as a very wide span so downstream code can keep using Period.
+        return Period(
+            start=date(1900, 1, 1),
+            end=date(9999, 12, 31),
+            label=label or "ALL",
+        )
 
     if p == "FY":
         return Period(start=fy.start_date, end=fy.end_date, label=label or "FY")

@@ -106,6 +106,7 @@ from .db import (
 from .db import (
     list_duplicate_entries as _db_list_duplicate_entries,
 )
+from .db import list_import_batches as _db_list_import_batches
 from .db import (
     resolve_duplicate as _db_resolve_duplicate,
 )
@@ -208,6 +209,40 @@ def _merge_filters(
 # ---------------------------------------------------------------------------
 # Listing and search
 # ---------------------------------------------------------------------------
+
+
+def list_import_batches(
+    app_config: AppConfig,
+    *,
+    limit: Optional[int] = 200,
+) -> pd.DataFrame:
+    """
+    List import batches stored in the database.
+
+    This is a small UI-friendly wrapper around db.list_import_batches().
+    It is used by the WebUI to populate the "Import batch" dropdown and
+    to display import history.
+
+    Args:
+        app_config:
+            Global application configuration.
+        limit:
+            Optional max number of batches to return (most recent first).
+            Use None to return all batches.
+
+    Returns:
+        pandas.DataFrame with columns:
+        - id, created_at, source_type, source_label, rows_inserted, notes
+        ordered by id DESC (most recent first).
+    """
+    db_cfg = _get_db_config(app_config)
+    df = _db_list_import_batches(db_cfg)
+
+    if limit is None:
+        return df
+
+    # db.list_import_batches() is ordered DESC already, so head(limit) is enough.
+    return df.head(int(limit))
 
 
 def list_entries_for_period(

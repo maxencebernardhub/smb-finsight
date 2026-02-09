@@ -1061,6 +1061,7 @@ def list_import_batches(cfg: DatabaseConfig) -> pd.DataFrame:
     - source_type
     - source_label
     - rows_inserted
+    - notes
     """
     init_database(cfg)
 
@@ -1069,7 +1070,7 @@ def list_import_batches(cfg: DatabaseConfig) -> pd.DataFrame:
         cur = conn.cursor()
         cur.execute(
             """
-            SELECT id, created_at, source_type, source_label, rows_inserted
+            SELECT id, created_at, source_type, source_label, rows_inserted, notes
               FROM import_batches
              ORDER BY id DESC;
             """
@@ -1078,15 +1079,13 @@ def list_import_batches(cfg: DatabaseConfig) -> pd.DataFrame:
     finally:
         conn.close()
 
-    if not rows:
-        return pd.DataFrame(
-            columns=["id", "created_at", "source_type", "source_label", "rows_inserted"]
-        )
+    cols = ["id", "created_at", "source_type", "source_label", "rows_inserted", "notes"]
 
-    df = pd.DataFrame(
-        rows,
-        columns=["id", "created_at", "source_type", "source_label", "rows_inserted"],
-    )
+    if not rows:
+        return pd.DataFrame(columns=cols)
+
+    df = pd.DataFrame(rows, columns=cols)
+
     df["created_at"] = pd.to_datetime(df["created_at"])
     return df
 

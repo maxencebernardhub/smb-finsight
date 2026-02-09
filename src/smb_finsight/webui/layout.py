@@ -14,7 +14,7 @@ The layout TOML file defines:
 - page metadata (titles, icons, default periods),
 - dashboard tiles and charts (measures & ratios),
 - ratios/KPIs sections (measures/ratios tiles + draft charts),
-- statements, entries, duplicates and import/config behaviour.
+- statements, entries and configuration behaviour.
 
 It is intentionally separate from the core engine configuration (see
 :mod:`smb_finsight.config`) so that the Web UI remains a thin, user-configurable
@@ -64,7 +64,7 @@ class MetaConfig:
             (e.g. "en", "fr").
         default_page: Page opened by default when the Web UI starts.
             Typically one of: "dashboard", "statements", "ratios",
-            "entries", "duplicates", "import_config".
+            "entries", "config".
     """
 
     id: str
@@ -426,40 +426,27 @@ class StatementsPageConfig:
 
 
 @dataclass(frozen=True)
-class EntriesFiltersConfig:
-    """
-    Default filter behaviour for the Entries page.
+class EntriesManualEntryConfig:
+    """Defaults for Add/Edit entry dialogs."""
 
-    Attributes:
-        default_period_preset:
-            Default period preset used when opening the Entries page.
-        show_deleted_by_default:
-            Whether deleted entries should be included in the initial view.
-    """
-
-    default_period_preset: str
-    show_deleted_by_default: bool
+    input_mode: str
+    toggle_default_reject_unknown_accounts: bool
 
 
 @dataclass(frozen=True)
-class EntriesManualEntryConfig:
-    """
-    Behaviour of manual entry creation/editing on the Entries page.
+class EntriesImportConfig:
+    """Defaults for Import sub-view."""
 
-    Attributes:
-        input_mode:
-            How amounts are entered:
-            - "amount": single signed amount field (positive/negative).
-            - "debit_credit": two fields for debit and credit.
-        require_known_account:
-            If True, the Web UI should block save when the account code
-            does not exist in the current chart of accounts. If False, the
-            UI may allow the entry and rely on other mechanisms to flag
-            unknown accounts.
-    """
+    default_reject_unknown_accounts: bool
 
-    input_mode: str
-    require_known_account: bool
+
+@dataclass(frozen=True)
+class EntriesPaginationConfig:
+    """Pagination defaults for entries/duplicates tables."""
+
+    default_limit: int
+    allowed_limits: Sequence[int]
+    max_limit: int
 
 
 @dataclass(frozen=True)
@@ -468,48 +455,23 @@ class EntriesPageConfig:
     Configuration for the Entries page.
 
     Attributes:
-        columns:
-            Sequence of column identifiers to display in the main entries
-            table (e.g. "date", "account_code", "description", "amount").
-        filters:
-            Default filter behaviour.
         manual_entry:
-            Behaviour for manual creation/editing of entries.
+            Manual entry configuration.
+        import_:
+            Import behavior configuration.
+        pagination:
+            Pagination configuration for entries/duplicates tables.
     """
 
-    columns: Sequence[str]
-    filters: EntriesFiltersConfig
     manual_entry: EntriesManualEntryConfig
+    import_: EntriesImportConfig
+    pagination: EntriesPaginationConfig
 
 
 @dataclass(frozen=True)
-class DuplicatesPageConfig:
+class ConfigPageConfig:
     """
-    Configuration for the Duplicates page.
-
-    Attributes:
-        default_status_filter:
-            Default status filter when opening the page
-            ("pending", "kept", "discarded").
-        show_stats_tiles:
-            Whether to display tiles summarising duplicates counts.
-        show_nav_badge_when_pending:
-            Whether to show a visual indicator in the navigation when
-            there are pending duplicates.
-        nav_badge_label:
-            Optional text used inside the navigation badge (e.g. "•" or "!").
-    """
-
-    default_status_filter: str
-    show_stats_tiles: bool
-    show_nav_badge_when_pending: bool
-    nav_badge_label: str
-
-
-@dataclass(frozen=True)
-class ImportConfigPageConfig:
-    """
-    Configuration for the Import & Configuration page.
+    Configuration for the Configuration page.
 
     Attributes:
         input_dir:
@@ -520,7 +482,7 @@ class ImportConfigPageConfig:
             the input directory: "ask", "overwrite", "keep_both" or "skip".
         show_existing_files_selector:
             Whether to show a drop-down list of existing CSV files so the
-            user can re-import them directly from the Web UI.
+            user can re-import them _parse_directly from the Web UI.
     """
 
     input_dir: str
@@ -551,10 +513,8 @@ class LayoutConfig:
             Statements page specific options.
         entries:
             Entries page specific options.
-        duplicates:
-            Duplicates page specific options.
-        import_config:
-            Import & Configuration page specific options.
+        config:
+            Configuration page specific options.
     """
 
     meta: MetaConfig
@@ -563,8 +523,7 @@ class LayoutConfig:
     ratios_page: RatiosPageConfig
     statements: StatementsPageConfig
     entries: EntriesPageConfig
-    duplicates: DuplicatesPageConfig
-    import_config: ImportConfigPageConfig
+    config: ConfigPageConfig
 
 
 # ---------------------------------------------------------------------------
@@ -1046,48 +1005,40 @@ def _parse_statements_page(root: Mapping[str, Any]) -> StatementsPageConfig:
 
 def _parse_entries_page(root: Mapping[str, Any]) -> EntriesPageConfig:
     tbl = _expect_table(root.get("entries_page"), "entries_page")
-    columns = tbl.get("columns")
-    if not isinstance(columns, Sequence) or isinstance(columns, (str, bytes)):
-        columns_list: list[str] = []
-    else:
-        columns_list = [str(c) for c in columns]
-
-    filters_tbl = _expect_table(
-        root.get("entries_page", {}).get("filters"), "entries_page.filters"
-    )
-    filters_cfg = EntriesFiltersConfig(
-        default_period_preset=_get_str(filters_tbl, "default_period_preset", ""),
-        show_deleted_by_default=_get_bool(
-            filters_tbl, "show_deleted_by_default", False
+    manual_tbl = _expect_table(tbl.get("manual_entry"), "entries_page.manual_entry")
+    manual_cfg = EntriesManualEntryConfig(
+        input_mode=_get_str(manual_tbl, "input_mode", "amount"),
+        toggle_default_reject_unknown_accounts=_get_bool(
+            manual_tbl, "toggle_default_reject_unknown_accounts", True
         ),
     )
 
-    manual_tbl = _expect_table(
-        root.get("entries_page", {}).get("manual_entry"), "entries_page.manual_entry"
+    import_tbl = _expect_table(tbl.get("import"), "entries_page.import")
+    import_cfg = EntriesImportConfig(
+        default_reject_unknown_accounts=_get_bool(
+            import_tbl, "default_reject_unknown_accounts", True
+        )
     )
-    manual_cfg = EntriesManualEntryConfig(
-        input_mode=_get_str(manual_tbl, "input_mode", "amount"),
-        require_known_account=_get_bool(manual_tbl, "require_known_account", True),
+
+    pag_tbl = _expect_table(tbl.get("pagination"), "entries_page.pagination")
+    pagination_cfg = EntriesPaginationConfig(
+        default_limit=int(pag_tbl.get("default_limit", 200)),
+        allowed_limits=[
+            int(x) for x in (pag_tbl.get("allowed_limits") or [50, 100, 200, 500, 1000])
+        ],
+        max_limit=int(pag_tbl.get("max_limit", 2000)),
     )
 
     return EntriesPageConfig(
-        columns=columns_list, filters=filters_cfg, manual_entry=manual_cfg
+        manual_entry=manual_cfg,
+        import_=import_cfg,
+        pagination=pagination_cfg,
     )
 
 
-def _parse_duplicates_page(root: Mapping[str, Any]) -> DuplicatesPageConfig:
-    tbl = _expect_table(root.get("duplicates_page"), "duplicates_page")
-    return DuplicatesPageConfig(
-        default_status_filter=_get_str(tbl, "default_status_filter", "pending"),
-        show_stats_tiles=_get_bool(tbl, "show_stats_tiles", True),
-        show_nav_badge_when_pending=_get_bool(tbl, "show_nav_badge_when_pending", True),
-        nav_badge_label=_get_str(tbl, "nav_badge_label", "•"),
-    )
-
-
-def _parse_import_config_page(root: Mapping[str, Any]) -> ImportConfigPageConfig:
-    tbl = _expect_table(root.get("import_config_page"), "import_config_page")
-    return ImportConfigPageConfig(
+def _parse_config_page(root: Mapping[str, Any]) -> ConfigPageConfig:
+    tbl = _expect_table(root.get("config_page"), "config_page")
+    return ConfigPageConfig(
         input_dir=_get_str(tbl, "input_dir", "data/input"),
         on_existing_filename=_get_str(tbl, "on_existing_filename", "ask"),
         show_existing_files_selector=_get_bool(
@@ -1152,8 +1103,7 @@ def load_layout_config(path: str | Path) -> LayoutConfig:
     ratios_page = _parse_ratios_page(data)
     statements_cfg = _parse_statements_page(data)
     entries_cfg = _parse_entries_page(data)
-    duplicates_cfg = _parse_duplicates_page(data)
-    import_cfg = _parse_import_config_page(data)
+    config_cfg = _parse_config_page(data)
 
     return LayoutConfig(
         meta=meta,
@@ -1162,6 +1112,5 @@ def load_layout_config(path: str | Path) -> LayoutConfig:
         ratios_page=ratios_page,
         statements=statements_cfg,
         entries=entries_cfg,
-        duplicates=duplicates_cfg,
-        import_config=import_cfg,
+        config=config_cfg,
     )
