@@ -21,7 +21,7 @@ Initial scope in this file:
   - Recycle bin
 
 Next iterations (to be added progressively):
-- Entries table (read-only st.data_editor + selection)
+- Entries table (read-only for now; selection/edit coming next)
 - Add/Edit dialogs (form-based)
 - Import workflow + import history
 - Duplicates resolution dialogs
@@ -32,8 +32,17 @@ from typing import Any
 
 import streamlit as st
 
+from smb_finsight.accounts import (
+    load_list_of_accounts,
+    split_known_and_unknown_accounts,
+)
 from smb_finsight.config import AppConfig
-from smb_finsight.entries_service import get_duplicate_stats, list_import_batches
+from smb_finsight.db import EntriesFilter
+from smb_finsight.entries_service import (
+    get_duplicate_stats,
+    list_import_batches,
+    search_entries,
+)
 from smb_finsight.webui.components.entries_filters import (
     render_entries_amount_filter,
     render_entries_batch_filter,
@@ -168,6 +177,17 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
         # Reserve future columns for additional filters (code/desc/amount/batch/toggles)
         c1, c2, c3, c4, c5, c6 = st.columns([1.0, 0.7, 0.9, 0.9, 0.8, 1.0])
 
+        # Read current toggle values from session_state BEFORE rendering widgets.
+        # This allows us to:
+        # - use include_deleted in the DB query,
+        # - compute unknown_count and show the badge in the same rerun.
+        show_unknown_only_state = bool(
+            st.session_state.get("entries__show_unknown_only", False)
+        )
+        include_deleted_state = bool(
+            st.session_state.get("entries__include_deleted", False)
+        )
+
         with c1:
             period_filter = render_entries_period_filter(
                 page=page, app_config=app_config
@@ -261,23 +281,91 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
             batch_display = batch_label_map.get(import_batch_id, str(import_batch_id))
             batch_filter_result = f"[{filter_batch_label}: {batch_display}] "
 
+        # -----------------------------------------------------------------
+        # Build DB filter (EntriesFilter) from UI controls.
+        # Note: EntriesFilter.min_amount/max_amount are in monetary units (float),
+        # while our UI amount filter returns cents (int).
+        # -----------------------------------------------------------------
+        filters = EntriesFilter(
+            start=period_filter.period.start,
+            end=period_filter.period.end,
+            code_exact=code_exact,
+            code_prefix=code_prefix,
+            description_contains=description_contains or None,
+            min_amount=(amount_min_cents / 100.0)
+            if amount_min_cents is not None
+            else None,
+            max_amount=(amount_max_cents / 100.0)
+            if amount_max_cents is not None
+            else None,
+            import_batch_id=import_batch_id,
+            include_deleted=include_deleted_state,
+            deleted_only=False,  # Recycle bin sub-view will use
+            # deleted_only=True later.
+        )
+
+        # -----------------------------------------------------------------
+        # Query the DB via service layer.
+        # For now, keep a conservative limit; pagination will come later.
+        # -----------------------------------------------------------------
+        df = search_entries(
+            app_config,
+            filters,
+            limit=500,
+            offset=0,
+            order_by=("date", "ASC"),
+        )
+
+        # -----------------------------------------------------------------
+        # Unknown accounts detection (prefix matching) using the chart of accounts.
+        # If no chart_of_accounts is configured, unknown_count stays None and the
+        # "unknown only" toggle has no effect.
+        # -----------------------------------------------------------------
+        unknown_count: int | None = None
+        df_unknown = None  # lazy: only set if COA is available
+
+        coa_path = getattr(
+            getattr(app_config, "standard_config", None), "chart_of_accounts", None
+        )
+
+        if coa_path and not df.empty:
+            try:
+                coa_df = load_list_of_accounts(str(coa_path))
+                known_codes = set(coa_df["account_number"].astype(str).str.strip())
+                _, unknown_df = split_known_and_unknown_accounts(df, known_codes)
+
+                unknown_count = int(len(unknown_df))
+                df_unknown = unknown_df
+            except Exception as exc:
+                # UI should not crash if the COA file is missing/malformed.
+                st.warning(f"Could not compute unknown accounts: {exc}")
+
+        # Apply "unknown only" post-filtering (when available)
+        if show_unknown_only_state and df_unknown is not None:
+            df = df_unknown
+
         with c6:
-            # unknown_count is not computed yet in v0.5.0 header-only phase.
-            # We'll plug it once the DB query/table rendering is implemented.
+            # Now that we have queried the DB, we can display the badge count.
             show_unknown_only, include_deleted = render_entries_toggles_and_badge(
                 page=page,
-                unknown_count=None,
+                unknown_count=unknown_count,
             )
 
         toggles_filter_result = (
             f"[Unknown only: {show_unknown_only}] [Include deleted: {include_deleted}] "
         )
 
+        result_info = f"==> Rows: {len(df)} "
+
         st.info(
             f"Applied filters:    {period_filter_result}{code_filter_result}"
             f"{description_filter_result}{amount_filter_result}"
-            f"{batch_filter_result}{toggles_filter_result}"
+            f"{batch_filter_result}{toggles_filter_result}{result_info}"
         )
+
+        # Minimal table for now: read-only view.
+        # We'll move to st.data_editor + selection later.
+        st.dataframe(df, width="stretch", hide_index=True)
 
         return
 
