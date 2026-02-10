@@ -304,6 +304,12 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
             # deleted_only=True later.
         )
 
+        # Soft display cap (Option B): we fetch up to max_limit rows.
+        # If the result count reaches the cap, we warn the user to narrow filters.
+        max_limit = int(getattr(layout.entries.pagination, "max_limit", 2000))
+        if max_limit <= 0:
+            max_limit = 2000
+
         # -----------------------------------------------------------------
         # Query the DB via service layer.
         # For now, keep a conservative limit; pagination will come later.
@@ -311,10 +317,20 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
         df = search_entries(
             app_config,
             filters,
-            limit=500,
+            limit=max_limit + 1,
             offset=0,
             order_by=("date", "ASC"),
         )
+
+        too_many_rows = len(df) > max_limit
+        if too_many_rows:
+            df = df.iloc[:max_limit].copy()
+            st.warning(
+                ui.get(
+                    "warning_max_limit",
+                    "Results exceed the display limit. Please narrow your filters.",
+                )
+            )
 
         # -----------------------------------------------------------------
         # Unknown accounts detection (prefix matching) using the chart of accounts.

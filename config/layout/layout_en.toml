@@ -397,10 +397,12 @@ help_filter_amount = "Filter entries with a minimum or maximum amount value."
 help_filter_import_batch = "Filter entries with import batch."
 help_toggle_unknown_only = "Activate this if you want to list only entries with unknown account codes."
 help_toggle_include_deleted = "Activate this if you want to include deleted entries."
+help_selected_column = "Select one or more rows for actions."
 
 # ----- Warning or error messages
 error_custom_end_before_start = "End date cannot be earlier than start date."
 warning_amount_min_gt_max = "Min amount cannot be greater than max amount."
+warning_max_limit = "Results exceed the display limit. Narrow filters to reduce the number of rows."
 
 # ----- For the batch control
 option_import_batch_all = "All batches"
@@ -1271,6 +1273,9 @@ default_reject_unknown_accounts = true
 # Pagination defaults
 # ------------------------------------------------------------
 [entries_page.pagination]
+
+# NOTE: v0.5.0 uses a soft display cap (max_limit) but does not implement pagination yet.
+# default_limit and allowed_limits are reserved for a future pagination feature.
 
 # Default number of rows per page
 default_limit = 200
