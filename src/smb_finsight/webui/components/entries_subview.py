@@ -37,8 +37,9 @@ from smb_finsight.accounts import (
 )
 from smb_finsight.config import AppConfig
 from smb_finsight.db import EntriesFilter
-from smb_finsight.entries_service import list_import_batches, search_entries
+from smb_finsight.entries_service import list_import_batches, load_entry, search_entries
 from smb_finsight.webui.components.entries_entry_dialog import (
+    open_entry_dialog,
     render_add_single_entry_button,
 )
 from smb_finsight.webui.components.entries_filters import (
@@ -378,7 +379,7 @@ def render_entries_subview(
     table_col, actions_col = st.columns([5.5, 0.5], vertical_alignment="top")
 
     with table_col:
-        st.data_editor(
+        edited_df_view = st.data_editor(
             df_view,
             hide_index=True,
             width="stretch",
@@ -389,8 +390,33 @@ def render_entries_subview(
         )
 
     with actions_col:
-        # Placeholder for future action buttons (Edit/Delete/Restore, etc.)
-        # st.subheader("Actions")
         render_add_single_entry_button(app_config=app_config, layout=layout, ui=ui)
+
+        # We rely on the returned dataframe from st.data_editor
+        # (not session_state internals) to compute which rows are selected.
+        selected_ids = []
+        if edited_df_view is not None and "_selected" in edited_df_view.columns:
+            selected_ids = edited_df_view.index[edited_df_view["_selected"]].tolist()
+
+        edit_disabled = len(selected_ids) != 1
+
+        if st.button(
+            ui.get("button_edit_entry", "Edit"),
+            disabled=edit_disabled,
+            type="primary",
+        ):
+            entry_id = int(selected_ids[0])
+            entry = load_entry(app_config, entry_id)
+
+            if entry is None:
+                st.error(ui.get("error_entry_not_found", "Selected entry not found."))
+            else:
+                open_entry_dialog(
+                    app_config=app_config,
+                    layout=layout,
+                    ui=ui,
+                    title=ui.get("dialog_edit_entry_title", "Edit entry"),
+                    existing=entry,
+                )
 
     return

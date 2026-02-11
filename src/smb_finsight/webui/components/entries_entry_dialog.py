@@ -4,18 +4,16 @@
 
 
 """
-Entries Add/Edit dialog helpers (WebUI).
+Common dialog used for both Add and Edit entry.
 
-This module implements the "Add entry" dialog (and prepares the shared dialog
-for future "Edit entry"). It handles:
-- form rendering (date, code, description, input mode),
-- validation rules,
-- optional unknown account rejection (prefix matching against chart of accounts),
-- insertion via a mini import batch (source_type=manual, source_label=webui),
-- duplicate routing through the existing import pipeline.
+- When `existing` is None, the dialog creates a new entry via a mini import batch
+  (source_type=manual, source_label=webui) and relies on the import pipeline
+  to route duplicates to `duplicate_entries`.
 
-UI labels are provided by the Entries page UI dictionary (layout_en.toml),
-passed in as `ui`.
+- When `existing` is provided (AccountingEntry), the dialog performs an in-place
+  update on the `entries` table via entries_service.edit_entry().
+
+UI labels/messages are provided through the `ui` dict (layout_en.toml).
 
 """
 
@@ -25,9 +23,10 @@ from typing import Any, Optional
 import pandas as pd
 import streamlit as st
 
+from smb_finsight import entries_service
 from smb_finsight.accounts import load_list_of_accounts
 from smb_finsight.config import AppConfig
-from smb_finsight.db import import_entries
+from smb_finsight.db import AccountingEntry, EntryUpdate, import_entries
 from smb_finsight.webui.layout import EntriesManualEntryConfig
 
 FLASH_KEY = "entries__flash"
@@ -177,7 +176,7 @@ def open_entry_dialog(
     layout: Any,
     ui: dict[str, Any],
     title: str,
-    existing: Optional[dict[str, Any]] = None,
+    existing: Optional[AccountingEntry] = None,
 ) -> None:
     """
     Common dialog used by both 'Add single entry' and 'Edit'.
@@ -197,15 +196,14 @@ def open_entry_dialog(
     default_debit = 0.0
     default_credit = 0.0
 
+    is_edit = existing is not None
     # If Edit => override defaults from `existing`
-    if existing:
-        default_date = existing.get("date", default_date)
-        default_code = existing.get("code", default_code)
-        default_desc = existing.get("description", default_desc)
-        # existing amount is signed
-        existing_amount = float(existing.get("amount", 0.0))
+    if is_edit:
+        default_date = existing.date
+        default_code = existing.code
+        default_desc = existing.description or ""
+        existing_amount = float(existing.amount)
         default_amount = existing_amount
-        # For debit/credit fields, you can map signed amount:
         default_debit = existing_amount if existing_amount > 0 else 0.0
         default_credit = -existing_amount if existing_amount < 0 else 0.0
 
@@ -290,7 +288,7 @@ def open_entry_dialog(
                 ui.get(
                     "add_entry_unknown_account_code",
                     "Unknown account code (no prefix match in the chart of accounts).",
-                ),
+                )
             )
 
     submitted = st.button(
@@ -303,10 +301,23 @@ def open_entry_dialog(
                 st.error(e)
             return
 
-        # Add vs Edit: for now we implement Add only
-        # (Edit will call a different backend)
-        if existing is not None:
-            st.warning("Edit mode not implemented yet (next step).")
+        if is_edit:
+            # Normalize empty description to None (DB model accepts None)
+            desc_norm = description.strip() or None
+
+            update = EntryUpdate(
+                date=entry_date,
+                code=code,
+                description=desc_norm,
+                amount=float(computed_amount),
+            )
+
+            entries_service.edit_entry(app_config, existing.id, update)
+
+            msg = ui.get("manual_entry_flash_updated", "Entry updated.")
+            st.session_state[FLASH_KEY] = ("success", msg)
+
+            st.rerun()
             return
 
         status, batch_id = _insert_manual_entry_with_batch(

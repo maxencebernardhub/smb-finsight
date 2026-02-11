@@ -425,9 +425,16 @@ manual_entry_err_debit_credit_both = "Debit and Credit cannot be both filled."
 manual_entry_err_date_required = "Date is required."
 manual_entry_err_account_required = "Account code is required."
 manual_entry_err_amount_nonzero = "Amount must be non-zero."
+warning_edit_single_only = "You can only edit one row at a time."
+error_entry_not_found = "Selected entry not found."
 
 # ----- Success messages
 manual_entry_flash_created = "Entry created"
+
+# ----- Info messages
+info_edit_select_one = "Select one row to edit."
+
+
 
 # ----- For the batch control
 option_import_batch_all = "All batches"
