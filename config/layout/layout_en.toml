@@ -309,11 +309,28 @@ subviews_recycle_bin = "Recycle bin"
 
 # ----- General actions
 button_add_entry = "Add entry"
-button_edit_entry = "Edit"
-button_soft_delete = "Delete"
+button_edit_entry = "Edit entry"
+button_soft_delete = "Delete entries"
 button_restore = "Restore"
 button_confirm = "Confirm"
 button_cancel = "Cancel"
+
+# ----- Add single entry dialog
+manual_entry_dialog_title_add = "Add single entry"
+manual_entry_date_label = "Date"
+manual_entry_account_code_label = "Account code"
+manual_entry_description_label = "Description"
+manual_entry_input_mode_label = "Input mode"
+manual_entry_input_mode_amount = "Amount"
+manual_entry_input_mode_debit_credit = "Debit / Credit"
+manual_entry_amount_label = "Amount"
+manual_entry_debit_label = "Debit"
+manual_entry_credit_label = "Credit"
+manual_entry_computed_amount_info = "Computed amount = debit - credit"
+manual_entry_reject_unknown_toggle = "Reject unknown accounts (prefix matching)"
+manual_entry_amount_information_note = "Signed amount: positive = debit, negative = credit (convention used by SMB FinSight)."
+manual_entry_save_button = "Save"
+
 
 # ----- Badges / info
 badge_unknown_accounts = "Unknown accounts detected"
@@ -371,10 +388,8 @@ duplicate_button_keep = "Keep"
 duplicate_button_discard = "Discard"
 duplicate_resolution_comment = "Resolution comment"
 duplicate_resolution_dialog_title = "Resolve duplicate entries"
-duplicate_warning_detected = "This entry was detected as a duplicate and has been routed to the Duplicates view for review."
 
 # ----- Dialog titles
-dialog_add_entry_title = "Add entry"
 dialog_edit_entry_title = "Edit entry"
 dialog_delete_title = "Delete selected entries"
 dialog_restore_title = "Restore selected entries"
@@ -403,6 +418,16 @@ help_selected_column = "Select one or more rows for actions."
 error_custom_end_before_start = "End date cannot be earlier than start date."
 warning_amount_min_gt_max = "Min amount cannot be greater than max amount."
 warning_max_limit = "Results exceed the display limit. Narrow filters to reduce the number of rows."
+add_entry_unknown_account_code = "Unknown account code (no prefix match in the chart of accounts)."
+duplicate_detected_warning = "Duplicate detected → stored in Duplicates "
+manual_entry_err_amount_required = "Amount is required."
+manual_entry_err_debit_credit_both = "Debit and Credit cannot be both filled."
+manual_entry_err_date_required = "Date is required."
+manual_entry_err_account_required = "Account code is required."
+manual_entry_err_amount_nonzero = "Amount must be non-zero."
+
+# ----- Success messages
+manual_entry_flash_created = "Entry created"
 
 # ----- For the batch control
 option_import_batch_all = "All batches"

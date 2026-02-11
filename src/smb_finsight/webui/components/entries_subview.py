@@ -38,6 +38,9 @@ from smb_finsight.accounts import (
 from smb_finsight.config import AppConfig
 from smb_finsight.db import EntriesFilter
 from smb_finsight.entries_service import list_import_batches, search_entries
+from smb_finsight.webui.components.entries_entry_dialog import (
+    render_add_single_entry_button,
+)
 from smb_finsight.webui.components.entries_filters import (
     render_entries_amount_filter,
     render_entries_batch_filter,
@@ -73,6 +76,20 @@ def render_entries_subview(
         - Renders a read-only table with a selectable checkbox column to prepare
           upcoming row-level actions (Edit/Delete/Restore via dialogs).
     """
+
+    flash = st.session_state.pop("entries__flash", None)
+    if flash:
+        level, msg = flash
+        if level == "success":
+            st.success(msg)
+            st.toast(msg, icon="✅")
+            st.balloons()
+        elif level == "warning":
+            st.warning(msg)
+            st.toast(msg, icon="⚠️")
+        else:
+            st.info(msg)
+            st.toast(msg, icon="ℹ️")
 
     # Reserve future columns for additional filters (code/desc/amount/batch/toggles)
     c1, c2, c3, c4, c5, c6 = st.columns([1.0, 0.7, 0.9, 0.9, 0.8, 1.0])
@@ -319,7 +336,7 @@ def render_entries_subview(
     if "_selected" in df_view.columns:
         colcfg["_selected"] = st.column_config.CheckboxColumn(
             label="",
-            help=ui.get("help_select_column", "Select one or more rows for actions."),
+            help=ui.get("help_selected_column", "Select one or more rows for actions."),
         )
 
     if "date" in df_view.columns:
@@ -365,6 +382,7 @@ def render_entries_subview(
             df_view,
             hide_index=True,
             width="stretch",
+            height=700,
             disabled=[c for c in df_view.columns if c != "_selected"],
             column_config=colcfg,
             key="entries__table_editor",
@@ -372,7 +390,7 @@ def render_entries_subview(
 
     with actions_col:
         # Placeholder for future action buttons (Edit/Delete/Restore, etc.)
-        st.subheader("Actions")
-        st.caption("Actions will be added in the next steps.")
+        # st.subheader("Actions")
+        render_add_single_entry_button(app_config=app_config, layout=layout, ui=ui)
 
     return
