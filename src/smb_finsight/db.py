@@ -1554,7 +1554,7 @@ def search_entries(
         where_clauses.append("e.is_deleted = 0")
 
     # Validate and build ORDER BY clause
-    allowed_order_columns = {"date", "code", "amount", "id"}
+    allowed_order_columns = {"date", "code", "amount", "id", "deleted_at"}
     order_column, order_direction = order_by
     if order_column not in allowed_order_columns:
         raise ValueError(f"Invalid order_by column: {order_column!r}")

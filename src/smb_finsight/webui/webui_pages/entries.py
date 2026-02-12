@@ -35,6 +35,7 @@ from smb_finsight.entries_service import (
     get_duplicate_stats,
 )
 from smb_finsight.webui.components.entries_subview import render_entries_subview
+from smb_finsight.webui.components.recycle_bin_subview import render_recycle_bin_subview
 from smb_finsight.webui.components.subview_selector import (
     render_entries_subview_selector,
 )
@@ -93,8 +94,11 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
         return
 
     if subview == "recycle_bin":
-        st.info(
-            "Recycle bin view (WIP): deleted entries list + restore will be added next."
+        render_recycle_bin_subview(
+            app_config=app_config,
+            layout=layout,
+            page=page,
+            ui=ui,
         )
         return
 

@@ -441,6 +441,12 @@ delete_multiple_confirm_text = "Are you sure you want to delete these {count} en
 delete_reason_label = "Reason for deletion (optional):"
 delete_reason_placeholder = "e.g., wrong entry, imported twice, test data…"
 
+
+# ----- Restore dialog
+restore_single_confirm_text = "Are you sure you want to restore this entry?"
+restore_multiple_confirm_text = "Are you sure you want to restore these {count} entries?"
+restore_success = "{count} entries restored."
+
 # ----- For the batch control
 option_import_batch_all = "All batches"
 

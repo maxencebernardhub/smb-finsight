@@ -4,7 +4,7 @@
 
 
 """
-Common dialog used for both Add and Edit entry.
+Common dialog used for Add, Edit, Delete and Restore entry.
 
 - When `existing` is None, the dialog creates a new entry via a mini import batch
   (source_type=manual, source_label=webui) and relies on the import pipeline
@@ -398,4 +398,44 @@ def confirm_delete_entries_dialog(
         msg_tpl = ui.get("delete_success", "{count} entries deleted.")
         st.session_state[FLASH_KEY] = ("success", msg_tpl.format(count=len(entry_ids)))
 
+        st.rerun()
+
+
+@st.dialog(" ")
+def confirm_restore_entries_dialog(
+    *,
+    app_config: AppConfig,
+    ui: dict[str, Any],
+    entry_ids: list[int],
+) -> None:
+    """
+    Confirm and execute a restore for the selected entries.
+
+    This dialog is intentionally side-effect free unless the user presses the
+    confirm button. Closing the dialog leaves the database unchanged.
+
+    Restoration is performed via entries_service.restore_deleted_entry(), which
+    sets is_deleted=False and clears deletion metadata depending on DB behavior.
+    """
+    st.subheader(ui.get("dialog_restore_title", "Restore selected entries"))
+
+    if len(entry_ids) == 1:
+        text_tpl = ui.get(
+            "restore_single_confirm_text",
+            "Are you sure you want to restore this entry?",
+        )
+        st.write(text_tpl)
+    else:
+        text_tpl = ui.get(
+            "restore_multiple_confirm_text",
+            "Are you sure you want to restore these {count} entries?",
+        )
+        st.write(text_tpl.format(count=len(entry_ids)))
+
+    if st.button(ui.get("button_confirm", "Confirm"), type="primary", width="stretch"):
+        for eid in entry_ids:
+            entries_service.restore_deleted_entry(app_config, int(eid))
+
+        msg_tpl = ui.get("restore_success", "{count} entries restored.")
+        st.session_state[FLASH_KEY] = ("success", msg_tpl.format(count=len(entry_ids)))
         st.rerun()
