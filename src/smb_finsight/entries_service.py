@@ -72,7 +72,8 @@ Design notes
 
 import sqlite3
 from dataclasses import dataclass
-from typing import Optional
+from datetime import date
+from typing import Literal, Optional
 
 import pandas as pd
 
@@ -99,6 +100,7 @@ from .db import (
 from .db import (
     get_entry_by_id as _db_get_entry_by_id,
 )
+from .db import import_entries as _db_import_entries
 from .db import init_database as _db_init_database
 from .db import (
     insert_entry as _db_insert_entry,
@@ -142,6 +144,14 @@ class DuplicatePair:
 
     duplicate: DuplicateEntry
     existing: Optional[AccountingEntry]
+
+
+@dataclass(frozen=True)
+class CreateManualEntryResult:
+    """Result of a manual entry creation via the import pipeline."""
+
+    status: Literal["inserted", "duplicate"]
+    batch_id: int
 
 
 # ---------------------------------------------------------------------------
@@ -701,6 +711,52 @@ def create_entry(
     # TODO: validate account code and other business rules if needed.
     created = _db_insert_entry(db_cfg, new_entry)
     return created
+
+
+def create_manual_entry(
+    app_config: AppConfig,
+    *,
+    entry_date: date,
+    code: str,
+    description: str,
+    amount: float,
+    source_label: str = "webui",
+) -> CreateManualEntryResult:
+    """
+    Create a single manual entry using the import pipeline (mini-batch).
+
+    This preserves the same behavior as CSV imports:
+    - creates an import_batches row (source_type="manual"),
+    - inserts into entries or duplicate_entries based on duplicate detection.
+
+    Notes
+    -----
+    This is intentionally different from `create_entry()`, which expects an existing
+    import_batch_id and performs a direct insert into `entries`.
+    """
+
+    df = pd.DataFrame(
+        [
+            {
+                "date": entry_date,
+                "code": code,
+                "description": description,
+                "amount": float(amount),
+            }
+        ]
+    )
+
+    stats = _db_import_entries(
+        df,
+        app_config.database,
+        source_type="manual",
+        source_label=source_label,
+    )
+
+    status: Literal["inserted", "duplicate"] = (
+        "inserted" if stats.rows_inserted == 1 else "duplicate"
+    )
+    return CreateManualEntryResult(status=status, batch_id=int(stats.batch_id))
 
 
 def edit_entry(

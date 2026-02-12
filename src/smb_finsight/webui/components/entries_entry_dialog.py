@@ -20,13 +20,12 @@ UI labels/messages are provided through the `ui` dict (layout_en.toml).
 from datetime import date
 from typing import Any, Optional
 
-import pandas as pd
 import streamlit as st
 
 from smb_finsight import entries_service
 from smb_finsight.accounts import load_list_of_accounts
 from smb_finsight.config import AppConfig
-from smb_finsight.db import AccountingEntry, EntryUpdate, import_entries
+from smb_finsight.db import AccountingEntry, EntryUpdate
 from smb_finsight.webui.layout import EntriesManualEntryConfig
 
 FLASH_KEY = "entries__flash"
@@ -142,31 +141,22 @@ def _insert_manual_entry_with_batch(
     amount: float,
 ) -> tuple[str, int]:
     """
-    Insert a single manual entry via db.import_entries (mini-batch),
-    returning (status, batch_id) where status is:
-      - "inserted" or "duplicate"
-    """
-    df = pd.DataFrame(
-        [
-            {
-                "date": entry_date,
-                "code": code,
-                "description": description,
-                "amount": float(amount),
-            }
-        ]
-    )
+    Insert a single manual entry via the service layer (mini-batch import).
 
-    stats = import_entries(
-        df,
-        app_config.database,
-        source_type="manual",
+    Returns:
+        (status, batch_id) where status is "inserted" or "duplicate".
+    """
+
+    res = entries_service.create_manual_entry(
+        app_config,
+        entry_date=entry_date,
+        code=code,
+        description=description,
+        amount=amount,
         source_label="webui",
     )
 
-    if stats.rows_inserted == 1:
-        return "inserted", int(stats.batch_id)
-    return "duplicate", int(stats.batch_id)
+    return res.status, res.batch_id
 
 
 @st.dialog("Entry")
