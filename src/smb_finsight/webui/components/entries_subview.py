@@ -14,7 +14,7 @@ Responsibilities:
 - Render filter controls (period/code/description/amount/import batch/toggles).
 - Build an EntriesFilter and query the DB via the service layer.
 - Optionally compute "unknown accounts" (based on the chart of accounts).
-- Render the entries table (data_editor) and an actions placeholder.
+- Render the entries table (data_editor) and an actions panel (Add/Edit/Delete).
 
 Notes:
 - The page uses controlled navigation (segmented control / pills), so this
@@ -39,6 +39,7 @@ from smb_finsight.config import AppConfig
 from smb_finsight.db import EntriesFilter
 from smb_finsight.entries_service import list_import_batches, load_entry, search_entries
 from smb_finsight.webui.components.entries_entry_dialog import (
+    confirm_delete_entries_dialog,
     open_entry_dialog,
     render_add_single_entry_button,
 )
@@ -399,11 +400,13 @@ def render_entries_subview(
             selected_ids = edited_df_view.index[edited_df_view["_selected"]].tolist()
 
         edit_disabled = len(selected_ids) != 1
+        delete_disabled = len(selected_ids) == 0
 
         if st.button(
             ui.get("button_edit_entry", "Edit"),
             disabled=edit_disabled,
             type="primary",
+            width="stretch",
         ):
             entry_id = int(selected_ids[0])
             entry = load_entry(app_config, entry_id)
@@ -418,5 +421,16 @@ def render_entries_subview(
                     title=ui.get("dialog_edit_entry_title", "Edit entry"),
                     existing=entry,
                 )
+        if st.button(
+            ui.get("button_soft_delete", "Delete"),
+            disabled=delete_disabled,
+            type="primary",
+            width="stretch",
+        ):
+            confirm_delete_entries_dialog(
+                app_config=app_config,
+                ui=ui,
+                entry_ids=[int(x) for x in selected_ids],
+            )
 
     return

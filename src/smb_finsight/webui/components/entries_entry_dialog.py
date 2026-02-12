@@ -339,7 +339,7 @@ def render_add_single_entry_button(
     *, app_config: AppConfig, layout: Any, ui: dict[str, Any]
 ) -> None:
     label = ui.get("button_add_entry", "Add entry")
-    if st.button(label, type="primary"):
+    if st.button(label, type="primary", width="stretch"):
         open_entry_dialog(
             app_config=app_config,
             layout=layout,
@@ -347,3 +347,55 @@ def render_add_single_entry_button(
             title=ui.get("manual_entry_dialog_title_add", "Add single entry"),
             existing=None,
         )
+
+
+@st.dialog(" ")
+def confirm_delete_entries_dialog(
+    *,
+    app_config: AppConfig,
+    ui: dict[str, Any],
+    entry_ids: list[int],
+) -> None:
+    """
+    Confirm and execute a soft-delete for the selected entries.
+
+    This dialog is intentionally side-effect free unless the user presses the
+    confirm button. Closing the dialog (X / outside click) leaves the database
+    unchanged.
+    An optional reason can be provided and will be stored in deleted_reason.
+
+    Deletion is performed via entries_service.delete_entry(), which soft-deletes
+    rows in the `entries` table (is_deleted flag) and keeps them available for
+    restoration from the Recycle bin.
+    """
+    # Title & message
+    st.subheader(ui.get("dialog_delete_title", "Delete selected entries"))
+
+    if len(entry_ids) == 1:
+        text_tpl = ui.get(
+            "delete_single_confirm_text",
+            "Are you sure you want to delete this entry?",
+        )
+        st.write(text_tpl)
+    else:
+        text_tpl = ui.get(
+            "delete_multiple_confirm_text",
+            "Are you sure you want to delete these {count} entries?",
+        )
+        st.write(text_tpl.format(count=len(entry_ids)))
+
+    reason = st.text_input(
+        ui.get("delete_reason_label", "Reason for deletion (optional):"),
+        placeholder=ui.get("delete_reason_placeholder", ""),
+    )
+    reason = reason.strip() or None
+
+    # Confirm button
+    if st.button(ui.get("button_confirm", "Confirm"), type="primary", width="stretch"):
+        for eid in entry_ids:
+            entries_service.delete_entry(app_config, int(eid), reason=reason)
+
+        msg_tpl = ui.get("delete_success", "{count} entries deleted.")
+        st.session_state[FLASH_KEY] = ("success", msg_tpl.format(count=len(entry_ids)))
+
+        st.rerun()
