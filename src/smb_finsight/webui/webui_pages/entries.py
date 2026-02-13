@@ -34,6 +34,9 @@ from smb_finsight.config import AppConfig
 from smb_finsight.entries_service import (
     get_duplicate_stats,
 )
+from smb_finsight.webui.components.duplicates_subview import (
+    render_duplicates_subview,
+)
 from smb_finsight.webui.components.entries_subview import render_entries_subview
 from smb_finsight.webui.components.recycle_bin_subview import render_recycle_bin_subview
 from smb_finsight.webui.components.subview_selector import (
@@ -88,8 +91,11 @@ def render(app_config: AppConfig, layout: LayoutConfig, page: PageConfig) -> Non
         return
 
     if subview == "duplicates":
-        st.info(
-            "Duplicates view (WIP): list + resolve (Keep/Discard) will be added next."
+        render_duplicates_subview(
+            app_config=app_config,
+            layout=layout,
+            page=page,
+            ui=ui,
         )
         return
 

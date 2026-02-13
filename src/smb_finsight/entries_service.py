@@ -95,6 +95,9 @@ from .db import (
     ResolvedBy,
 )
 from .db import (
+    get_duplicate_entry_by_id as _db_get_duplicate_entry_by_id,
+)
+from .db import (
     get_duplicate_stats as _db_get_duplicate_stats,
 )
 from .db import (
@@ -460,8 +463,13 @@ def get_duplicate_stats(app_config: AppConfig) -> DuplicateStats:
 def list_duplicate_pairs(
     app_config: AppConfig,
     *,
-    status: Optional[str] = "pending",
+    status: Optional[str] = None,
     import_batch_id: Optional[int] = None,
+    code_exact: str | None = None,
+    code_prefix: str | None = None,
+    description_contains: str | None = None,
+    min_amount: float | None = None,
+    max_amount: float | None = None,
     period: Optional[Period] = None,
     limit: Optional[int] = 100,
     offset: int = 0,
@@ -477,18 +485,30 @@ def list_duplicate_pairs(
     - AccountingEntry (optional): the existing entry that was detected as a
       potential duplicate.
 
+    Filters are applied at the database level via db.list_duplicate_entries().
+
     Parameters
     ----------
     app_config:
         Global application configuration.
     status:
         Optional resolution status filter:
-        - "pending": candidates waiting for a decision (default),
+        - "pending": candidates waiting for a decision,
         - "kept": candidates that were inserted into `entries`,
         - "discarded": candidates that were explicitly discarded,
         - None: include all statuses.
     import_batch_id:
         Optional filter to restrict duplicates to a specific import batch.
+        code_exact:
+        Optional exact match filter on the duplicate account code.
+    code_prefix:
+        Optional prefix filter on the duplicate account code (ignored when
+        code_exact is provided).
+    description_contains:
+        Optional case-insensitive substring filter on the duplicate description.
+    min_amount, max_amount:
+        Optional bounds on the signed amount (monetary units). These are applied
+        at SQL level against amount_cents.
     period:
         Optional reporting period used to constrain the candidate entry dates.
         When provided, the [start, end] bounds of the Period are mapped to the
@@ -512,6 +532,11 @@ def list_duplicate_pairs(
         db_cfg,
         status=status,
         import_batch_id=import_batch_id,
+        code_exact=code_exact,
+        code_prefix=code_prefix,
+        description_contains=description_contains,
+        min_amount=min_amount,
+        max_amount=max_amount,
         start=start,
         end=end,
         limit=limit,
@@ -545,6 +570,21 @@ def list_duplicate_pairs(
         )
 
     return result
+
+
+def load_duplicate_entry(
+    app_config: AppConfig,
+    duplicate_id: int,
+) -> Optional[DuplicateEntry]:
+    """
+    Load a single duplicate entry by id.
+
+    This is a lightweight wrapper around db.get_duplicate_entry_by_id() and is
+    primarily used by the WebUI dialogs (e.g. "View details").
+    Returns None when the duplicate id does not exist.
+    """
+    db_cfg = _get_db_config(app_config)
+    return _db_get_duplicate_entry_by_id(db_cfg, int(duplicate_id))
 
 
 def resolve_duplicate_entry(

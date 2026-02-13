@@ -357,6 +357,7 @@ column_description = "Description"
 column_amount = "Amount"
 column_import_batch = "Import batch"
 column_updated_at = "Last updated"
+column_imported_at = "Imported at"
 
 # ----- Table column labels (Duplicates)
 resolution_status = "Resolution status"
@@ -386,8 +387,39 @@ import_history_button_duplicates = "Display duplicates"
 # ----- Duplicate resolution
 duplicate_button_keep = "Keep"
 duplicate_button_discard = "Discard"
-duplicate_resolution_comment = "Resolution comment"
-duplicate_resolution_dialog_title = "Resolve duplicate entries"
+duplicate_button_view_details = "View details"
+#duplicate_resolution_comment = "Resolution comment"
+#duplicate_resolution_dialog_title = "Resolve duplicate entries"
+
+# ----- Duplicate view
+resolution_status_pending = "Pending"
+resolution_status_kept = "Kept"
+resolution_status_discarded = "Discarded"
+resolution_status_all = "All"
+
+duplicate_view_details_title = "Duplicate details"
+duplicate_view_details_left = "Duplicate candidate"
+duplicate_view_details_right = "Existing entry"
+duplicate_existing_entry_missing = "Existing entry"
+duplicate_existing_entry_missing_value = "No linked entry found."
+duplicate_details_column_field = "Field"
+duplicate_details_column_value = "Value"
+
+
+field_date = "Date"
+field_code = "Account code"
+field_description = "Description"
+field_amount = "Amount"
+field_imported_at = "Imported at"
+field_import_batch = "Import batch"
+field_resolution_status = "Resolution status"
+field_resolution_at = "Resolved at"
+field_resolved_by = "Resolved by"
+field_resolution_comment = "Resolution notes"
+field_updated_at = "Last updated"
+field_is_deleted = "Deleted?"
+field_deleted_at = "Deleted at"
+field_deleted_reason = "Deletion reason"
 
 # ----- Dialog titles
 dialog_edit_entry_title = "Edit entry"
@@ -427,6 +459,8 @@ manual_entry_err_account_required = "Account code is required."
 manual_entry_err_amount_nonzero = "Amount must be non-zero."
 warning_edit_single_only = "You can only edit one row at a time."
 error_entry_not_found = "Selected entry not found."
+duplicates_already_resolved_warning = "At least one selected duplicate is already resolved (kept/discarded). You cannot resolve duplicates twice."
+
 
 # ----- Success messages
 manual_entry_flash_created = "Entry created"
