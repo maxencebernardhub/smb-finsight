@@ -1055,14 +1055,25 @@ def list_import_batches(cfg: DatabaseConfig) -> pd.DataFrame:
     """
     Return the list of import batches stored in the database.
 
+    This is primarily used by the WebUI Import sub-view to populate the
+    "Import history" table.
+
+    Ordering:
+        - Ordered by id DESC (most recent first).
+
     Columns:
-    - id
-    - created_at
-    - source_type
-    - source_label
-    - rows_inserted
-    - notes
+        - id
+        - created_at
+        - source_type
+        - source_label
+        - rows_inserted
+        - notes
+
+    Returns:
+        A dataframe with the columns above. If no batches exist, an empty dataframe
+        with these columns is returned.
     """
+
     init_database(cfg)
 
     conn = _connect(cfg)
@@ -2148,3 +2159,38 @@ def resolve_duplicate(
         )
 
     return _row_to_duplicate_entry(updated_row)
+
+
+def set_import_batch_notes(
+    cfg: DatabaseConfig, batch_id: int, notes: str | None
+) -> None:
+    """
+    Update the 'notes' field of an import batch.
+
+    Args:
+        cfg: Database configuration.
+        batch_id: Import batch id.
+        notes: Optional notes string. If empty/None, stored as NULL (after stripping).
+    Notes:
+        - If batch_id does not exist, no row is updated and no exception is raised.
+
+    """
+    init_database(cfg)
+    conn = _connect(cfg)
+    try:
+        cur = conn.cursor()
+        val = notes.strip() if notes is not None else None
+        if val == "":
+            val = None
+
+        cur.execute(
+            """
+            UPDATE import_batches
+               SET notes = ?
+             WHERE id = ?;
+            """,
+            (val, int(batch_id)),
+        )
+        conn.commit()
+    finally:
+        conn.close()

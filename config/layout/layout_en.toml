@@ -370,19 +370,61 @@ column_deleted_reason = "Deletion reason"
 column_deleted_at = "Deleted at"
 
 # ----- Import view
-import_title = "Import accounting entries"
-import_label_input = "Import label"
-import_upload_help = "Upload a CSV file containing accounting entries."
-import_button = "Import"
-import_summary_inserted = "Entries inserted"
-import_summary_duplicates = "Duplicates detected"
-import_summary_unknown = "Unknown accounts rejected"
-import_download_unknown = "Download rejected unknown accounts (CSV)"
+# Left panel: Import CSV
+import_section_title = "Import CSV"
+import_uploader_label = "Upload CSV file"
+import_label_input_label = "Import label (optional)"
+import_label_input_placeholder = "e.g. QuickBooks export - Jan 2026"
+import_reject_unknown_toggle_label = "Reject unknown accounts"
+import_reject_unknown_toggle_help = "If enabled, entries with account codes not present in the chart of accounts will be rejected."
+import_button_import = "Import"
+import_button_import_help = "Click here to import the file."
 
-# ----- Import history
-import_history_title = "Import history"
-import_history_button_entries = "Display entries"
-import_history_button_duplicates = "Display duplicates"
+# Left panel: Results
+import_results_section_title = "Results"
+import_results_success_message = "Import completed."
+import_results_metric_inserted = "Inserted"
+import_results_metric_duplicates = "Duplicates"
+import_results_metric_unknown_rejected = "Unknown rejected"
+import_results_button_view_unknown = "View & download rejected entries"
+import_results_button_view_unknown_help = "Opens a dialog listing rejected rows and allowing CSV download."
+
+# Right panel: Import history
+import_history_section_title = "Import history"
+import_history_caption_select_one = "Select exactly one batch to enable actions."
+
+# History table columns
+import_history_col_selected_label = ""
+import_history_col_selected_help = "Select exactly one batch."
+import_history_col_created_at = "Created at"
+import_history_col_created_at_format = "YYYY-MM-DD HH:mm"
+import_history_col_source_type = "Source type"
+import_history_col_source_label = "Source label"
+import_history_col_rows_inserted = "Rows inserted"
+import_history_col_notes = "Notes"
+import_history_col_id = "id"
+
+# History actions
+import_history_button_display_entries = "Display entries"
+import_history_button_display_entries_help = "Open a dialog to display entries for the selected batch."
+import_history_button_display_duplicates = "Display duplicates"
+import_history_button_display_duplicates_help = "Open a dialog to display duplicates for the selected batch."
+
+import_dialog_entries_title = "Import batch entries"
+import_dialog_entries_empty = "No entries found for this import batch."
+import_dialog_duplicates_title = "Import batch duplicates"
+import_dialog_duplicates_empty = "No duplicates found for this import batch."
+import_dialog_unknown_title = "Unknown accounts rejected"
+import_dialog_no_rejected_rows = "No rejected rows to display."
+import_dialog_download_button = "Download rejected rows (CSV)"
+
+# ----- Import errors
+import_error_no_file = "Please upload a CSV file."
+import_error_empty_file = "The uploaded CSV contains no rows."
+import_error_missing_chart_of_accounts = "Cannot reject unknown accounts: no chart of accounts configured for the current standard."
+import_error_no_known_entries = "All rows were rejected as unknown accounts. Nothing was imported."
+import_error_generic = "Import failed."
+
 
 # ----- Duplicate resolution
 duplicate_button_keep = "Keep"

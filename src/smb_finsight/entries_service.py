@@ -8,7 +8,7 @@ High-level services for CRUD operations and accounting-entry reporting.
 
 This module sits between:
 - the low-level database helpers in `db.py`, and
-- user-facing layers such as the CLI or a future Web UI (e.g. Streamlit).
+- user-facing layers such as the CLI or the Web UI (Streamlit).
 
 It exposes a clean, typed interface for interacting with accounting entries
 and for performing business-level reporting that requires combining:
@@ -121,6 +121,7 @@ from .db import (
 from .db import (
     search_entries as _db_search_entries,
 )
+from .db import set_import_batch_notes as _db_set_import_batch_notes
 from .db import (
     soft_delete_entry as _db_soft_delete_entry,
 )
@@ -247,6 +248,9 @@ def list_import_batches(
         pandas.DataFrame with columns:
         - id, created_at, source_type, source_label, rows_inserted, notes
         ordered by id DESC (most recent first).
+    Notes:
+        The dataframe is intended for direct display in the WebUI
+        (Import history table).
     """
     db_cfg = _get_db_config(app_config)
     df = _db_list_import_batches(db_cfg)
@@ -885,3 +889,17 @@ def restore_deleted_entry(
     db_cfg = _get_db_config(app_config)
     restored = _db_restore_entry(db_cfg, entry_id)
     return restored
+
+
+def set_import_batch_notes(
+    app_config: AppConfig, *, batch_id: int, notes: str | None
+) -> None:
+    """
+    Update import_batches.notes for a given import batch.
+
+    Notes:
+        - Empty strings are stored as NULL.
+        - Used by the WebUI Import sub-view ("Import label" input).
+    """
+    db_cfg = _get_db_config(app_config)
+    _db_set_import_batch_notes(db_cfg, int(batch_id), notes)
