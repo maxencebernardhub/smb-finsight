@@ -47,8 +47,7 @@ Design principles
      bucketized periods are intended for charts only.
 
 5) Ratios levels:
-   - The Web UI always computes ratios at level "full".
-   - Ratio level filtering is currently a CLI concern only.
+   - The Web UI and CLI can compute ratios at level "basic", "standard" and "full".
    - The UI layout decides which measures/ratios are displayed.
 
 Outputs
@@ -177,7 +176,7 @@ def run_dashboard_pipeline(
 
     Notes:
         - The dashboard forces `ratios_level="full"` to ensure all tiles/charts can
-        render consistently regardless of `app_config.ratios_level`.
+        render consistently regardless of `app_config.default_ratios_level`.
         - On the dashboard, `comp_buckets` is an empty list when comparison is disabled.
     """
 
@@ -258,11 +257,10 @@ def run_ratios_pipeline(
     Returns:
         RatiosPipelineResult containing computed dataframes and bucket periods.
 
-    Policy:
-        - We force `ratios_level="full"` so the Ratios page can render any ratio key
-          listed in `layout.ratios_page.sections` without being constrained
-          by CLI levels.
-          (Level filtering is currently CLI-only by design.)
+    Notes:
+        - The ratio pipeline forces `ratios_level="full"` to ensure all tiles/charts can
+        render consistently regardless of `app_config.default_ratios_level`.
+
     """
 
     # Tiles use PRIMARY/COMPARISON periods directly (not bucketized).

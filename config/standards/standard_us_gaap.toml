@@ -3,6 +3,8 @@
 # United States / US GAAP
 # -------------------------------------------------------------------
 
+name = "US GAAP"
+
 [paths.mapping]
 # Primary income statement mapping under US GAAP
 income_statement = "../../mapping/income_statement_us_gaap.csv"

@@ -165,7 +165,9 @@ def main() -> None:
         st.caption(f"Version {package_version}", text_alignment="center")
 
         # Active accounting standard (raw value from AppConfig.standard)
-        st.caption(f"Standard: {app_config.standard}", text_alignment="center")
+        st.caption(
+            f"Standard: {app_config.standard_config.name}", text_alignment="center"
+        )
 
         # Database status: get entries count and duplicate entries
         entries_count = get_entries_count(app_config)

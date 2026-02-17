@@ -2,7 +2,6 @@
 # SMB FinSight - Main configuration file
 # -------------------------------------------------------------------
 # Notes:
-# - Only [fiscal_year] is strictly required.
 # - All other sections and keys are optional.
 # - Any standard-specific configuration (mappings, ratios packs, etc.)
 #   will be loaded from a standard-specific config file, not here.
@@ -17,13 +16,6 @@ end_date   = "2026-12-31"
 # Accounting standard
 # -------------------------------------------------------------------
 [accounting]
-# Main accounting standard used by the company.
-# Supported values (proposal):
-#   "FR_PCG"
-#   "CA_ASPE"
-#   "US_GAAP"
-#   "IFRS"
-standard = "CA_ASPE"
 
 # Optional reporting currency (informational, for display).
 # Supported: "CAD", "USD", "EUR"
@@ -33,15 +25,18 @@ currency = "CAD"
 # Supported: "," or " "
 thousands_separator = ","
 
-# Optional path to a standard-specific config file.
-# If empty, SMB FinSight will use the built-in default config
-# for the selected accounting standard.
-#
-# Example (for a French company):
-#   standard_config_file = "config/standard_fr_pcg.toml"
-#
+# Path to a standard-specific config file (required).
+# This file defines the standard name displayed in the Web UI as well as
+# the statement mappings and ratios packs to load.
+# Four files are currently available : "US_GAAP" (United States
+#   Generally Accepted Accounting Principles), "IFRS" (International
+#   Financial Reporting Standards), "CA_ASPE" (Canadian Accounting 
+#   Standards for Private Enterprises), "FR_PCG" (Plan Comptable 
+#   Général Français).
 # Example (for a Canadian company under ASPE):
 #   standard_config_file = "config/standard_ca_aspe.toml"
+# Example (for a French company):
+#   standard_config_file = "config/standard_fr_pcg.toml"
 standard_config_file = "config/standards/standard_ca_aspe.toml"
 
 # -------------------------------------------------------------------
@@ -61,14 +56,16 @@ path = "data/db/smb_finsight.sqlite"
 # Ratios & KPIs configuration (for CLI only)
 # -------------------------------------------------------------------
 [ratios]
-# Enable or disable ratio and KPI computation.
-enabled = true
 
 # Default level of detail when displaying ratios.
 # Possible values:
 #   "basic"
 #   "advanced"
 #   "full"
+# Note (WebUI):
+#   The WebUI currently always computes ratios at level "full" because
+#   some dashboard tiles and charts depend on advanced/full ratios.
+#   This setting is currently used by the CLI only.
 default_level = "basic"
 
 # -------------------------------------------------------------------
@@ -97,22 +94,14 @@ interest_expense     = 3800.00  # Interest expense on financial debt
 average_headcount = 11.5
 
 # -------------------------------------------------------------------
-# Optional inputs - Period parameters
+# CLI configuration
 # -------------------------------------------------------------------
-[inputs.period]
-# Number of days in the analysed period (for DSO/DPO/DIO, etc.).
-# Default could be 365 for a full year or adjusted to the period.
-period_days = 365
-
-# -------------------------------------------------------------------
-# Display options (for CLI only)
-# -------------------------------------------------------------------
-[display]
+[cli]
 # Default output mode for tables:
 #   "table" -> console table (ASCII / Markdown-like)
 #   "csv"   -> CSV export
 #   "both"  -> console + CSV file
-mode = "table"
+display_mode = "table"
 
 # Number of decimals for ratio percentage display.
 ratio_decimals = 1

@@ -43,7 +43,7 @@ class StandardConfig:
     standard-specific TOML file (for example: config/standard_fr_pcg.toml).
     """
 
-    standard: str
+    name: str
     income_statement_mapping: Optional[Path]
     secondary_mapping: Optional[Path]
     chart_of_accounts: Optional[Path]
@@ -60,28 +60,24 @@ class AppConfig:
 
     This aggregates:
     - the fiscal year definition,
-    - the main accounting standard,
     - the reporting currency and number formatting options (e.g., thousands separator),
     - the database configuration (where entries are stored),
     - the standard-specific configuration (mappings, ratios rules),
-    - optional inputs for balance sheet, HR and period parameters,
+    - optional inputs for balance sheet and HR parameters,
     - global ratios options,
-    - display options for tables and ratios.
+    - Specific CLI and WebUI configuration.
     """
 
     fiscal_year: FiscalYear
-    standard: str
     currency: str
     thousands_separator: str
     database: DatabaseConfig
     standard_config: StandardConfig
     balance_sheet_inputs: dict[str, float]
     hr_inputs: dict[str, float]
-    period_days: int
-    ratios_enabled: bool
     default_ratios_level: str
-    display_mode: str
-    ratio_decimals: int
+    cli_display_mode: str
+    cli_ratio_decimals: int
     webui_layout_config_path: str
 
 
@@ -147,26 +143,23 @@ def _parse_fiscal_year(config_data: Mapping[str, Any]) -> FiscalYear:
 
 
 def _parse_standard_config(
-    standard: str,
-    standard_config_path_raw: Optional[str],
+    standard_config_path_raw: str,
     base_dir: Path,
 ) -> StandardConfig:
     """
-    Load and parse the standard-specific configuration file, if provided.
+    Load and parse the standard-specific configuration file.
 
     Args:
-        standard: Accounting standard name (FR_PCG, CA_ASPE, etc.).
         standard_config_path_raw: Relative or absolute path to the
             standard-specific config file, as read from smb_finsight_config.toml.
         base_dir: Base directory used to resolve relative paths.
 
     Returns:
-        A StandardConfig instance. If no standard_config_path_raw is provided,
-        all paths will be set to None.
+        A StandardConfig instance.
     """
     if not standard_config_path_raw:
         return StandardConfig(
-            standard=standard,
+            name=None,
             income_statement_mapping=None,
             secondary_mapping=None,
             chart_of_accounts=None,
@@ -178,6 +171,14 @@ def _parse_standard_config(
 
     std_path = (base_dir / standard_config_path_raw).resolve()
     std_data = _load_toml(std_path)
+
+    raw_name = std_data.get("name")
+    name = str(raw_name).strip() if raw_name is not None else ""
+    if not name:
+        raise ValueError(
+            f"Invalid standard config file {std_path}: "
+            f"missing required root key 'name'."
+        )
 
     paths_section = std_data.get("paths") or {}
     if not isinstance(paths_section, Mapping):
@@ -224,7 +225,7 @@ def _parse_standard_config(
         secondary_label = str(raw_secondary_label)
 
     return StandardConfig(
-        standard=standard,
+        name=name,
         income_statement_mapping=income_statement_mapping,
         secondary_mapping=secondary_mapping,
         chart_of_accounts=chart_of_accounts,
@@ -251,7 +252,7 @@ def load_app_config(config_path: Optional[str] = None) -> AppConfig:
         Defines the fiscal year start date (month/day).
 
     [accounting]
-        Defines the accounting standard (e.g. "FR_PCG", "CA_ASPE"),
+        Defines the accounting standard configuration file path, as well as
         the presentation currency and the thousands separator used
         for display formatting.
 
@@ -266,14 +267,14 @@ def load_app_config(config_path: Optional[str] = None) -> AppConfig:
     [inputs.hr]
         Optional human-resources inputs for per-employee KPIs.
 
-    [inputs.period]
-        Optional override of the default number of days in the period.
-
     [ratios]
-        Global ratio options (enable/disable, default detail level, etc.).
+        Global ratio options (default detail level).
 
-    [display]
-        Display options for the CLI table formatting.
+    [cli]
+        Display options for the CLI.
+
+    [webui]
+        Configuration for the Web UI (e.g., layout config path).
 
     Notes
     -----
@@ -309,7 +310,6 @@ def load_app_config(config_path: Optional[str] = None) -> AppConfig:
     if not isinstance(accounting_section, Mapping):
         accounting_section = {}
 
-    standard = str(accounting_section.get("standard") or "FR_PCG")
     currency = str(accounting_section.get("currency") or "EUR")
 
     thousands_separator = str(accounting_section.get("thousands_separator") or ",")
@@ -320,12 +320,16 @@ def load_app_config(config_path: Optional[str] = None) -> AppConfig:
     if currency not in {"CAD", "USD", "EUR"}:
         raise ValueError('[accounting].currency must be one of: "CAD", "USD", "EUR"')
 
-    standard_config_path_raw = accounting_section.get("standard_config_file") or None
-    if isinstance(standard_config_path_raw, str) and not standard_config_path_raw:
-        standard_config_path_raw = None
+    standard_config_path_raw = str(
+        accounting_section.get("standard_config_file") or ""
+    ).strip()
+    if not standard_config_path_raw:
+        raise ValueError(
+            "Missing required setting: [accounting].standard_config_file. "
+            "SMB FinSight requires an explicit standard configuration file."
+        )
 
     standard_config = _parse_standard_config(
-        standard=standard,
         standard_config_path_raw=standard_config_path_raw,
         base_dir=base_dir,
     )
@@ -354,10 +358,6 @@ def load_app_config(config_path: Optional[str] = None) -> AppConfig:
     if not isinstance(hr_section, Mapping):
         hr_section = {}
 
-    period_section = inputs_section.get("period") or {}
-    if not isinstance(period_section, Mapping):
-        period_section = {}
-
     balance_sheet_inputs: dict[str, float] = {}
     for key, value in balance_sheet_section.items():
         try:
@@ -374,39 +374,23 @@ def load_app_config(config_path: Optional[str] = None) -> AppConfig:
             # Ignore values that cannot be converted to float
             continue
 
-    # Period inputs: optional override for the period length (in days)
-    raw_period_days = period_section.get("period_days")
-
-    if raw_period_days is None:
-        # Default: use the actual fiscal year length (inclusive)
-        period_days = (fiscal_year.end_date - fiscal_year.start_date).days + 1
-    else:
-        try:
-            period_days = int(raw_period_days)
-        except (TypeError, ValueError) as exc:
-            raise ValueError(
-                "Invalid value for 'inputs.period.period_days' in the configuration. "
-                "Expected an integer."
-            ) from exc
-
     # 5) Ratios options
     ratios_section = raw.get("ratios") or {}
     if not isinstance(ratios_section, Mapping):
         ratios_section = {}
 
-    ratios_enabled = bool(ratios_section.get("enabled", True))
     default_level = str(ratios_section.get("default_level", "basic"))
 
     # 6) Display options
-    display_section = raw.get("display") or {}
-    if not isinstance(display_section, Mapping):
-        display_section = {}
+    cli_section = raw.get("cli") or {}
+    if not isinstance(cli_section, Mapping):
+        cli_section = {}
 
-    display_mode = str(display_section.get("mode", "table"))
+    cli_display_mode = str(cli_section.get("display_mode", "table"))
     try:
-        ratio_decimals = int(display_section.get("ratio_decimals", 1))
+        cli_ratio_decimals = int(cli_section.get("ratio_decimals", 1))
     except (TypeError, ValueError):
-        ratio_decimals = 1
+        cli_ratio_decimals = 1
 
     # 7) Web UI options
     webui_section = raw.get("webui") or {}
@@ -419,17 +403,14 @@ def load_app_config(config_path: Optional[str] = None) -> AppConfig:
 
     return AppConfig(
         fiscal_year=fiscal_year,
-        standard=standard,
         currency=currency,
         thousands_separator=thousands_separator,
         database=database_config,
         standard_config=standard_config,
         balance_sheet_inputs=balance_sheet_inputs,
         hr_inputs=hr_inputs,
-        period_days=period_days,
-        ratios_enabled=ratios_enabled,
         default_ratios_level=default_level,
-        display_mode=display_mode,
-        ratio_decimals=ratio_decimals,
+        cli_display_mode=cli_display_mode,
+        cli_ratio_decimals=cli_ratio_decimals,
         webui_layout_config_path=webui_layout_config_path,
     )

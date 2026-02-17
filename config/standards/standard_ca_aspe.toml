@@ -3,6 +3,8 @@
 # Canada / ASPE
 # -------------------------------------------------------------------
 
+name = "CA ASPE"
+
 [paths.mapping]
 # Primary income statement mapping under CA ASPE
 income_statement = "../../mapping/income_statement_ca_aspe.csv"

@@ -3,6 +3,8 @@
 # International / IFRS
 # -------------------------------------------------------------------
 
+name = "IFRS"
+
 [paths.mapping]
 # Primary income statement mapping under IFRS.
 income_statement = "../../mapping/income_statement_ifrs.csv"

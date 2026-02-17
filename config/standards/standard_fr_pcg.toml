@@ -3,6 +3,8 @@
 # France / PCG
 # -------------------------------------------------------------------
 
+name = "FR PCG"
+
 [paths.mapping]
 # Mapping from FR PCG chart of accounts to the French income statement.
 income_statement = "../../mapping/income_statement_fr_pcg.csv"
