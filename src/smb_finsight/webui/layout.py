@@ -14,7 +14,7 @@ The layout TOML file defines:
 - page metadata (titles, icons, default periods),
 - dashboard tiles and charts (measures & ratios),
 - ratios/KPIs sections (measures/ratios tiles + draft charts),
-- statements, entries and configuration behaviour.
+- statements and entries behaviour.
 
 It is intentionally separate from the core engine configuration (see
 :mod:`smb_finsight.config`) so that the Web UI remains a thin, user-configurable
@@ -64,7 +64,7 @@ class MetaConfig:
             (e.g. "en", "fr").
         default_page: Page opened by default when the Web UI starts.
             Typically one of: "dashboard", "statements", "ratios",
-            "entries", "config".
+            "entries".
     """
 
     id: str
@@ -469,28 +469,6 @@ class EntriesPageConfig:
 
 
 @dataclass(frozen=True)
-class ConfigPageConfig:
-    """
-    Configuration for the Configuration page.
-
-    Attributes:
-        input_dir:
-            Directory (relative to the project root) where CSV files are
-            stored/read from.
-        on_existing_filename:
-            Behaviour when uploading a file whose name already exists in
-            the input directory: "ask", "overwrite", "keep_both" or "skip".
-        show_existing_files_selector:
-            Whether to show a drop-down list of existing CSV files so the
-            user can re-import them _parse_directly from the Web UI.
-    """
-
-    input_dir: str
-    on_existing_filename: str
-    show_existing_files_selector: bool
-
-
-@dataclass(frozen=True)
 class LayoutConfig:
     """
     Aggregated Web UI layout configuration.
@@ -513,8 +491,6 @@ class LayoutConfig:
             Statements page specific options.
         entries:
             Entries page specific options.
-        config:
-            Configuration page specific options.
     """
 
     meta: MetaConfig
@@ -523,7 +499,6 @@ class LayoutConfig:
     ratios_page: RatiosPageConfig
     statements: StatementsPageConfig
     entries: EntriesPageConfig
-    config: ConfigPageConfig
 
 
 # ---------------------------------------------------------------------------
@@ -1036,17 +1011,6 @@ def _parse_entries_page(root: Mapping[str, Any]) -> EntriesPageConfig:
     )
 
 
-def _parse_config_page(root: Mapping[str, Any]) -> ConfigPageConfig:
-    tbl = _expect_table(root.get("config_page"), "config_page")
-    return ConfigPageConfig(
-        input_dir=_get_str(tbl, "input_dir", "data/input"),
-        on_existing_filename=_get_str(tbl, "on_existing_filename", "ask"),
-        show_existing_files_selector=_get_bool(
-            tbl, "show_existing_files_selector", True
-        ),
-    )
-
-
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -1103,7 +1067,6 @@ def load_layout_config(path: str | Path) -> LayoutConfig:
     ratios_page = _parse_ratios_page(data)
     statements_cfg = _parse_statements_page(data)
     entries_cfg = _parse_entries_page(data)
-    config_cfg = _parse_config_page(data)
 
     return LayoutConfig(
         meta=meta,
@@ -1112,5 +1075,4 @@ def load_layout_config(path: str | Path) -> LayoutConfig:
         ratios_page=ratios_page,
         statements=statements_cfg,
         entries=entries_cfg,
-        config=config_cfg,
     )

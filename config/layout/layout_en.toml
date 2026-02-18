@@ -554,6 +554,69 @@ id = "config"
 title = "Configuration"
 icon = "⚙️"
 
+[pages.config.ui]
+
+# ---- Snapshot (top metrics) ----
+snapshot_standard = "Standard"
+snapshot_fiscal_year = "Fiscal year"
+snapshot_currency = "Currency"
+
+# ---- Common ----
+not_configured = "(not configured)"
+save_top = "Save configuration"
+save_bottom = "Save configuration"
+save_success = "Configuration saved."
+
+# ---- Section titles ----
+section_fiscal_year = "Fiscal Year"
+section_standard = "Accounting Standard"
+section_database = "Database"
+section_layout = "Layout"
+section_formatting = "Formatting"
+section_inputs = "Inputs"
+
+# ---- Fiscal year section ----
+fy_start_label = "Start date"
+fy_end_label = "End date"
+fy_validation_error = "Start date must be earlier than end date."
+
+# ---- Standard section ----
+std_selector_label = "Standard configuration"
+std_details_title = "Selected standard details"
+std_file_label = "Standard file"
+std_name_label = "Name"
+std_primary_label = "Primary label"
+std_secondary_label = "Secondary label"
+std_income_mapping_label = "Income statement mapping"
+std_secondary_mapping_label = "Secondary mapping"
+std_coa_label = "Chart of accounts"
+std_ratios_rules_label = "Ratios rules pack"
+std_custom_rules_label = "Custom ratios pack"
+
+# ---- Database section ----
+db_engine_label = "Engine"
+db_selector_label = "Database file"
+db_new_button = "New"
+db_new_filename_label = "Filename"
+db_new_switch_now = "Switch now"
+db_new_create_button = "Create"
+db_new_validation_error = "Please provide a filename."
+db_new_created_success = "Database created."
+
+# ---- Layout section ----
+layout_selector_label = "Layout configuration"
+
+# ---- Formatting section ----
+currency_label = "Currency"
+thousands_separator_label = "Thousands separator"
+
+# ---- Inputs section ----
+inputs_reset_button = "Reset inputs"
+inputs_reset_confirm = "Inputs cleared (not saved yet)."
+
+bs_title = "Balance sheet inputs"
+hr_title = "HR inputs"
+
 
 # -------------------------------------------------------------------
 # DASHBOARD LAYOUT
@@ -1406,23 +1469,3 @@ allowed_limits = [50, 100, 200, 500, 1000]
 max_limit = 2000
 
 
-
-# -------------------------------------------------------------------
-# CONFIG PAGE OPTIONS
-# -------------------------------------------------------------------
-# Controls behaviour of the Configuration page.
-
-[config_page]
-# Directory (relative to project root) where CSV files are stored/read from.
-input_dir = "data/input"
-
-# Behaviour when uploading a file with a name that already exists in input_dir:
-#   "ask"        -> ask the user what to do
-#   "overwrite"  -> replace the existing file
-#   "keep_both"  -> keep both, by adding a suffix to the new file
-#   "skip"       -> abort the upload
-on_existing_filename = "ask"
-
-# Whether to show a dropdown list of existing CSV files in input_dir
-# so the user can re-import them directly from the WebUI.
-show_existing_files_selector = true
