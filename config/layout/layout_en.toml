@@ -446,6 +446,13 @@ duplicate_existing_entry_missing = "Existing entry"
 duplicate_existing_entry_missing_value = "No linked entry found."
 duplicate_details_column_field = "Field"
 duplicate_details_column_value = "Value"
+duplicate_resolution_dialog_title = "Resolve duplicate entries"
+duplicate_keep_single_confirm_text = "Are you sure you want to keep this duplicate entry?"
+duplicate_keep_multiple_confirm_text = "Are you sure you want to keep these {count} duplicate entries?"
+duplicate_discard_single_confirm_text = "Are you sure you want to discard this duplicate entry?"
+duplicate_discard_multiple_confirm_text = "Are you sure you want to discard these {count} duplicate entries?"
+duplicate_resolution_comment = "Resolution comment"
+duplicate_resolution_comment_placeholder = "Error when importing, duplicate..."
 
 
 field_date = "Date"

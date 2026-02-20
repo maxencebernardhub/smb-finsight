@@ -28,7 +28,7 @@ presentation (CLI / Web UI), making it suitable for scripting, automation,
 consulting workflows, and financial diagnostics.
 
 
-Version: 0.4.5
+Version: 0.5.0
 
 Usage:
     python -m smb_finsight.cli --help
@@ -36,4 +36,4 @@ Usage:
 
 __all__ = ["engine", "mapping", "views", "io"]
 
-__version__ = "0.4.5"
+__version__ = "0.5.0"

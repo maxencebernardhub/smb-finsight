@@ -159,7 +159,7 @@ def _insert_manual_entry_with_batch(
     return res.status, res.batch_id
 
 
-@st.dialog("Entry")
+@st.dialog(" ")
 def open_entry_dialog(
     *,
     app_config: AppConfig,

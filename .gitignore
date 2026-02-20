@@ -38,3 +38,6 @@ src/smb_finsight.egg-info/
 
 # Ignore db files
 data/db/*.sqlite
+
+# VSCodeCounter (extension)
+.VSCodeCounter/

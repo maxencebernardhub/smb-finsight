@@ -182,7 +182,6 @@ def main() -> None:
             unsafe_allow_html=False,
             text_alignment="center",
         )
-        # st.caption("Docs: README · Release notes", text_alignment="center")
 
         # Copyright
         st.caption("© 2026 SMB FinSight", text_alignment="center")
