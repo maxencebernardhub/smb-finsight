@@ -557,7 +557,7 @@ icon = "⚙️"
 [pages.config.ui]
 
 # ---- Snapshot (top metrics) ----
-snapshot_standard = "Standard"
+snapshot_standard = "Accounting standard"
 snapshot_fiscal_year = "Fiscal year"
 snapshot_currency = "Currency"
 
@@ -596,7 +596,7 @@ std_custom_rules_label = "Custom ratios pack"
 # ---- Database section ----
 db_engine_label = "Engine"
 db_selector_label = "Database file"
-db_new_button = "New"
+db_new_button = "New database file"
 db_new_filename_label = "Filename"
 db_new_switch_now = "Switch now"
 db_new_create_button = "Create"
@@ -616,6 +616,22 @@ inputs_reset_confirm = "Inputs cleared (not saved yet)."
 
 bs_title = "Balance sheet inputs"
 hr_title = "HR inputs"
+
+[pages.config.ui.inputs.balance_sheet_labels]
+# same keys here as inside [inputs.balance_sheet] of smb_finsight_config.toml
+total_assets = "Total Assets"  # Total Assets
+total_equity = "Total Equity"  # Total Equity
+financial_debt = "Financial Debt"  # Financial debt (short + long term)
+cash_and_equivalents = "Cash and cash equivalents"  # Cash and cash equivalents
+accounts_receivable = "Trade receivables"  # Trade receivables
+accounts_payable = "Trade payables"  # Trade payables
+inventory = "Inventory"  # Inventory
+working_capital = "Working capital"  # Working capital (optional)
+interest_expense = "Interest Expense"
+
+[pages.config.ui.inputs.hr_labels]
+average_headcount = "Average headcount"
+
 
 
 # -------------------------------------------------------------------

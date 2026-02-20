@@ -75,15 +75,33 @@ default_level = "basic"
 # All fields below are optional. If a value is missing, any ratio that
 # depends on it will simply not be computed (it will be reported as N/A).
 
-total_assets         = 520000.00  # Total Assets
-total_equity         = 345000.00  # Total Equity
-financial_debt       = 85000.00  # Financial debt (short + long term)
-cash_and_equivalents = 285000.00  # Cash and cash equivalents
-accounts_receivable  = 165000.00  # Trade receivables
-accounts_payable     = 90000.00  # Trade payables
-inventory            = 15000.00  # Inventory
-working_capital      = 275000.00  # Working capital (optional)
-interest_expense     = 3800.00  # Interest expense on financial debt
+# Total Assets
+total_assets = 520000.0
+
+# Total Equity
+total_equity = 345000.0
+
+# Financial debt (short + long term)
+financial_debt = 85000.0
+
+# Cash and cash equivalents
+cash_and_equivalents = 285000.0
+
+# Trade receivables
+accounts_receivable = 165000.0
+
+# Trade payables
+accounts_payable = 90000.0
+
+# Inventory
+inventory = 15000.0
+
+# Working capital (optional)
+working_capital = 275000.0
+
+# Interest expense on financial debt
+interest_expense = 3800.0
+
 
 # -------------------------------------------------------------------
 # Optional inputs - Human resources
