@@ -52,9 +52,14 @@ def test_compute_derived_measures_integration() -> None:
         assert derived[k] == pytest.approx(v)
 
     # A few key derived measures should be present and numeric
-    for key in ("gross_margin", "gross_margin_pct", "caf", "net_margin_pct"):
+    for key in (
+        "gross_margin_abs",
+        "caf",
+        "operating_income_abs",
+        "net_income_abs",
+    ):
         assert key in derived
-        assert isinstance(derived[key], float)
+        assert isinstance(derived[key], (int, float))
 
 
 @pytest.mark.skipif(not RATIOS_RULES.exists(), reason="ratios_fr_pcg.toml not found")

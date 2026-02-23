@@ -144,7 +144,7 @@ def test_ifrs_basic_ratios(
             rel=1e-6,
             abs=0.01,
         )
-        == 100.0
+        == 1.0
     )
     assert (
         pytest.approx(
@@ -152,7 +152,7 @@ def test_ifrs_basic_ratios(
             rel=1e-6,
             abs=0.01,
         )
-        == -109.6348
+        == -1.096348
     )
     assert (
         pytest.approx(
@@ -160,5 +160,5 @@ def test_ifrs_basic_ratios(
             rel=1e-6,
             abs=0.01,
         )
-        == -109.6348
+        == -1.096348
     )

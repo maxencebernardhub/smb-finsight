@@ -2,7 +2,6 @@
 # SMB FinSight - Main configuration file
 # -------------------------------------------------------------------
 # Notes:
-# - Only [fiscal_year] is strictly required.
 # - All other sections and keys are optional.
 # - Any standard-specific configuration (mappings, ratios packs, etc.)
 #   will be loaded from a standard-specific config file, not here.
@@ -10,34 +9,35 @@
 
 [fiscal_year]
 # Default fiscal year used when no custom period is provided.
-start_date = "2025-01-01"
-end_date   = "2025-12-31"
+start_date = "2026-01-01"
+end_date   = "2026-12-31"
 
 # -------------------------------------------------------------------
 # Accounting standard
 # -------------------------------------------------------------------
 [accounting]
-# Main accounting standard used by the company.
-# Supported values (proposal):
-#   "FR_PCG"
-#   "CA_ASPE"
-#   "US_GAAP"
-#   "IFRS"
-standard = "FR_PCG"
 
 # Optional reporting currency (informational, for display).
-currency = "USD"
+# Supported: "CAD", "USD", "EUR"
+currency = "CAD"
 
-# Optional path to a standard-specific config file.
-# If empty, SMB FinSight will use the built-in default config
-# for the selected accounting standard.
-#
-# Example (for a French company):
-#   standard_config_file = "config/standard_fr_pcg.toml"
-#
+# Thousands separator used for display formatting.
+# Supported: "," or " "
+thousands_separator = ","
+
+# Path to a standard-specific config file (required).
+# This file defines the standard name displayed in the Web UI as well as
+# the statement mappings and ratios packs to load.
+# Four files are currently available : "US_GAAP" (United States
+#   Generally Accepted Accounting Principles), "IFRS" (International
+#   Financial Reporting Standards), "CA_ASPE" (Canadian Accounting 
+#   Standards for Private Enterprises), "FR_PCG" (Plan Comptable 
+#   Général Français).
 # Example (for a Canadian company under ASPE):
 #   standard_config_file = "config/standard_ca_aspe.toml"
-standard_config_file = "config/standard_fr_pcg.toml"
+# Example (for a French company):
+#   standard_config_file = "config/standard_fr_pcg.toml"
+standard_config_file = "config/standards/standard_ca_aspe.toml"
 
 # -------------------------------------------------------------------
 # Database
@@ -53,17 +53,19 @@ path = "data/db/smb_finsight.sqlite"
 
 
 # -------------------------------------------------------------------
-# Ratios & KPIs configuration (generic)
+# Ratios & KPIs configuration (for CLI only)
 # -------------------------------------------------------------------
 [ratios]
-# Enable or disable ratio and KPI computation.
-enabled = true
 
-# Default level of detail when displaying ratios in the CLI.
-# Possible values (proposal):
+# Default level of detail when displaying ratios.
+# Possible values:
 #   "basic"
 #   "advanced"
 #   "full"
+# Note (WebUI):
+#   The WebUI currently always computes ratios at level "full" because
+#   some dashboard tiles and charts depend on advanced/full ratios.
+#   This setting is currently used by the CLI only.
 default_level = "basic"
 
 # -------------------------------------------------------------------
@@ -73,15 +75,33 @@ default_level = "basic"
 # All fields below are optional. If a value is missing, any ratio that
 # depends on it will simply not be computed (it will be reported as N/A).
 
-total_assets         = 158045.05  # Total Assets
-total_equity         = 50000.00  # Total Equity
-financial_debt       = 25486.58  # Financial debt (short + long term)
-cash_and_equivalents = 103615.84  # Cash and cash equivalents
-accounts_receivable  = 35819.25  # Trade receivables
-accounts_payable     = 27695.62  # Trade payables
-inventory            = 2486.69  # Inventory
-working_capital      = 84635.35  # Working capital (optional)
-interest_expense     = 248.69  # Interest expense on financial debt
+# Total Assets
+total_assets = 520000.0
+
+# Total Equity
+total_equity = 345000.0
+
+# Financial debt (short + long term)
+financial_debt = 85000.0
+
+# Cash and cash equivalents
+cash_and_equivalents = 285000.0
+
+# Trade receivables
+accounts_receivable = 165000.0
+
+# Trade payables
+accounts_payable = 90000.0
+
+# Inventory
+inventory = 15000.0
+
+# Working capital (optional)
+working_capital = 275000.0
+
+# Interest expense on financial debt
+interest_expense = 3800.0
+
 
 # -------------------------------------------------------------------
 # Optional inputs - Human resources
@@ -89,25 +109,27 @@ interest_expense     = 248.69  # Interest expense on financial debt
 [inputs.hr]
 # Average headcount (or FTE) over the period.
 # Used for productivity ratios (revenue per FTE, VA per FTE, etc.).
-average_headcount = 52.0
+average_headcount = 11.5
 
 # -------------------------------------------------------------------
-# Optional inputs - Period parameters
+# CLI configuration
 # -------------------------------------------------------------------
-[inputs.period]
-# Number of days in the analysed period (for DSO/DPO/DIO, etc.).
-# Default could be 365 for a full year or adjusted to the period.
-period_days = 365
-
-# -------------------------------------------------------------------
-# Display options (generic)
-# -------------------------------------------------------------------
-[display]
+[cli]
 # Default output mode for tables:
 #   "table" -> console table (ASCII / Markdown-like)
 #   "csv"   -> CSV export
 #   "both"  -> console + CSV file
-mode = "table"
+display_mode = "table"
 
 # Number of decimals for ratio percentage display.
 ratio_decimals = 1
+
+# -------------------------------------------------------------------
+# Web UI configuration
+# -------------------------------------------------------------------
+[webui]
+# Path to the layout configuration file for the Web UI.
+# You can switch to the French version later with:
+# layout_config_path = "config/layout/layout_fr.toml"
+layout_config_path = "config/layout/layout_en.toml"
+

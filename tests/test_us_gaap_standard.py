@@ -134,16 +134,15 @@ def test_us_gaap_basic_ratios(
 
     # Validate computed values (rounded)
     assert (
-        pytest.approx(ratio_by_key["gross_margin_pct"].value, rel=1e-6, abs=0.01)
-        == 100.0
+        pytest.approx(ratio_by_key["gross_margin_pct"].value, rel=1e-6, abs=0.01) == 1.0
     )
     assert (
         pytest.approx(ratio_by_key["operating_margin_pct"].value, rel=1e-6, abs=0.01)
-        == -109.6348
+        == -1.096348
     )
     assert (
         pytest.approx(ratio_by_key["net_margin_pct"].value, rel=1e-6, abs=0.01)
-        == -109.6348
+        == -1.096348
     )
 
     # Label consistency checks for US GAAP

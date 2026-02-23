@@ -1,0 +1,1494 @@
+# -------------------------------------------------------------------
+# SMB FinSight - Layout configuration
+# English version
+
+# Layout configuration for SMB FinSight Web UI.
+#
+# This file controls:
+# - page titles & navigation options
+# - default period presets for some pages (primary & secondary)
+# - tiles & charts for some pages (measures/ratios)
+# - behaviour of statements, entries, duplicates, import pages
+#
+# GENERAL PRINCIPLES
+# ------------------
+# This layout file configures the WebUI navigation and per-page settings.
+#
+# 1) Page registry:
+#    Each page is declared under [pages.<page>] with:
+#      - id    : unique page identifier used by the router
+#      - title : page title shown in navigation and header
+#      - icon  : emoji/icon displayed in navigation
+#      - [pages.<page>.ui] : page-specific UI labels, defaults and messages
+#
+# 2) Separation of concerns:
+#    - This file defines "what to display" and UI behavior for each page.
+#    - Business definitions (formulas, units, default labels, notes) live in
+#      the computation packs (canonical measures and ratios_*.toml).
+#    - The layout SHOULD NOT duplicate business definitions by default.
+#      It may override UI-only aspects (label, tooltips, delta display policy).
+#
+# 3) Scope of optional features:
+#    - Some pages are analytical and may use period controls and comparisons
+#      (e.g., Dashboard, Ratios & KPIs, Income Statement).
+#    - Other pages are operational and typically do not use periods
+#      (e.g., Entries, Duplicates, Import & Configuration).
+#    - Period-related settings (presets/granularity) are therefore defined
+#      only inside the relevant page sections.
+
+# -------------------------------------------------------------------
+
+[meta]
+id = "default_en"          # Identifier of this layout configuration
+schema_version = "0.5.0"   # Layout schema version understood by the WebUI
+language = "en"            # Main language of labels/titles in this file
+default_page = "dashboard" # Page opened by default: dashboard | statements | ratios | entries | duplicates | import_config
+
+# -------------------------------------------------------------------
+# PAGE DEFINITIONS
+# -------------------------------------------------------------------
+# Each [pages.<page>] section defines:
+#   - id: internal identifier of the page (used by the router)
+#   - title: label used in navigation and page header
+#   - icon: small emoji/icon in navigation (optional)
+#   - (optional) allow_secondary_period:
+#       Only meaningful for analytical pages that support comparisons
+#       (e.g., Dashboard, Ratios, Income Statement).
+#       If true, the UI can offer a comparison period selector and deltas.
+#   - (optional) nested [pages.<page>.periods] block:
+#       Only for pages that need period presets / granularity controls.
+#       Operational pages typically omit this block.
+#   - [pages.<page>.ui]:
+#       Page-specific UI labels, defaults and messages.
+# -------------------------------------------------------------------
+
+# ----------------- Dashboard page -----------------
+[pages.dashboard]
+id = "dashboard"
+title = "Dashboard"
+icon = "📊"
+
+# allow_secondary_period:
+# - true  -> the UI can display a comparison period selector and compute deltas
+# - false -> primary period only (no comparison selector, no deltas)
+allow_secondary_period = true
+
+[pages.dashboard.ui]
+# UI labels and defaults for the Dashboard.
+# This block controls:
+# - section titles
+# - labels for period controls (primary/comparison/granularity)
+# - default state of the comparison toggle
+# - formatting of the selected date range label
+# - common validation error messages (e.g., custom end < start)
+
+section_key_metrics = "Key metrics"
+section_trends = "Trends"
+default_enable_comparison = false               # if true, the "Compare to another period" toggle is enabled by default
+
+label_primary_period = "Primary period"
+label_comparison_toggle = "Compare to another period"
+label_comparison_period = "Comparison period"
+label_granularity = "Granularity"
+
+label_custom_from = "From"
+label_custom_to = "To"
+
+# Tooltips / help
+help_primary_period = "Select the primary reporting period."
+help_comparison_toggle = "Enable to compare against another period."
+help_comparison_period = "Select the comparison period."
+help_granularity = "Granularity affects charts. Metrics always reflect the full selected period."
+
+error_custom_end_before_start = "End date cannot be earlier than start date."
+
+
+[pages.dashboard.periods]
+
+# Default periods behaviour for Dashboard:
+#   - default_primary_preset: main period used when the user first arrives on the page
+#   - default_comparison_preset: default secondary period (comparison)
+#   - default_granularity: default sub-period granularity for charts
+#   - allowed_granularities: which granularities the user can choose in the UI
+#
+# Example preset values:
+#   FY             -> current fiscal year based on the configured fiscal calendar
+#   FY_PREV        -> previous fiscal year
+#   YTD            -> year-to-date (current FY)
+#   YTD_PREV_FY    -> YTD of previous FY (for comparison)
+#   MTD            -> month-to-date
+#   LAST_MONTH     -> previous calendar/fiscal month
+#   CUSTOM         -> user-defined period (UI)
+
+
+default_primary_preset = "YTD"
+default_comparison_preset = "SAME_PERIOD_PREV_FY"
+default_granularity = "MONTH"                    # DAY | WEEK | MONTH | QUARTER | FY (for "whole year")
+allowed_granularities = ["DAY", "WEEK", "MONTH", "QUARTER", "CY", "FY"]
+
+[pages.dashboard.periods.primary_preset_labels]
+FY = "Current fiscal year"
+YTD = "Year to date (current FY)"
+MTD = "Month to date"
+LAST_MONTH = "Last month"
+CUSTOM = "Custom period"
+
+[pages.dashboard.periods.comparison_preset_labels]
+FY_PREV = "Previous fiscal year"
+YTD_PREV_FY = "Year to date (previous FY)"
+LAST_MONTH = "Last month"
+PREV_PERIOD = "Previous period"
+SAME_PERIOD_PREV_FY = "Same period previous FY"
+CUSTOM = "Custom period"
+
+[pages.dashboard.periods.granularity_labels]
+DAY = "Day"
+WEEK = "Week"
+MONTH = "Month"
+QUARTER = "Quarter"
+CY = "Calendar year"
+FY = "Fiscal year"
+
+[pages.dashboard.periods.user_presets]
+Q4_2025 = { label = "Q4 2025", start = "2025-10-01", end = "2025-12-31" }
+FY2022  = { label = "FY 2022",  start = "2022-01-01", end = "2022-12-31" }
+
+
+# ----------------- Statements page -----------------
+[pages.statements]
+id = "statements"
+title = "Income Statement"
+icon = "📑"
+
+# allow_secondary_period:
+# - true  -> the UI can display a comparison period selector and compute deltas
+# - false -> primary period only (no comparison selector, no deltas)
+allow_secondary_period = true
+
+# View level control
+# simplified | regular | detailed | complete
+default_view = "detailed"         # simplified | regular | detailed | complete
+
+[pages.statements.ui]
+label_primary_period = "Primary period"
+label_comparison_toggle = "Compare to another period"
+label_comparison_period = "Comparison period"
+label_view = "View level"
+label_header_line = "REVENUE / EXPENSE"
+label_header_amount = "AMOUNT ($)"
+
+help_primary_period = "Select the primary reporting period."
+help_comparison_toggle = "Enable to compare against another period."
+help_comparison_period = "Select the comparison period."
+help_view = "Controls how much detail is shown in the statement."
+
+view_labels = { simplified = "Simplified", regular = "Regular", detailed = "Detailed", complete = "Complete" }
+
+label_primary_statement = "Income statement"
+label_secondary_statement = "Secondary statement"
+
+msg_no_entries = "No accounting entries found for the selected period."
+
+
+# Default periods for the Statements page:
+[pages.statements.periods]
+
+default_primary_preset = "FY"
+default_comparison_preset = "FY_PREV"
+
+[pages.statements.periods.primary_preset_labels]
+FY = "Current fiscal year"
+YTD = "Year to date (current FY)"
+MTD = "Month to date"
+LAST_MONTH = "Last month"
+CUSTOM = "Custom period"
+
+[pages.statements.periods.comparison_preset_labels]
+FY_PREV = "Previous fiscal year"
+YTD_PREV_FY = "Year to date (previous FY)"
+LAST_MONTH = "Last month"
+PREV_PERIOD = "Previous period"
+SAME_PERIOD_PREV_FY = "Same period previous FY"
+CUSTOM = "Custom period"
+
+[pages.statements.periods.user_presets]
+Q4_2025 = { label = "Q4 2025", start = "2025-10-01", end = "2025-12-31" }
+FY2022  = { label = "FY 2022",  start = "2022-01-01", end = "2022-12-31" }
+
+
+# ----------------- Ratios & KPIs page -----------------
+[pages.ratios]
+id = "ratios"
+title = "Ratios & KPIs"
+icon = "📈"
+
+# allow_secondary_period:
+# - true  -> the UI can display a comparison period selector and compute deltas
+# - false -> primary period only (no comparison selector, no deltas)
+allow_secondary_period = true
+
+[pages.ratios.ui]
+# UI labels and defaults for the Ratios & KPIs page.
+# This block controls:
+# - labels for period controls (primary/comparison/granularity)
+# - default state of the comparison toggle
+# - labels for the two metric blocks within each section ("Amounts" then "Ratios")
+# - common "N/A" / validation error messages
+# - Granularity affects charts; tiles always reflect the full selected period.
+
+default_enable_comparison = false   # if true, the "Compare to another period" toggle is enabled by default
+
+# Top controls
+label_primary_period = "Primary period"
+label_comparison_period = "Comparison period"
+label_comparison_toggle = "Compare to another period"
+label_granularity = "Granularity"
+
+# Custom period inputs
+label_custom_from = "From"
+label_custom_to = "To"
+
+# Tooltips / help
+help_primary_period = "Select the primary reporting period."
+help_comparison_toggle = "Enable to compare against another period."
+help_comparison_period = "Select the comparison period."
+help_granularity = "Granularity affects charts. Metrics always reflect the full selected period."
+
+error_custom_end_before_start = "End date cannot be earlier than start date."
+
+[pages.ratios.periods]
+# Default period presets and granularity options for the Ratios page.
+# Granularity affects charts; tiles always reflect full periods.
+
+default_primary_preset = "FY"
+default_comparison_preset = "SAME_PERIOD_PREV_FY"
+default_granularity = "MONTH"                    # DAY | WEEK | MONTH | QUARTER | FY (for "whole year")
+allowed_granularities = ["DAY", "WEEK", "MONTH", "QUARTER", "CY", "FY"]
+
+[pages.ratios.periods.primary_preset_labels]
+FY = "Current fiscal year"
+YTD = "Year to date (current FY)"
+MTD = "Month to date"
+LAST_MONTH = "Last month"
+CUSTOM = "Custom period"
+
+[pages.ratios.periods.comparison_preset_labels]
+FY_PREV = "Previous fiscal year"
+YTD_PREV_FY = "Year to date (previous FY)"
+LAST_MONTH = "Last month"
+PREV_PERIOD = "Previous period"
+SAME_PERIOD_PREV_FY = "Same period previous FY"
+CUSTOM = "Custom period"
+
+[pages.ratios.periods.granularity_labels]
+DAY = "Day"
+WEEK = "Week"
+MONTH = "Month"
+QUARTER = "Quarter"
+CY = "Calendar year"
+FY = "Fiscal year"
+
+[pages.ratios.periods.user_presets]
+Q4_2025 = { label = "Q4 2025", start = "2025-10-01", end = "2025-12-31" }
+FY2022  = { label = "FY 2022",  start = "2022-01-01", end = "2022-12-31" }
+
+
+# ----------------- Entries page -----------------
+[pages.entries]
+id = "entries"
+title = "Entries"
+icon = "📘"
+
+[pages.entries.ui]
+
+# ----- Sub-view selector (segmented control / pills)
+subviews_entries = "Entries"
+subviews_import = "Import"
+subviews_duplicates = "Duplicates ({count})"
+subviews_recycle_bin = "Recycle bin"
+
+# ----- General actions
+button_add_entry = "Add entry"
+button_edit_entry = "Edit entry"
+button_soft_delete = "Delete"
+button_restore = "Restore"
+button_confirm = "Confirm"
+button_cancel = "Cancel"
+
+# ----- Add single entry dialog
+manual_entry_dialog_title_add = "Add single entry"
+manual_entry_date_label = "Date"
+manual_entry_account_code_label = "Account code"
+manual_entry_description_label = "Description"
+manual_entry_input_mode_label = "Input mode"
+manual_entry_input_mode_amount = "Amount"
+manual_entry_input_mode_debit_credit = "Debit / Credit"
+manual_entry_amount_label = "Amount"
+manual_entry_debit_label = "Debit"
+manual_entry_credit_label = "Credit"
+manual_entry_computed_amount_info = "Computed amount = debit - credit"
+manual_entry_reject_unknown_toggle = "Reject unknown accounts (prefix matching)"
+manual_entry_amount_information_note = "Signed amount: positive = debit, negative = credit (convention used by SMB FinSight)."
+manual_entry_save_button = "Save"
+
+
+# ----- Badges / info
+badge_unknown_accounts = "Unknown accounts detected"
+
+# ----- Filters (Entries & Duplicates)
+filter_period = "Period"
+filter_code = "Account code"
+filter_description = "Description contains"
+filter_amount = "Amount"
+filter_amount_min = "Min amount"
+filter_amount_max = "Max amount"
+filter_import_batch = "Import batch"
+filter_resolution_status = "Resolution status"
+
+# ----- Toggles
+toggle_include_deleted = "Include deleted entries"
+toggle_reject_unknown_accounts = "Reject unknown accounts (prefix matching)"
+toggle_unknown_only = "Show unknown accounts only"
+
+# ----- Table column labels (Entries)
+column_date = "Date"
+column_code = "Account code"
+column_description = "Description"
+column_amount = "Amount"
+column_import_batch = "Import batch"
+column_updated_at = "Last updated"
+column_imported_at = "Imported at"
+
+# ----- Table column labels (Duplicates)
+resolution_status = "Resolution status"
+resolution_at = "Resolved at"
+resolved_by = "Resolved by"
+resolution_comment = "Resolution notes"
+
+# ----- Table column labels (Recycle bin)
+column_deleted_reason = "Deletion reason"
+column_deleted_at = "Deleted at"
+
+# ----- Import view
+# Left panel: Import CSV
+import_section_title = "Import CSV"
+import_uploader_label = "Upload CSV file"
+import_label_input_label = "Import label (optional)"
+import_label_input_placeholder = "e.g. QuickBooks export - Jan 2026"
+import_reject_unknown_toggle_label = "Reject unknown accounts"
+import_reject_unknown_toggle_help = "If enabled, entries with account codes not present in the chart of accounts will be rejected."
+import_button_import = "Import"
+import_button_import_help = "Click here to import the file."
+
+# Left panel: Results
+import_results_section_title = "Results"
+import_results_success_message = "Import completed."
+import_results_metric_inserted = "Inserted"
+import_results_metric_duplicates = "Duplicates"
+import_results_metric_unknown_rejected = "Unknown rejected"
+import_results_button_view_unknown = "View & download rejected entries"
+import_results_button_view_unknown_help = "Opens a dialog listing rejected rows and allowing CSV download."
+
+# Right panel: Import history
+import_history_section_title = "Import history"
+import_history_caption_select_one = "Select exactly one batch to enable actions."
+
+# History table columns
+import_history_col_selected_label = ""
+import_history_col_selected_help = "Select exactly one batch."
+import_history_col_created_at = "Created at"
+import_history_col_created_at_format = "YYYY-MM-DD HH:mm"
+import_history_col_source_type = "Source type"
+import_history_col_source_label = "Source label"
+import_history_col_rows_inserted = "Rows inserted"
+import_history_col_notes = "Notes"
+import_history_col_id = "id"
+
+# History actions
+import_history_button_display_entries = "Display entries"
+import_history_button_display_entries_help = "Open a dialog to display entries for the selected batch."
+import_history_button_display_duplicates = "Display duplicates"
+import_history_button_display_duplicates_help = "Open a dialog to display duplicates for the selected batch."
+
+import_dialog_entries_title = "Import batch entries"
+import_dialog_entries_empty = "No entries found for this import batch."
+import_dialog_duplicates_title = "Import batch duplicates"
+import_dialog_duplicates_empty = "No duplicates found for this import batch."
+import_dialog_unknown_title = "Unknown accounts rejected"
+import_dialog_no_rejected_rows = "No rejected rows to display."
+import_dialog_download_button = "Download rejected rows (CSV)"
+
+# ----- Import errors
+import_error_no_file = "Please upload a CSV file."
+import_error_empty_file = "The uploaded CSV contains no rows."
+import_error_missing_chart_of_accounts = "Cannot reject unknown accounts: no chart of accounts configured for the current standard."
+import_error_no_known_entries = "All rows were rejected as unknown accounts. Nothing was imported."
+import_error_generic = "Import failed."
+
+
+# ----- Duplicate resolution
+duplicate_button_keep = "Keep"
+duplicate_button_discard = "Discard"
+duplicate_button_view_details = "View details"
+#duplicate_resolution_comment = "Resolution comment"
+#duplicate_resolution_dialog_title = "Resolve duplicate entries"
+
+# ----- Duplicate view
+resolution_status_pending = "Pending"
+resolution_status_kept = "Kept"
+resolution_status_discarded = "Discarded"
+resolution_status_all = "All"
+
+duplicate_view_details_title = "Duplicate details"
+duplicate_view_details_left = "Duplicate candidate"
+duplicate_view_details_right = "Existing entry"
+duplicate_existing_entry_missing = "Existing entry"
+duplicate_existing_entry_missing_value = "No linked entry found."
+duplicate_details_column_field = "Field"
+duplicate_details_column_value = "Value"
+duplicate_resolution_dialog_title = "Resolve duplicate entries"
+duplicate_keep_single_confirm_text = "Are you sure you want to keep this duplicate entry?"
+duplicate_keep_multiple_confirm_text = "Are you sure you want to keep these {count} duplicate entries?"
+duplicate_discard_single_confirm_text = "Are you sure you want to discard this duplicate entry?"
+duplicate_discard_multiple_confirm_text = "Are you sure you want to discard these {count} duplicate entries?"
+duplicate_resolution_comment = "Resolution comment"
+duplicate_resolution_comment_placeholder = "Error when importing, duplicate..."
+
+
+field_date = "Date"
+field_code = "Account code"
+field_description = "Description"
+field_amount = "Amount"
+field_imported_at = "Imported at"
+field_import_batch = "Import batch"
+field_resolution_status = "Resolution status"
+field_resolution_at = "Resolved at"
+field_resolved_by = "Resolved by"
+field_resolution_comment = "Resolution notes"
+field_updated_at = "Last updated"
+field_is_deleted = "Deleted?"
+field_deleted_at = "Deleted at"
+field_deleted_reason = "Deletion reason"
+
+# ----- Dialog titles
+dialog_edit_entry_title = "Edit entry"
+dialog_delete_title = "Delete selected entries"
+dialog_restore_title = "Restore selected entries"
+
+# ----- Custom period inputs
+label_custom_from = "From"
+label_custom_to = "To"
+
+# ----- Placeholders
+placeholder_filter_code = "e.g. 606 or 606*"
+placeholder_filter_description = "e.g. rent, invoice, amazon"
+placeholder_filter_amount_min = "e.g. 0 or -100.00"
+placeholder_filter_amount_max = "e.g. 1000.00"
+
+# ----- Tooltips / help
+help_period = "Select the period covered by desired entries."
+help_filter_code = 'Type an account code (e.g. "606") or use "\*" for prefix (e.g. "606\*").'
+help_filter_description = "Filter entries whose description contains this text."
+help_filter_amount = "Filter entries with a minimum or maximum amount value."
+help_filter_import_batch = "Filter entries with import batch."
+help_toggle_unknown_only = "Activate this if you want to list only entries with unknown account codes."
+help_toggle_include_deleted = "Activate this if you want to include deleted entries."
+help_selected_column = "Select one or more rows for actions."
+
+# ----- Warning or error messages
+error_custom_end_before_start = "End date cannot be earlier than start date."
+warning_amount_min_gt_max = "Min amount cannot be greater than max amount."
+warning_max_limit = "Results exceed the display limit. Narrow filters to reduce the number of rows."
+add_entry_unknown_account_code = "Unknown account code (no prefix match in the chart of accounts)."
+duplicate_detected_warning = "Duplicate detected → stored in Duplicates "
+manual_entry_err_amount_required = "Amount is required."
+manual_entry_err_debit_credit_both = "Debit and Credit cannot be both filled."
+manual_entry_err_date_required = "Date is required."
+manual_entry_err_account_required = "Account code is required."
+manual_entry_err_amount_nonzero = "Amount must be non-zero."
+warning_edit_single_only = "You can only edit one row at a time."
+error_entry_not_found = "Selected entry not found."
+duplicates_already_resolved_warning = "At least one selected duplicate is already resolved (kept/discarded). You cannot resolve duplicates twice."
+
+
+# ----- Success messages
+manual_entry_flash_created = "Entry created"
+delete_success = "{count} entries deleted."
+
+# ----- Info messages
+info_edit_select_one = "Select one row to edit."
+
+# ----- Delete dialog
+delete_single_confirm_text = "Are you sure you want to delete this entry? This can be undone from the Recycle bin."
+delete_multiple_confirm_text = "Are you sure you want to delete these {count} entries? This can be undone from the Recycle bin."
+delete_reason_label = "Reason for deletion (optional):"
+delete_reason_placeholder = "e.g., wrong entry, imported twice, test data…"
+
+
+# ----- Restore dialog
+restore_single_confirm_text = "Are you sure you want to restore this entry?"
+restore_multiple_confirm_text = "Are you sure you want to restore these {count} entries?"
+restore_success = "{count} entries restored."
+
+# ----- For the batch control
+option_import_batch_all = "All batches"
+
+
+# ----- Entries - Period configuration ----- 
+# ------------------------------------------
+[pages.entries.periods]
+
+# Default period preset when opening the Entries page
+default_primary_preset = "ALL"
+
+[pages.entries.periods.primary_preset_labels]
+ALL = "All periods"
+FY = "Current fiscal year"
+YTD = "Year to date (current FY)"
+MTD = "Month to date"
+LAST_MONTH = "Last month"
+CUSTOM = "Custom period"
+
+[pages.entries.periods.user_presets]
+Q4_2025 = { label = "Q4 2025", start = "2025-10-01", end = "2025-12-31" }
+FY2022  = { label = "FY 2022",  start = "2022-01-01", end = "2022-12-31" }
+
+
+
+# ----------------- Config page -----------------
+[pages.config]
+id = "config"
+title = "Configuration"
+icon = "⚙️"
+
+[pages.config.ui]
+
+# ---- Snapshot (top metrics) ----
+snapshot_standard = "Accounting standard"
+snapshot_fiscal_year = "Fiscal year"
+snapshot_currency = "Currency"
+
+# ---- Common ----
+not_configured = "(not configured)"
+save_top = "Save configuration"
+save_bottom = "Save configuration"
+save_success = "Configuration saved."
+
+# ---- Section titles ----
+section_fiscal_year = "Fiscal Year"
+section_standard = "Accounting Standard"
+section_database = "Database"
+section_layout = "Layout"
+section_formatting = "Formatting"
+section_inputs = "Inputs"
+
+# ---- Fiscal year section ----
+fy_start_label = "Start date"
+fy_end_label = "End date"
+fy_validation_error = "Start date must be earlier than end date."
+
+# ---- Standard section ----
+std_selector_label = "Standard configuration"
+std_details_title = "Selected standard details"
+std_file_label = "Standard file"
+std_name_label = "Name"
+std_primary_label = "Primary label"
+std_secondary_label = "Secondary label"
+std_income_mapping_label = "Income statement mapping"
+std_secondary_mapping_label = "Secondary mapping"
+std_coa_label = "Chart of accounts"
+std_ratios_rules_label = "Ratios rules pack"
+std_custom_rules_label = "Custom ratios pack"
+
+# ---- Database section ----
+db_engine_label = "Engine"
+db_selector_label = "Database file"
+db_new_button = "New database file"
+db_new_filename_label = "Filename"
+db_new_switch_now = "Switch now"
+db_new_create_button = "Create"
+db_new_validation_error = "Please provide a filename."
+db_new_created_success = "Database created."
+
+# ---- Layout section ----
+layout_selector_label = "Layout configuration"
+
+# ---- Formatting section ----
+currency_label = "Currency"
+thousands_separator_label = "Thousands separator"
+
+# ---- Inputs section ----
+inputs_reset_button = "Reset inputs"
+inputs_reset_confirm = "Inputs cleared (not saved yet)."
+
+bs_title = "Balance sheet inputs"
+hr_title = "HR inputs"
+
+[pages.config.ui.inputs.balance_sheet_labels]
+# same keys here as inside [inputs.balance_sheet] of smb_finsight_config.toml
+total_assets = "Total Assets"  # Total Assets
+total_equity = "Total Equity"  # Total Equity
+financial_debt = "Financial Debt"  # Financial debt (short + long term)
+cash_and_equivalents = "Cash and cash equivalents"  # Cash and cash equivalents
+accounts_receivable = "Trade receivables"  # Trade receivables
+accounts_payable = "Trade payables"  # Trade payables
+inventory = "Inventory"  # Inventory
+working_capital = "Working capital"  # Working capital (optional)
+interest_expense = "Interest Expense"
+
+[pages.config.ui.inputs.hr_labels]
+average_headcount = "Average headcount"
+
+
+
+# -------------------------------------------------------------------
+# DASHBOARD LAYOUT
+# -------------------------------------------------------------------
+# The dashboard is a configurable overview page composed of:
+# - metric tiles (st.metric-like cards)
+# - charts
+#
+# Dashboard items are defined explicitly (one entry per tile / per chart),
+# because this page is meant to be highly customizable.
+#
+# Notes on data sources:
+# - Tiles and charts reference computed "measures" or "ratios" by key.
+# - Default label/unit/notes are provided by the computation packs.
+# - This dashboard layout may override UI-only fields (label, formatting,
+#   delta display policy, tooltip text).
+#
+# Period controls:
+# - The dashboard can use a primary period and an optional comparison period.
+# - Page defaults are defined under [pages.dashboard.periods].
+# - Individual tiles/charts may optionally override presets (rare):
+#     period_preset / comparison_preset
+#
+# Delta semantics:
+# - delta_good_direction controls whether an increase is considered "good"
+#   ("up") or a decrease is considered "good" ("down") for coloring.
+# - show_delta_abs / show_delta_pct control delta display (if comparison enabled).
+
+
+[dashboard]
+
+# ===== DASHBOARD TILES (metrics) =====
+#
+# Each [[dashboard.tiles]] entry defines a tile (metric card).
+# Fields:
+#   id                : unique identifier within dashboard tiles
+#   source            : "measure" | "ratio" | "system"
+#   key               : measure/ratio/system identifier
+#   label             : display label for the tile
+#   format            : "amount" | "percent" | "number" (optional override of underlying unit)
+#   show_delta_abs    : whether to show absolute delta vs secondary period
+#   show_delta_pct    : whether to show relative delta vs secondary period
+#   delta_good_direction : "up" | "down"
+#   tooltip_from      : "measure_notes" | "ratio_notes" | "none"
+
+[[dashboard.tiles]]
+id = "revenue"
+source = "measure"
+key = "revenue_abs"
+label = "Revenue"
+format = "amount"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "up"
+tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "gross_margin"
+source = "measure"
+key = "gross_margin_abs"
+label = "Gross margin"
+format = "amount"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "up"
+tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "operating_income"
+source = "measure"
+key = "operating_income_abs"
+label = "Operating income"
+format = "amount"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "up"
+tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "net_income"
+source = "measure"
+key = "net_income_abs"
+label = "Net income"
+format = "amount"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "up"
+tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "external_charges_abs"
+source = "measure"
+key = "external_charges_abs"
+label = "External charges"
+format = "amount"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "down"
+tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "roce_pct"
+source = "ratio"
+key = "roce_pct"
+label = "ROCE (%)"
+format = "percent"
+show_delta_abs = true
+show_delta_pct = false
+delta_good_direction = "up"
+tooltip_from = "ratio_notes"
+
+[[dashboard.tiles]]
+id = "equity_ratio_pct"
+source = "ratio"
+key = "equity_ratio_pct"
+label = "Equity ratio (%)"
+format = "percent"
+show_delta_abs = true
+show_delta_pct = false
+delta_good_direction = "up"
+tooltip_from = "ratio_notes"
+
+[[dashboard.tiles]]
+id = "dso_days"
+source = "ratio"
+key = "dso_days"
+label = "DSO (Days Sales Outstanding) (days)"
+format = "number"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "down"
+tooltip_from = "ratio_notes"
+
+# NOTE:
+# We deliberately do NOT define a "duplicates" tile on the Dashboard.
+# Instead, the Duplicates page can show a badge/notification in the navigation
+# when there are pending duplicates (see [duplicates_page] section below).
+
+
+# ===== DASHBOARD CHARTS =====
+#
+# Each [[dashboard.charts]] defines a chart.
+# Fields:
+#   id                : unique identifier of the chart
+#   type              : "line" | "bar"
+#   title             : chart title
+#   default_granularity / allowed_granularities :
+#                      controls how the primary period is split into subperiods.
+# Granularity is used for charts (time series). Summary tiles always use full periods.
+
+# Sub-tables:
+#   [[dashboard.charts.series]]
+#   - source : "measure" | "ratio"
+#   - key    : measure/ratio identifier
+#   - label  : label in the legend
+
+[[dashboard.charts]]
+id = "revenue_and_margin_evolution"
+type = "line"
+title = "Revenue & gross margin evolution"
+
+
+[[dashboard.charts.series]]
+source = "measure"
+key = "revenue_abs"
+label = "Revenue"
+
+[[dashboard.charts.series]]
+source = "measure"
+key = "gross_margin_abs"
+label = "Gross margin"
+
+
+[[dashboard.charts]]
+id = "profitability_evolution"
+type = "bar"
+title = "Profitability evolution"
+
+
+[[dashboard.charts.series]]
+source = "measure"
+key = "operating_income_abs"
+label = "Operating income"
+
+[[dashboard.charts.series]]
+source = "measure"
+key = "net_income_abs"
+label = "Net income"
+
+
+# -------------------------------------------------------------------
+# RATIOS & KPIs PAGE
+# -------------------------------------------------------------------
+#
+# Purpose:
+# - Define the Ratios & KPIs page content and ordering.
+# - The page is organized into semantic sections.
+# - Within each section, we render:
+#     1) Measures (amount-valued metrics)  -> tiles
+#     2) Ratios (percent/days/multiples)   -> tiles
+#     3) Charts (optional, later)          -> charts
+#
+# Key design principles:
+# - Do NOT duplicate labels/units/notes in layout by default.
+#   The "pack" (ratios_*.toml) remains the source of truth for:
+#     - label (default)
+#     - unit
+#     - notes
+#     - formula
+#     - category
+#
+# - UI overrides are allowed when needed (label, delta display, tooltip).
+#
+# Tile spec rules:
+# - key: metric identifier, must exist in the computed outputs.
+# - delta_good_direction: REQUIRED. Values: "up" or "down".
+#   "up"   means an increase vs comparison is considered good (green).
+#   "down" means a decrease vs comparison is considered good (green).
+#
+# Optional overrides (if present, they override the pack):
+# - label: overrides the default label from the pack.
+# - show_delta_abs: overrides delta absolute display (true/false).
+# - show_delta_pct: overrides delta percent display (true/false).
+# - tooltip_from: overrides the tooltip text. If omitted, we use pack notes.
+#   If present, tooltip_from must be a string and will REPLACE pack notes.
+#
+# Ordering:
+# - The display order is exactly the order of [[...]] items in this file.
+# -------------------------------------------------------------------
+
+[ratios_page]
+
+# --------------------- Section 1: Profitability ---------------------
+[[ratios_page.sections]]
+id = "profitability"
+title = "Profitability"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "revenue_abs"
+delta_good_direction = "up"
+# label = "Revenue"
+# show_delta_abs = true
+# show_delta_pct = true
+# tooltip_from = "Revenue in absolute value."
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "gross_margin_abs"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "gross_margin_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "ebitda_abs"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "ebitda_margin_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "operating_income_abs"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "operating_margin_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "net_income_abs"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "net_margin_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.charts]]
+id = "revenue_trend"
+title = "Revenue trend"
+type = "area_line"
+series = [
+  { source = "measure", key = "revenue_abs", label = "Revenue" },
+]
+
+[[ratios_page.sections.charts]]
+id = "gross_profit_trend"
+title = "Gross profit trend"
+type = "bar"
+series = [
+  { source = "measure", key = "gross_margin_abs", label = "Gross profit" },
+]
+
+[[ratios_page.sections.charts]]
+id = "ebitda_trend"
+title = "EBITDA trend"
+type = "bar"
+series = [
+  { source = "measure", key = "ebitda_abs", label = "EBITDA" },
+]
+
+[[ratios_page.sections.charts]]
+id = "ebit_trend"
+title = "Operating income (EBIT) trend"
+type = "bar"
+series = [
+  { source = "measure", key = "operating_income_abs", label = "EBIT" },
+]
+
+[[ratios_page.sections.charts]]
+id = "net_income_trend"
+title = "Net income trend"
+type = "bar"
+series = [
+  { source = "measure", key = "net_income_abs", label = "Net income" },
+]
+
+[[ratios_page.sections.charts]]
+id = "margins_trend"
+title = "All Margins trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "gross_margin_pct", label = "Gross margin", format = "percent" },
+  { source = "ratio", key = "operating_margin_pct", label = "Operating margin", format = "percent" },
+  { source = "ratio", key = "net_margin_pct", label = "Net margin", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "gross_margin_rate_trend"
+title = "Gross margin rate trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "gross_margin_pct", label = "Gross margin rate", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "ebitda_margin_rate_trend"
+title = "EBITDA margin rate trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "ebitda_margin_pct", label = "EBITDA margin rate", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "operating_margin_rate_trend"
+title = "Operating margin rate trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "operating_margin_pct", label = "Operating margin rate", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "net_margin_rate_trend"
+title = "Net margin rate trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "net_margin_pct", label = "Net margin rate", format = "percent" },
+]
+
+
+# ---------------- Section 2: Efficiency & cost structure ----------------
+[[ratios_page.sections]]
+id = "efficiency_cost"
+title = "Efficiency & cost structure"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "cogs_abs"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "cogs_ratio_pct"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "operating_expenses_abs"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "operating_expense_ratio_pct"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "external_charges_abs"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "external_charges_pct"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "personnel_expenses_abs"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "personnel_expenses_pct"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "finance_cost_abs"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "finance_cost_ratio_pct"
+delta_good_direction = "down"
+
+[[ratios_page.sections.charts]]
+id = "cogs_trend"
+title = "COGS trend"
+type = "bar"
+series = [
+  { source = "measure", key = "cogs_abs", label = "COGS" },
+]
+
+[[ratios_page.sections.charts]]
+id = "operating_expenses_trend"
+title = "Operating expenses trend"
+type = "bar"
+series = [
+  { source = "measure", key = "operating_expenses_abs", label = "Operating expenses" },
+]
+
+[[ratios_page.sections.charts]]
+id = "external_charges_trend"
+title = "External charges trend"
+type = "bar"
+series = [
+  { source = "measure", key = "external_charges_abs", label = "External charges" },
+]
+
+[[ratios_page.sections.charts]]
+id = "personnel_expenses_trend"
+title = "Personnel expenses trend"
+type = "bar"
+series = [
+  { source = "measure", key = "personnel_expenses_abs", label = "Personnel expenses" },
+]
+
+[[ratios_page.sections.charts]]
+id = "finance_cost_trend"
+title = "Finance cost trend"
+type = "bar"
+series = [
+  { source = "measure", key = "finance_cost_abs", label = "Finance cost" },
+]
+
+[[ratios_page.sections.charts]]
+id = "cogs_rate_trend"
+title = "COGS / Revenue trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "cogs_ratio_pct", label = "COGS / Revenue", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "operating_expense_ratio_trend"
+title = "Operating expenses / Revenue trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "operating_expense_ratio_pct", label = "Operating expenses / Revenue", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "external_charges_ratio_trend"
+title = "External charges / Revenue trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "external_charges_pct", label = "External charges / Revenue", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "personnel_expenses_ratio_trend"
+title = "Personnel expenses / Revenue trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "personnel_expenses_pct", label = "Personnel expenses / Revenue", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "finance_cost_ratio_trend"
+title = "Finance cost / Revenue trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "finance_cost_ratio_pct", label = "Finance cost / Revenue", format = "percent" },
+]
+
+# --------------------- Section 3: Productivity ---------------------
+[[ratios_page.sections]]
+id = "productivity"
+title = "Productivity"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "revenue_per_fte"
+delta_good_direction = "up"
+
+[[ratios_page.sections.charts]]
+id = "revenue_per_fte_trend"
+title = "Revenue per FTE trend"
+type = "area_line"
+series = [
+  { source = "measure", key = "revenue_per_fte", label = "Revenue per FTE" },
+]
+
+# --------------------- Section 4: Tax ---------------------
+[[ratios_page.sections]]
+id = "tax"
+title = "Tax"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "income_before_tax_abs"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "income_tax_abs"
+delta_good_direction = "down"
+# tooltip_from = "Income tax expense (absolute). Lower is generally better for a given profit level."
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "effective_tax_rate_pct"
+delta_good_direction = "down"
+
+[[ratios_page.sections.charts]]
+id = "income_before_tax_trend"
+title = "Income before income taxes trend"
+type = "bar"
+series = [
+  { source = "measure", key = "income_before_tax_abs", label = "Income before tax" },
+]
+
+[[ratios_page.sections.charts]]
+id = "income_tax_expense_trend"
+title = "Income tax expense trend"
+type = "bar"
+series = [
+  { source = "measure", key = "income_tax_abs", label = "Income tax expense" },
+]
+
+[[ratios_page.sections.charts]]
+id = "effective_tax_rate_trend"
+title = "Effective tax rate trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "effective_tax_rate_pct", label = "Effective tax rate", format = "percent" },
+]
+
+# --------------------- Section 5: Returns ---------------------
+[[ratios_page.sections]]
+id = "returns"
+title = "Returns"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "roce_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "roe_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "roa_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.charts]]
+id = "roce_trend"
+title = "ROCE trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "roce_pct", label = "ROCE", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "roe_trend"
+title = "ROE trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "roe_pct", label = "ROE", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "roa_trend"
+title = "ROA trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "roa_pct", label = "ROA", format = "percent" },
+]
+
+# --------------------- Section 6: Financial structure & leverage ---------------------
+[[ratios_page.sections]]
+id = "structure"
+title = "Financial structure & leverage"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "capital_employed"
+delta_good_direction = "up"
+# NOTE: depending on interpretation, capital employed "up" is not always "good".
+# Keep explicit anyway.
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "net_debt"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "equity_ratio_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "debt_to_equity"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "gearing"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "finance_cost_coverage"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "net_debt_to_ebitda"
+delta_good_direction = "down"
+
+[[ratios_page.sections.charts]]
+id = "capital_employed_trend"
+title = "Capital employed trend"
+type = "bar"
+series = [
+  { source = "measure", key = "capital_employed", label = "Capital employed" },
+]
+
+[[ratios_page.sections.charts]]
+id = "net_debt_trend"
+title = "Net debt trend"
+type = "bar"
+series = [
+  { source = "measure", key = "net_debt", label = "Net debt" },
+]
+
+[[ratios_page.sections.charts]]
+id = "equity_ratio_trend"
+title = "Equity ratio trend (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "equity_ratio_pct", label = "Equity ratio", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "debt_to_equity_trend"
+title = "Debt to equity trend"
+type = "area_line"
+series = [
+  { source = "ratio", key = "debt_to_equity", label = "Debt to equity" },
+]
+
+[[ratios_page.sections.charts]]
+id = "gearing_trend"
+title = "Gearing (Net debt / Equity) trend"
+type = "area_line"
+series = [
+  { source = "ratio", key = "gearing", label = "Gearing" },
+]
+
+[[ratios_page.sections.charts]]
+id = "finance_cost_coverage_trend"
+title = "EBIT / Finance costs trend"
+type = "area_line"
+series = [
+  { source = "ratio", key = "finance_cost_coverage", label = "EBIT / Finance costs" },
+]
+
+[[ratios_page.sections.charts]]
+id = "net_debt_to_ebitda_trend"
+title = "Net debt / EBITDA trend"
+type = "area_line"
+series = [
+  { source = "ratio", key = "net_debt_to_ebitda", label = "Net debt / EBITDA" },
+]
+
+# --------------------- Section 7: Working capital ---------------------
+[[ratios_page.sections]]
+id = "working_capital"
+title = "Working capital"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "dso_days"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "dpo_days"
+delta_good_direction = "up"
+# NOTE: "up is good" is a common interpretation (better supplier financing),
+# but context-dependent. You chose explicit direction, so keep it explicit.
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "dio_days"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "cash_conversion_cycle_days"
+delta_good_direction = "down"
+
+[[ratios_page.sections.charts]]
+id = "dso_trend"
+title = "Days Sales Outstanding trend (days)"
+type = "area_line"
+series = [
+  { source = "ratio", key = "dso_days", label = "DSO", format = "number" },
+]
+
+[[ratios_page.sections.charts]]
+id = "dpo_trend"
+title = "Days Payable Outstanding trend (days)"
+type = "area_line"
+series = [
+  { source = "ratio", key = "dpo_days", label = "DPO", format = "number" },
+]
+
+[[ratios_page.sections.charts]]
+id = "dio_trend"
+title = "Days Inventory Outstanding trend (days)"
+type = "area_line"
+series = [
+  { source = "ratio", key = "dio_days", label = "DIO", format = "number" },
+]
+
+[[ratios_page.sections.charts]]
+id = "cash_conversion_cycle_trend"
+title = "Cash conversion cycle trend (days)"
+type = "area_line"
+series = [
+  { source = "ratio", key = "cash_conversion_cycle_days", label = "Cash conversion cycle", format = "number" },
+]
+
+
+# -------------------------------------------------------------------
+# STATEMENTS PAGE OPTIONS
+# -------------------------------------------------------------------
+# These options control how the income statement is displayed.
+
+[statements_page]
+
+# Secondary statement rendering when it exists:
+# - "tabs"    : primary + secondary in tabs
+# - "stacked" : primary then secondary below
+secondary_statement_display = "tabs"  # "tabs" | "stacked"
+
+# Zero-line behavior in comparison mode:
+#   true  -> hide lines where both periods are zero (and delta is zero)
+#   false -> show all lines, even if both periods are zero
+hide_zero_lines_in_comparison = true
+
+# Zero-line behavior in single-period mode:
+#   true  -> hide lines where the amount is zero
+#   false -> show the full structure, including zero lines
+hide_zero_lines_single_period = true
+
+# "engine_signed" : show engine values as-is (revenues +, expenses -)
+# "traditional"   : show abs(amount) but indicate negatives from engine
+amount_display_mode = "traditional"  # "engine_signed" | "traditional"
+
+# How to indicate values that are negative in engine (when mode="traditional"):
+# - "parentheses" : (1,234)
+# - "color"  : colored cells
+# - "both"        : parentheses + highlighted cells
+negative_amount_indicator = "both"  # "parentheses" | "color" | "both"
+
+# If non-empty, display a legend below the table(s)
+legend_text = "Parentheses / colored amounts indicate values that are negative in the underlying data."
+
+
+# -------------------------------------------------------------------
+# ENTRIES PAGE OPTIONS
+# -------------------------------------------------------------------
+# Controls which columns are visible and how manual entries behave.
+
+[entries_page]
+
+# ------------------------------------------------------------
+# Manual entry (Add / Edit dialogs)
+# ------------------------------------------------------------
+[entries_page.manual_entry]
+
+# Default input mode for dialogs:
+# - "amount"        → single signed amount
+# - "debit_credit"  → debit / credit inputs, converted to amount
+input_mode = "amount"
+
+# Default value for the toggle:
+# "Reject unknown accounts (prefix matching)"
+toggle_default_reject_unknown_accounts = true
+
+# ------------------------------------------------------------
+# Import behavior
+# ------------------------------------------------------------
+[entries_page.import]
+
+# Default state of "Reject unknown accounts" toggle for CSV import
+default_reject_unknown_accounts = true
+
+# ------------------------------------------------------------
+# Pagination defaults
+# ------------------------------------------------------------
+[entries_page.pagination]
+
+# NOTE: v0.5.0 uses a soft display cap (max_limit) but does not implement pagination yet.
+# default_limit and allowed_limits are reserved for a future pagination feature.
+
+# Default number of rows per page
+default_limit = 200
+
+# Allowed page size options exposed to the user
+allowed_limits = [50, 100, 200, 500, 1000]
+
+# Hard cap to avoid UI freezing on large datasets
+max_limit = 2000
+
+

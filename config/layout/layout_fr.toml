@@ -1,0 +1,1278 @@
+# -------------------------------------------------------------------
+# SMB FinSight - Layout configuration
+# Version française
+
+# Configuration de layout pour l’interface Web SMB FinSight.
+#
+# Ce fichier contrôle :
+# - titres des pages et options de navigation
+# - préréglages de périodes par défaut pour certaines pages (primaire & comparaison)
+# - tuiles & graphiques pour certaines pages (mesures/ratios)
+# - comportement des pages états, écritures, doublons, import, configuration
+#
+# PRINCIPES GÉNÉRAUX
+# ------------------
+# Ce fichier de layout configure la navigation WebUI et les réglages par page.
+#
+# 1) Registre des pages :
+#    Chaque page est déclarée sous [pages.<page>] avec :
+#      - id    : identifiant unique utilisé par le routeur
+#      - title : titre affiché dans la navigation et l’en-tête
+#      - icon  : emoji/icone affiché dans la navigation
+#      - [pages.<page>.ui] : libellés UI, valeurs par défaut, messages spécifiques
+#
+# 2) Séparation des responsabilités :
+#    - Ce fichier définit “quoi afficher” et le comportement UI pour chaque page.
+#    - Les définitions métier (formules, unités, libellés par défaut, notes) vivent
+#      dans les packs de calcul (mesures canoniques et ratios_*.toml).
+#    - Le layout NE DOIT PAS dupliquer les définitions métier par défaut.
+#      Il peut surcharger des aspects purement UI (label, infobulles, politique de delta).
+#
+# 3) Périmètre des fonctionnalités optionnelles :
+#    - Certaines pages sont analytiques et peuvent utiliser des contrôles de période
+#      et des comparaisons (ex. Dashboard, Ratios & KPIs, Compte de résultat).
+#    - D’autres pages sont opérationnelles et n’utilisent généralement pas de périodes
+#      (ex. Écritures, Doublons, Import & Configuration).
+#    - Les réglages de période (préréglages/granularité) ne sont donc définis
+#      que dans les sections des pages concernées.
+
+# -------------------------------------------------------------------
+
+[meta]
+id = "default_fr"          # Identifiant de cette configuration de layout
+schema_version = "0.5.0"   # Version du schéma comprise par la WebUI
+language = "fr"            # Langue principale des libellés/titres dans ce fichier
+default_page = "dashboard" # Page ouverte par défaut : dashboard | statements | ratios | entries | duplicates | import_config
+
+# -------------------------------------------------------------------
+# DÉFINITION DES PAGES
+# -------------------------------------------------------------------
+# Chaque section [pages.<page>] définit :
+#   - id : identifiant interne de la page (utilisé par le routeur)
+#   - title : libellé dans la navigation et l’en-tête
+#   - icon : petit emoji/icone dans la navigation (optionnel)
+#   - (optionnel) allow_secondary_period :
+#       Pertinent seulement pour les pages analytiques supportant la comparaison.
+#       Si true, l’UI peut proposer une période de comparaison et afficher des deltas.
+#   - (optionnel) bloc [pages.<page>.periods] :
+#       Uniquement pour les pages nécessitant des préréglages / contrôles de granularité.
+#   - [pages.<page>.ui] :
+#       Libellés UI, valeurs par défaut et messages spécifiques à la page.
+# -------------------------------------------------------------------
+
+# ----------------- Page Dashboard -----------------
+[pages.dashboard]
+id = "dashboard"
+title = "Tableau de bord"
+icon = "📊"
+
+# allow_secondary_period:
+# - true  -> l’UI peut afficher un sélecteur de période de comparaison et calculer les deltas
+# - false -> période primaire uniquement (pas de comparaison, pas de deltas)
+allow_secondary_period = true
+
+[pages.dashboard.ui]
+# Libellés UI et valeurs par défaut pour le Dashboard.
+
+section_key_metrics = "Indicateurs clés"
+section_trends = "Tendances"
+default_enable_comparison = false               # si true, “Comparer à une autre période” est activé par défaut
+
+label_primary_period = "Période principale"
+label_comparison_toggle = "Comparer à une autre période"
+label_comparison_period = "Période de comparaison"
+label_granularity = "Granularité"
+
+label_custom_from = "Du"
+label_custom_to = "Au"
+
+# Infobulles / aide
+help_primary_period = "Sélectionnez la période principale de reporting."
+help_comparison_toggle = "Activez pour comparer avec une autre période."
+help_comparison_period = "Sélectionnez la période de comparaison."
+help_granularity = "La granularité affecte les graphiques. Les métriques reflètent toujours la période complète sélectionnée."
+
+error_custom_end_before_start = "La date de fin ne peut pas être antérieure à la date de début."
+
+
+[pages.dashboard.periods]
+
+# Comportement des périodes par défaut pour le Dashboard.
+
+default_primary_preset = "YTD"
+default_comparison_preset = "SAME_PERIOD_PREV_FY"
+default_granularity = "MONTH"                    # DAY | WEEK | MONTH | QUARTER | FY (pour “année entière”)
+allowed_granularities = ["DAY", "WEEK", "MONTH", "QUARTER", "CY", "FY"]
+
+[pages.dashboard.periods.primary_preset_labels]
+FY = "Exercice fiscal en cours"
+YTD = "Cumul à date (exercice en cours)"
+MTD = "Cumul du mois"
+LAST_MONTH = "Mois précédent"
+CUSTOM = "Période personnalisée"
+
+[pages.dashboard.periods.comparison_preset_labels]
+FY_PREV = "Exercice fiscal précédent"
+YTD_PREV_FY = "Cumul à date (exercice précédent)"
+LAST_MONTH = "Mois précédent"
+PREV_PERIOD = "Période précédente"
+SAME_PERIOD_PREV_FY = "Même période de l’exercice précédent"
+CUSTOM = "Période personnalisée"
+
+[pages.dashboard.periods.granularity_labels]
+DAY = "Jour"
+WEEK = "Semaine"
+MONTH = "Mois"
+QUARTER = "Trimestre"
+CY = "Année civile"
+FY = "Exercice fiscal"
+
+[pages.dashboard.periods.user_presets]
+Q4_2025 = { label = "T4 2025", start = "2025-10-01", end = "2025-12-31" }
+FY2022  = { label = "Ex. 2022",  start = "2022-01-01", end = "2022-12-31" }
+
+
+# ----------------- Page États -----------------
+[pages.statements]
+id = "statements"
+title = "Compte de résultat"
+icon = "📑"
+
+allow_secondary_period = true
+
+# Contrôle du niveau de vue
+# simplified | regular | detailed | complete
+default_view = "detailed"
+
+[pages.statements.ui]
+label_primary_period = "Période principale"
+label_comparison_toggle = "Comparer à une autre période"
+label_comparison_period = "Période de comparaison"
+label_view = "Niveau de vue"
+label_header_line = "PRODUITS / CHARGES"
+label_header_amount = "MONTANT (€)"
+
+help_primary_period = "Sélectionnez la période principale de reporting."
+help_comparison_toggle = "Activez pour comparer avec une autre période."
+help_comparison_period = "Sélectionnez la période de comparaison."
+help_view = "Contrôle le niveau de détail affiché dans l’état."
+
+view_labels = { simplified = "Simplifiée", regular = "Standard", detailed = "Détaillée", complete = "Complète" }
+
+label_primary_statement = "Compte de résultat"
+label_secondary_statement = "État secondaire"
+
+msg_no_entries = "Aucune écriture comptable trouvée pour la période sélectionnée."
+
+
+[pages.statements.periods]
+default_primary_preset = "FY"
+default_comparison_preset = "FY_PREV"
+
+[pages.statements.periods.primary_preset_labels]
+FY = "Exercice fiscal en cours"
+YTD = "Cumul à date (exercice en cours)"
+MTD = "Cumul du mois"
+LAST_MONTH = "Mois précédent"
+CUSTOM = "Période personnalisée"
+
+[pages.statements.periods.comparison_preset_labels]
+FY_PREV = "Exercice fiscal précédent"
+YTD_PREV_FY = "Cumul à date (exercice précédent)"
+LAST_MONTH = "Mois précédent"
+PREV_PERIOD = "Période précédente"
+SAME_PERIOD_PREV_FY = "Même période de l’exercice précédent"
+CUSTOM = "Période personnalisée"
+
+[pages.statements.periods.user_presets]
+Q4_2025 = { label = "T4 2025", start = "2025-10-01", end = "2025-12-31" }
+FY2022  = { label = "Ex. 2022",  start = "2022-01-01", end = "2022-12-31" }
+
+
+# ----------------- Page Ratios & KPIs -----------------
+[pages.ratios]
+id = "ratios"
+title = "Ratios & KPIs"
+icon = "📈"
+
+allow_secondary_period = true
+
+[pages.ratios.ui]
+default_enable_comparison = false
+
+label_primary_period = "Période principale"
+label_comparison_period = "Période de comparaison"
+label_comparison_toggle = "Comparer à une autre période"
+label_granularity = "Granularité"
+
+label_custom_from = "Du"
+label_custom_to = "Au"
+
+help_primary_period = "Sélectionnez la période principale de reporting."
+help_comparison_toggle = "Activez pour comparer avec une autre période."
+help_comparison_period = "Sélectionnez la période de comparaison."
+help_granularity = "La granularité affecte les graphiques. Les métriques reflètent toujours la période complète sélectionnée."
+
+error_custom_end_before_start = "La date de fin ne peut pas être antérieure à la date de début."
+
+[pages.ratios.periods]
+default_primary_preset = "FY"
+default_comparison_preset = "SAME_PERIOD_PREV_FY"
+default_granularity = "MONTH"
+allowed_granularities = ["DAY", "WEEK", "MONTH", "QUARTER", "CY", "FY"]
+
+[pages.ratios.periods.primary_preset_labels]
+FY = "Exercice fiscal en cours"
+YTD = "Cumul à date (exercice en cours)"
+MTD = "Cumul du mois"
+LAST_MONTH = "Mois précédent"
+CUSTOM = "Période personnalisée"
+
+[pages.ratios.periods.comparison_preset_labels]
+FY_PREV = "Exercice fiscal précédent"
+YTD_PREV_FY = "Cumul à date (exercice précédent)"
+LAST_MONTH = "Mois précédent"
+PREV_PERIOD = "Période précédente"
+SAME_PERIOD_PREV_FY = "Même période de l’exercice précédent"
+CUSTOM = "Période personnalisée"
+
+[pages.ratios.periods.granularity_labels]
+DAY = "Jour"
+WEEK = "Semaine"
+MONTH = "Mois"
+QUARTER = "Trimestre"
+CY = "Année civile"
+FY = "Exercice fiscal"
+
+[pages.ratios.periods.user_presets]
+Q4_2025 = { label = "T4 2025", start = "2025-10-01", end = "2025-12-31" }
+FY2022  = { label = "Ex. 2022",  start = "2022-01-01", end = "2022-12-31" }
+
+
+# ----------------- Page Écritures -----------------
+[pages.entries]
+id = "entries"
+title = "Écritures"
+icon = "📘"
+
+[pages.entries.ui]
+
+# ----- Sélecteur de sous-vue (segmented control / pills)
+subviews_entries = "Écritures"
+subviews_import = "Import"
+subviews_duplicates = "Doublons ({count})"
+subviews_recycle_bin = "Corbeille"
+
+# ----- Actions générales
+button_add_entry = "Ajouter une écriture"
+button_edit_entry = "Modifier l’écriture"
+button_soft_delete = "Supprimer"
+button_restore = "Restaurer"
+button_confirm = "Confirmer"
+button_cancel = "Annuler"
+
+# ----- Dialogue d’ajout d’écriture
+manual_entry_dialog_title_add = "Ajouter une écriture"
+manual_entry_date_label = "Date"
+manual_entry_account_code_label = "Code de compte"
+manual_entry_description_label = "Description"
+manual_entry_input_mode_label = "Mode de saisie"
+manual_entry_input_mode_amount = "Montant"
+manual_entry_input_mode_debit_credit = "Débit / Crédit"
+manual_entry_amount_label = "Montant"
+manual_entry_debit_label = "Débit"
+manual_entry_credit_label = "Crédit"
+manual_entry_computed_amount_info = "Montant calculé = débit - crédit"
+manual_entry_reject_unknown_toggle = "Rejeter les comptes inconnus (préfixe)"
+manual_entry_amount_information_note = "Montant signé : positif = débit, négatif = crédit (convention SMB FinSight)."
+manual_entry_save_button = "Enregistrer"
+
+# ----- Badges / info
+badge_unknown_accounts = "Comptes inconnus détectés"
+
+# ----- Filtres (Écritures & Doublons)
+filter_period = "Période"
+filter_code = "Code de compte"
+filter_description = "Description contient"
+filter_amount = "Montant"
+filter_amount_min = "Montant min."
+filter_amount_max = "Montant max."
+filter_import_batch = "Lot d’import"
+filter_resolution_status = "Statut de résolution"
+
+# ----- Toggles
+toggle_include_deleted = "Inclure les écritures supprimées"
+toggle_reject_unknown_accounts = "Rejeter les comptes inconnus (préfixe)"
+toggle_unknown_only = "Afficher uniquement les comptes inconnus"
+
+# ----- Libellés colonnes (Écritures)
+column_date = "Date"
+column_code = "Code de compte"
+column_description = "Description"
+column_amount = "Montant"
+column_import_batch = "Lot d’import"
+column_updated_at = "Dernière mise à jour"
+column_imported_at = "Importé le"
+
+# ----- Libellés colonnes (Doublons)
+resolution_status = "Statut de résolution"
+resolution_at = "Résolu le"
+resolved_by = "Résolu par"
+resolution_comment = "Notes de résolution"
+
+# ----- Libellés colonnes (Corbeille)
+column_deleted_reason = "Motif de suppression"
+column_deleted_at = "Supprimé le"
+
+# ----- Vue Import
+import_section_title = "Importer un CSV"
+import_uploader_label = "Téléverser un fichier CSV"
+import_label_input_label = "Libellé d’import (optionnel)"
+import_label_input_placeholder = "ex. export QuickBooks - janv. 2026"
+import_reject_unknown_toggle_label = "Rejeter les comptes inconnus"
+import_reject_unknown_toggle_help = "Si activé, les écritures dont le code de compte n’existe pas dans le plan comptable seront rejetées."
+import_button_import = "Importer"
+import_button_import_help = "Cliquez ici pour importer le fichier."
+
+# Résultats
+import_results_section_title = "Résultats"
+import_results_success_message = "Import terminé."
+import_results_metric_inserted = "Insérées"
+import_results_metric_duplicates = "Doublons"
+import_results_metric_unknown_rejected = "Inconnus rejetés"
+import_results_button_view_unknown = "Voir & télécharger les écritures rejetées"
+import_results_button_view_unknown_help = "Ouvre une fenêtre listant les lignes rejetées et permettant le téléchargement CSV."
+
+# Historique
+import_history_section_title = "Historique des imports"
+import_history_caption_select_one = "Sélectionnez exactement un lot pour activer les actions."
+
+# Colonnes historique
+import_history_col_selected_label = ""
+import_history_col_selected_help = "Sélectionnez exactement un lot."
+import_history_col_created_at = "Créé le"
+import_history_col_created_at_format = "YYYY-MM-DD HH:mm"
+import_history_col_source_type = "Type de source"
+import_history_col_source_label = "Libellé de source"
+import_history_col_rows_inserted = "Lignes insérées"
+import_history_col_notes = "Notes"
+import_history_col_id = "id"
+
+# Actions historique
+import_history_button_display_entries = "Afficher les écritures"
+import_history_button_display_entries_help = "Ouvre une fenêtre pour afficher les écritures du lot sélectionné."
+import_history_button_display_duplicates = "Afficher les doublons"
+import_history_button_display_duplicates_help = "Ouvre une fenêtre pour afficher les doublons du lot sélectionné."
+
+import_dialog_entries_title = "Écritures du lot d’import"
+import_dialog_entries_empty = "Aucune écriture trouvée pour ce lot d’import."
+import_dialog_duplicates_title = "Doublons du lot d’import"
+import_dialog_duplicates_empty = "Aucun doublon trouvé pour ce lot d’import."
+import_dialog_unknown_title = "Comptes inconnus rejetés"
+import_dialog_no_rejected_rows = "Aucune ligne rejetée à afficher."
+import_dialog_download_button = "Télécharger les lignes rejetées (CSV)"
+
+# Erreurs import
+import_error_no_file = "Veuillez téléverser un fichier CSV."
+import_error_empty_file = "Le CSV téléversé ne contient aucune ligne."
+import_error_missing_chart_of_accounts = "Impossible de rejeter les comptes inconnus : aucun plan comptable n’est configuré pour le standard actuel."
+import_error_no_known_entries = "Toutes les lignes ont été rejetées comme comptes inconnus. Rien n’a été importé."
+import_error_generic = "Échec de l’import."
+
+# Résolution doublons
+duplicate_button_keep = "Conserver"
+duplicate_button_discard = "Écarter"
+duplicate_button_view_details = "Voir le détail"
+
+# Vue Doublons
+resolution_status_pending = "En attente"
+resolution_status_kept = "Conservé"
+resolution_status_discarded = "Écarté"
+resolution_status_all = "Tous"
+
+duplicate_view_details_title = "Détail du doublon"
+duplicate_view_details_left = "Candidat doublon"
+duplicate_view_details_right = "Écriture existante"
+duplicate_existing_entry_missing = "Écriture existante"
+duplicate_existing_entry_missing_value = "Aucune écriture liée trouvée."
+duplicate_details_column_field = "Champ"
+duplicate_details_column_value = "Valeur"
+duplicate_resolution_dialog_title = "Résoudre des écritures en doublon"
+duplicate_keep_single_confirm_text = "Etes-vous certain(e) de vouloir conserver cette écriture ?"
+duplicate_keep_multiple_confirm_text = "Etes-vous certain(e) de vouloir conserver ces {count} écritures ?"
+duplicate_discard_single_confirm_text = "Etes-vous certain(e) de vouloir écarter cette écriture ?"
+duplicate_discard_multiple_confirm_text = "Etes-vous certain(e) de vouloir écarter ces {count} écritures ?"
+duplicate_resolution_comment = "Commentaire de résolution"
+duplicate_resolution_comment_placeholder = "Erreur à l'import, doublon..."
+
+field_date = "Date"
+field_code = "Code de compte"
+field_description = "Description"
+field_amount = "Montant"
+field_imported_at = "Importé le"
+field_import_batch = "Lot d’import"
+field_resolution_status = "Statut de résolution"
+field_resolution_at = "Résolu le"
+field_resolved_by = "Résolu par"
+field_resolution_comment = "Notes de résolution"
+field_updated_at = "Dernière mise à jour"
+field_is_deleted = "Supprimé ?"
+field_deleted_at = "Supprimé le"
+field_deleted_reason = "Motif de suppression"
+
+# Titres de dialogues
+dialog_edit_entry_title = "Modifier l’écriture"
+dialog_delete_title = "Supprimer les écritures sélectionnées"
+dialog_restore_title = "Restaurer les écritures sélectionnées"
+
+# Période personnalisée
+label_custom_from = "Du"
+label_custom_to = "Au"
+
+# Placeholders
+placeholder_filter_code = "ex. 606 ou 606*"
+placeholder_filter_description = "ex. loyer, facture, amazon"
+placeholder_filter_amount_min = "ex. 0 ou -100.00"
+placeholder_filter_amount_max = "ex. 1000.00"
+
+# Aide / infobulles
+help_period = "Sélectionnez la période couverte par les écritures souhaitées."
+help_filter_code = 'Saisissez un code de compte (ex. "606") ou utilisez "\*" comme préfixe (ex. "606\*").'
+help_filter_description = "Filtre les écritures dont la description contient ce texte."
+help_filter_amount = "Filtre les écritures par montant minimum ou maximum."
+help_filter_import_batch = "Filtre les écritures par lot d’import."
+help_toggle_unknown_only = "Activez pour n’afficher que les écritures avec codes de compte inconnus."
+help_toggle_include_deleted = "Activez pour inclure les écritures supprimées."
+help_selected_column = "Sélectionnez une ou plusieurs lignes pour les actions."
+
+# Messages avertissement / erreur
+error_custom_end_before_start = "La date de fin ne peut pas être antérieure à la date de début."
+warning_amount_min_gt_max = "Le montant minimum ne peut pas être supérieur au maximum."
+warning_max_limit = "Les résultats dépassent la limite d’affichage. Affinez les filtres pour réduire le nombre de lignes."
+add_entry_unknown_account_code = "Code de compte inconnu (aucune correspondance par préfixe dans le plan comptable)."
+duplicate_detected_warning = "Doublon détecté → stocké dans Doublons "
+manual_entry_err_amount_required = "Le montant est obligatoire."
+manual_entry_err_debit_credit_both = "Débit et Crédit ne peuvent pas être remplis simultanément."
+manual_entry_err_date_required = "La date est obligatoire."
+manual_entry_err_account_required = "Le code de compte est obligatoire."
+manual_entry_err_amount_nonzero = "Le montant doit être non nul."
+warning_edit_single_only = "Vous ne pouvez modifier qu’une seule ligne à la fois."
+error_entry_not_found = "Écriture sélectionnée introuvable."
+duplicates_already_resolved_warning = "Au moins un doublon sélectionné est déjà résolu (conservé/écarté). Vous ne pouvez pas résoudre un doublon deux fois."
+
+# Succès
+manual_entry_flash_created = "Écriture créée"
+delete_success = "{count} écritures supprimées."
+
+# Info
+info_edit_select_one = "Sélectionnez une ligne à modifier."
+
+# Dialogue suppression
+delete_single_confirm_text = "Voulez-vous vraiment supprimer cette écriture ? Ceci peut être annulé depuis la Corbeille."
+delete_multiple_confirm_text = "Voulez-vous vraiment supprimer ces {count} écritures ? Ceci peut être annulé depuis la Corbeille."
+delete_reason_label = "Motif de suppression (optionnel) :"
+delete_reason_placeholder = "ex. écriture erronée, importée deux fois, données de test…"
+
+# Dialogue restauration
+restore_single_confirm_text = "Voulez-vous vraiment restaurer cette écriture ?"
+restore_multiple_confirm_text = "Voulez-vous vraiment restaurer ces {count} écritures ?"
+restore_success = "{count} écritures restaurées."
+
+# Contrôle lot
+option_import_batch_all = "Tous les lots"
+
+
+# ----- Écritures - Configuration des périodes -----
+[pages.entries.periods]
+default_primary_preset = "ALL"
+
+[pages.entries.periods.primary_preset_labels]
+ALL = "Toutes périodes"
+FY = "Exercice fiscal en cours"
+YTD = "Cumul à date (exercice en cours)"
+MTD = "Cumul du mois"
+LAST_MONTH = "Mois précédent"
+CUSTOM = "Période personnalisée"
+
+[pages.entries.periods.user_presets]
+Q4_2025 = { label = "T4 2025", start = "2025-10-01", end = "2025-12-31" }
+FY2022  = { label = "Ex. 2022",  start = "2022-01-01", end = "2022-12-31" }
+
+
+# ----------------- Page Configuration -----------------
+[pages.config]
+id = "config"
+title = "Configuration"
+icon = "⚙️"
+
+[pages.config.ui]
+
+# ---- Snapshot (métriques en haut) ----
+snapshot_standard = "Standard comptable"
+snapshot_fiscal_year = "Exercice fiscal"
+snapshot_currency = "Devise"
+
+# ---- Commun ----
+not_configured = "(non configuré)"
+save_top = "Enregistrer la configuration"
+save_bottom = "Enregistrer la configuration"
+save_success = "Configuration enregistrée."
+
+# ---- Titres de sections ----
+section_fiscal_year = "Exercice fiscal"
+section_standard = "Standard comptable"
+section_database = "Base de données"
+section_layout = "Mise en page"
+section_formatting = "Formatage"
+section_inputs = "Paramètres"
+
+# ---- Exercice fiscal ----
+fy_start_label = "Date de début"
+fy_end_label = "Date de fin"
+fy_validation_error = "La date de début doit être antérieure à la date de fin."
+
+# ---- Standard ----
+std_selector_label = "Configuration du standard"
+std_details_title = "Détails du standard sélectionné"
+std_file_label = "Fichier standard"
+std_name_label = "Nom"
+std_primary_label = "Libellé principal"
+std_secondary_label = "Libellé secondaire"
+std_income_mapping_label = "Mapping compte de résultat"
+std_secondary_mapping_label = "Mapping secondaire"
+std_coa_label = "Plan comptable"
+std_ratios_rules_label = "Pack de règles de ratios"
+std_custom_rules_label = "Pack de ratios personnalisés"
+
+# ---- Base de données ----
+db_engine_label = "Moteur"
+db_selector_label = "Fichier de base"
+db_new_button = "Nouveau fichier de base"
+db_new_filename_label = "Nom de fichier"
+db_new_switch_now = "Basculer maintenant"
+db_new_create_button = "Créer"
+db_new_validation_error = "Veuillez saisir un nom de fichier."
+db_new_created_success = "Base de données créée."
+
+# ---- Layout ----
+layout_selector_label = "Configuration de mise en page"
+
+# ---- Formatage ----
+currency_label = "Devise"
+thousands_separator_label = "Séparateur de milliers"
+
+# ---- Paramètres (inputs) ----
+inputs_reset_button = "Réinitialiser les paramètres"
+inputs_reset_confirm = "Paramètres effacés (non enregistrés)."
+
+bs_title = "Paramètres du bilan"
+hr_title = "Paramètres RH"
+
+[pages.config.ui.inputs.balance_sheet_labels]
+total_assets = "Total actif"
+total_equity = "Total capitaux propres"
+financial_debt = "Dettes financières"
+cash_and_equivalents = "Trésorerie et équivalents"
+accounts_receivable = "Créances clients"
+accounts_payable = "Dettes fournisseurs"
+inventory = "Stocks"
+working_capital = "Fonds de roulement"
+interest_expense = "Charges d’intérêts"
+
+[pages.config.ui.inputs.hr_labels]
+average_headcount = "Effectif moyen"
+
+
+# -------------------------------------------------------------------
+# DASHBOARD LAYOUT
+# -------------------------------------------------------------------
+
+[dashboard]
+
+[[dashboard.tiles]]
+id = "revenue"
+source = "measure"
+key = "revenue_abs"
+label = "Chiffre d’affaires"
+format = "amount"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "up"
+tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "gross_margin"
+source = "measure"
+key = "gross_margin_abs"
+label = "Marge brute"
+format = "amount"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "up"
+tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "operating_income"
+source = "measure"
+key = "operating_income_abs"
+label = "Résultat d’exploitation"
+format = "amount"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "up"
+tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "net_income"
+source = "measure"
+key = "net_income_abs"
+label = "Résultat net"
+format = "amount"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "up"
+tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "external_charges_abs"
+source = "measure"
+key = "external_charges_abs"
+label = "Charges externes"
+format = "amount"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "down"
+tooltip_from = "measure_notes"
+
+[[dashboard.tiles]]
+id = "roce_pct"
+source = "ratio"
+key = "roce_pct"
+label = "ROCE (%)"
+format = "percent"
+show_delta_abs = true
+show_delta_pct = false
+delta_good_direction = "up"
+tooltip_from = "ratio_notes"
+
+[[dashboard.tiles]]
+id = "equity_ratio_pct"
+source = "ratio"
+key = "equity_ratio_pct"
+label = "Ratio de capitaux propres (%)"
+format = "percent"
+show_delta_abs = true
+show_delta_pct = false
+delta_good_direction = "up"
+tooltip_from = "ratio_notes"
+
+[[dashboard.tiles]]
+id = "dso_days"
+source = "ratio"
+key = "dso_days"
+label = "DSO (délai clients) (jours)"
+format = "number"
+show_delta_abs = true
+show_delta_pct = true
+delta_good_direction = "down"
+tooltip_from = "ratio_notes"
+
+
+[[dashboard.charts]]
+id = "revenue_and_margin_evolution"
+type = "line"
+title = "Évolution du chiffre d’affaires & de la marge brute"
+
+[[dashboard.charts.series]]
+source = "measure"
+key = "revenue_abs"
+label = "Chiffre d’affaires"
+
+[[dashboard.charts.series]]
+source = "measure"
+key = "gross_margin_abs"
+label = "Marge brute"
+
+
+[[dashboard.charts]]
+id = "profitability_evolution"
+type = "bar"
+title = "Évolution de la rentabilité"
+
+[[dashboard.charts.series]]
+source = "measure"
+key = "operating_income_abs"
+label = "Résultat d’exploitation"
+
+[[dashboard.charts.series]]
+source = "measure"
+key = "net_income_abs"
+label = "Résultat net"
+
+
+# -------------------------------------------------------------------
+# RATIOS & KPIs PAGE
+# -------------------------------------------------------------------
+
+[ratios_page]
+
+[[ratios_page.sections]]
+id = "profitability"
+title = "Rentabilité"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "revenue_abs"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "gross_margin_abs"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "gross_margin_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "ebitda_abs"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "ebitda_margin_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "operating_income_abs"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "operating_margin_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "net_income_abs"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "net_margin_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.charts]]
+id = "revenue_trend"
+title = "Tendance du chiffre d’affaires"
+type = "area_line"
+series = [
+  { source = "measure", key = "revenue_abs", label = "Chiffre d’affaires" },
+]
+
+[[ratios_page.sections.charts]]
+id = "gross_profit_trend"
+title = "Tendance de la marge brute"
+type = "bar"
+series = [
+  { source = "measure", key = "gross_margin_abs", label = "Marge brute" },
+]
+
+[[ratios_page.sections.charts]]
+id = "ebitda_trend"
+title = "Tendance de l’EBITDA"
+type = "bar"
+series = [
+  { source = "measure", key = "ebitda_abs", label = "EBITDA" },
+]
+
+[[ratios_page.sections.charts]]
+id = "ebit_trend"
+title = "Tendance du résultat d’exploitation (EBIT)"
+type = "bar"
+series = [
+  { source = "measure", key = "operating_income_abs", label = "EBIT" },
+]
+
+[[ratios_page.sections.charts]]
+id = "net_income_trend"
+title = "Tendance du résultat net"
+type = "bar"
+series = [
+  { source = "measure", key = "net_income_abs", label = "Résultat net" },
+]
+
+[[ratios_page.sections.charts]]
+id = "margins_trend"
+title = "Tendance des marges (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "gross_margin_pct", label = "Marge brute", format = "percent" },
+  { source = "ratio", key = "operating_margin_pct", label = "Marge d’exploitation", format = "percent" },
+  { source = "ratio", key = "net_margin_pct", label = "Marge nette", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "gross_margin_rate_trend"
+title = "Tendance du taux de marge brute (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "gross_margin_pct", label = "Taux de marge brute", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "ebitda_margin_rate_trend"
+title = "Tendance du taux de marge EBITDA (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "ebitda_margin_pct", label = "Taux de marge EBITDA", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "operating_margin_rate_trend"
+title = "Tendance du taux de marge d’exploitation (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "operating_margin_pct", label = "Taux de marge d’exploitation", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "net_margin_rate_trend"
+title = "Tendance du taux de marge nette (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "net_margin_pct", label = "Taux de marge nette", format = "percent" },
+]
+
+
+[[ratios_page.sections]]
+id = "efficiency_cost"
+title = "Efficience & structure de coûts"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "cogs_abs"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "cogs_ratio_pct"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "operating_expenses_abs"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "operating_expense_ratio_pct"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "external_charges_abs"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "external_charges_pct"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "personnel_expenses_abs"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "personnel_expenses_pct"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "finance_cost_abs"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "finance_cost_ratio_pct"
+delta_good_direction = "down"
+
+[[ratios_page.sections.charts]]
+id = "cogs_trend"
+title = "Tendance du coût des ventes (COGS)"
+type = "bar"
+series = [
+  { source = "measure", key = "cogs_abs", label = "COGS" },
+]
+
+[[ratios_page.sections.charts]]
+id = "operating_expenses_trend"
+title = "Tendance des charges d’exploitation"
+type = "bar"
+series = [
+  { source = "measure", key = "operating_expenses_abs", label = "Charges d’exploitation" },
+]
+
+[[ratios_page.sections.charts]]
+id = "external_charges_trend"
+title = "Tendance des charges externes"
+type = "bar"
+series = [
+  { source = "measure", key = "external_charges_abs", label = "Charges externes" },
+]
+
+[[ratios_page.sections.charts]]
+id = "personnel_expenses_trend"
+title = "Tendance des charges de personnel"
+type = "bar"
+series = [
+  { source = "measure", key = "personnel_expenses_abs", label = "Charges de personnel" },
+]
+
+[[ratios_page.sections.charts]]
+id = "finance_cost_trend"
+title = "Tendance des charges financières"
+type = "bar"
+series = [
+  { source = "measure", key = "finance_cost_abs", label = "Charges financières" },
+]
+
+[[ratios_page.sections.charts]]
+id = "cogs_rate_trend"
+title = "Tendance COGS / Chiffre d’affaires (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "cogs_ratio_pct", label = "COGS / CA", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "operating_expense_ratio_trend"
+title = "Tendance charges d’exploitation / CA (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "operating_expense_ratio_pct", label = "Charges d’exploitation / CA", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "external_charges_ratio_trend"
+title = "Tendance charges externes / CA (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "external_charges_pct", label = "Charges externes / CA", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "personnel_expenses_ratio_trend"
+title = "Tendance charges de personnel / CA (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "personnel_expenses_pct", label = "Charges de personnel / CA", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "finance_cost_ratio_trend"
+title = "Tendance charges financières / CA (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "finance_cost_ratio_pct", label = "Charges financières / CA", format = "percent" },
+]
+
+
+[[ratios_page.sections]]
+id = "productivity"
+title = "Productivité"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "revenue_per_fte"
+delta_good_direction = "up"
+
+[[ratios_page.sections.charts]]
+id = "revenue_per_fte_trend"
+title = "Tendance du CA par ETP"
+type = "area_line"
+series = [
+  { source = "measure", key = "revenue_per_fte", label = "CA par ETP" },
+]
+
+
+[[ratios_page.sections]]
+id = "tax"
+title = "Fiscalité"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "income_before_tax_abs"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "income_tax_abs"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "effective_tax_rate_pct"
+delta_good_direction = "down"
+
+[[ratios_page.sections.charts]]
+id = "income_before_tax_trend"
+title = "Tendance du résultat avant impôt"
+type = "bar"
+series = [
+  { source = "measure", key = "income_before_tax_abs", label = "Résultat avant impôt" },
+]
+
+[[ratios_page.sections.charts]]
+id = "income_tax_expense_trend"
+title = "Tendance de la charge d’impôt"
+type = "bar"
+series = [
+  { source = "measure", key = "income_tax_abs", label = "Charge d’impôt" },
+]
+
+[[ratios_page.sections.charts]]
+id = "effective_tax_rate_trend"
+title = "Tendance du taux effectif d’imposition (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "effective_tax_rate_pct", label = "Taux effectif d’imposition", format = "percent" },
+]
+
+
+[[ratios_page.sections]]
+id = "returns"
+title = "Rendements"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "roce_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "roe_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "roa_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.charts]]
+id = "roce_trend"
+title = "Tendance du ROCE (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "roce_pct", label = "ROCE", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "roe_trend"
+title = "Tendance du ROE (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "roe_pct", label = "ROE", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "roa_trend"
+title = "Tendance du ROA (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "roa_pct", label = "ROA", format = "percent" },
+]
+
+
+[[ratios_page.sections]]
+id = "structure"
+title = "Structure financière & levier"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "capital_employed"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "measure"
+key = "net_debt"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "equity_ratio_pct"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "debt_to_equity"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "gearing"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "finance_cost_coverage"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "net_debt_to_ebitda"
+delta_good_direction = "down"
+
+[[ratios_page.sections.charts]]
+id = "capital_employed_trend"
+title = "Tendance du capital employé"
+type = "bar"
+series = [
+  { source = "measure", key = "capital_employed", label = "Capital employé" },
+]
+
+[[ratios_page.sections.charts]]
+id = "net_debt_trend"
+title = "Tendance de la dette nette"
+type = "bar"
+series = [
+  { source = "measure", key = "net_debt", label = "Dette nette" },
+]
+
+[[ratios_page.sections.charts]]
+id = "equity_ratio_trend"
+title = "Tendance du ratio de capitaux propres (%)"
+type = "line"
+series = [
+  { source = "ratio", key = "equity_ratio_pct", label = "Ratio de capitaux propres", format = "percent" },
+]
+
+[[ratios_page.sections.charts]]
+id = "debt_to_equity_trend"
+title = "Tendance dette / capitaux propres"
+type = "area_line"
+series = [
+  { source = "ratio", key = "debt_to_equity", label = "Dette / capitaux propres" },
+]
+
+[[ratios_page.sections.charts]]
+id = "gearing_trend"
+title = "Tendance du gearing (dette nette / capitaux propres)"
+type = "area_line"
+series = [
+  { source = "ratio", key = "gearing", label = "Gearing" },
+]
+
+[[ratios_page.sections.charts]]
+id = "finance_cost_coverage_trend"
+title = "Tendance EBIT / charges financières"
+type = "area_line"
+series = [
+  { source = "ratio", key = "finance_cost_coverage", label = "EBIT / charges financières" },
+]
+
+[[ratios_page.sections.charts]]
+id = "net_debt_to_ebitda_trend"
+title = "Tendance dette nette / EBITDA"
+type = "area_line"
+series = [
+  { source = "ratio", key = "net_debt_to_ebitda", label = "Dette nette / EBITDA" },
+]
+
+
+[[ratios_page.sections]]
+id = "working_capital"
+title = "BFR (besoin en fonds de roulement)"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "dso_days"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "dpo_days"
+delta_good_direction = "up"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "dio_days"
+delta_good_direction = "down"
+
+[[ratios_page.sections.tiles]]
+source = "ratio"
+key = "cash_conversion_cycle_days"
+delta_good_direction = "down"
+
+[[ratios_page.sections.charts]]
+id = "dso_trend"
+title = "Tendance DSO (jours)"
+type = "area_line"
+series = [
+  { source = "ratio", key = "dso_days", label = "DSO", format = "number" },
+]
+
+[[ratios_page.sections.charts]]
+id = "dpo_trend"
+title = "Tendance DPO (jours)"
+type = "area_line"
+series = [
+  { source = "ratio", key = "dpo_days", label = "DPO", format = "number" },
+]
+
+[[ratios_page.sections.charts]]
+id = "dio_trend"
+title = "Tendance DIO (jours)"
+type = "area_line"
+series = [
+  { source = "ratio", key = "dio_days", label = "DIO", format = "number" },
+]
+
+[[ratios_page.sections.charts]]
+id = "cash_conversion_cycle_trend"
+title = "Tendance du cycle de conversion de trésorerie (jours)"
+type = "area_line"
+series = [
+  { source = "ratio", key = "cash_conversion_cycle_days", label = "Cycle de conversion de trésorerie", format = "number" },
+]
+
+
+# -------------------------------------------------------------------
+# OPTIONS PAGE ÉTATS
+# -------------------------------------------------------------------
+
+[statements_page]
+secondary_statement_display = "tabs"  # "tabs" | "stacked"
+
+hide_zero_lines_in_comparison = true
+hide_zero_lines_single_period = true
+
+amount_display_mode = "traditional"  # "engine_signed" | "traditional"
+
+negative_amount_indicator = "both"  # "parentheses" | "color" | "both"
+
+legend_text = "Les parenthèses / montants colorés indiquent des valeurs négatives dans les données sous-jacentes."
+
+
+# -------------------------------------------------------------------
+# OPTIONS PAGE ÉCRITURES
+# -------------------------------------------------------------------
+
+[entries_page]
+
+[entries_page.manual_entry]
+input_mode = "amount"
+toggle_default_reject_unknown_accounts = true
+
+[entries_page.import]
+default_reject_unknown_accounts = true
+
+[entries_page.pagination]
+default_limit = 200
+allowed_limits = [50, 100, 200, 500, 1000]
+max_limit = 2000

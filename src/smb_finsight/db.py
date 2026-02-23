@@ -1055,13 +1055,25 @@ def list_import_batches(cfg: DatabaseConfig) -> pd.DataFrame:
     """
     Return the list of import batches stored in the database.
 
+    This is primarily used by the WebUI Import sub-view to populate the
+    "Import history" table.
+
+    Ordering:
+        - Ordered by id DESC (most recent first).
+
     Columns:
-    - id
-    - created_at
-    - source_type
-    - source_label
-    - rows_inserted
+        - id
+        - created_at
+        - source_type
+        - source_label
+        - rows_inserted
+        - notes
+
+    Returns:
+        A dataframe with the columns above. If no batches exist, an empty dataframe
+        with these columns is returned.
     """
+
     init_database(cfg)
 
     conn = _connect(cfg)
@@ -1069,7 +1081,7 @@ def list_import_batches(cfg: DatabaseConfig) -> pd.DataFrame:
         cur = conn.cursor()
         cur.execute(
             """
-            SELECT id, created_at, source_type, source_label, rows_inserted
+            SELECT id, created_at, source_type, source_label, rows_inserted, notes
               FROM import_batches
              ORDER BY id DESC;
             """
@@ -1078,15 +1090,13 @@ def list_import_batches(cfg: DatabaseConfig) -> pd.DataFrame:
     finally:
         conn.close()
 
-    if not rows:
-        return pd.DataFrame(
-            columns=["id", "created_at", "source_type", "source_label", "rows_inserted"]
-        )
+    cols = ["id", "created_at", "source_type", "source_label", "rows_inserted", "notes"]
 
-    df = pd.DataFrame(
-        rows,
-        columns=["id", "created_at", "source_type", "source_label", "rows_inserted"],
-    )
+    if not rows:
+        return pd.DataFrame(columns=cols)
+
+    df = pd.DataFrame(rows, columns=cols)
+
     df["created_at"] = pd.to_datetime(df["created_at"])
     return df
 
@@ -1555,7 +1565,7 @@ def search_entries(
         where_clauses.append("e.is_deleted = 0")
 
     # Validate and build ORDER BY clause
-    allowed_order_columns = {"date", "code", "amount", "id"}
+    allowed_order_columns = {"date", "code", "amount", "id", "deleted_at"}
     order_column, order_direction = order_by
     if order_column not in allowed_order_columns:
         raise ValueError(f"Invalid order_by column: {order_column!r}")
@@ -1695,7 +1705,7 @@ def get_duplicate_stats(cfg: DatabaseConfig) -> DuplicateStats:
     )
 
 
-def list_duplicate_entries(
+def list_duplicate_entries_OLD(
     cfg: DatabaseConfig,
     *,
     status: str | None = None,
@@ -1790,6 +1800,194 @@ def list_duplicate_entries(
         conn.close()
 
     return [_row_to_duplicate_entry(row) for row in rows]
+
+
+def list_duplicate_entries(
+    cfg: DatabaseConfig,
+    *,
+    status: str | None = None,
+    import_batch_id: int | None = None,
+    code_exact: str | None = None,
+    code_prefix: str | None = None,
+    description_contains: str | None = None,
+    min_amount: float | None = None,
+    max_amount: float | None = None,
+    start: date | None = None,
+    end: date | None = None,
+    limit: int | None = 100,
+    offset: int = 0,
+) -> list[DuplicateEntry]:
+    """
+    List potential duplicate entries with optional filtering.
+
+    This function returns raw DuplicateEntry objects and does not join with
+    the `entries` table. Higher-level services can combine this with
+    `get_entry_by_id` when they need the full existing AccountingEntry.
+
+    Parameters
+    ----------
+    cfg:
+        Database configuration.
+    status:
+        Optional resolution status filter ("pending", "kept", "discarded").
+        If None, all statuses are included.
+    import_batch_id:
+        Optional filter to restrict duplicates to a specific import batch.
+    code_exact:
+        Optional exact match on the account code of the duplicate candidate.
+    code_prefix:
+        Optional prefix match on the account code of the duplicate candidate.
+        Ignored when code_exact is provided.
+    description_contains:
+        Optional case-insensitive substring filter on the duplicate description.
+    min_amount, max_amount:
+        Optional bounds on the signed amount (in monetary units). Internally
+        compared against amount_cents.
+    start, end:
+        Optional inclusive date bounds on the `date` column.
+    limit, offset:
+        Optional pagination settings. If limit is None, all rows are returned.
+
+    Returns
+    -------
+    list[DuplicateEntry]
+        List of duplicate entries matching the given filters.
+    """
+    init_database(cfg)
+
+    where_clauses: list[str] = []
+    params: list[object] = []
+
+    if status is not None:
+        where_clauses.append("resolution_status = ?")
+        params.append(status)
+
+    if import_batch_id is not None:
+        where_clauses.append("import_batch_id = ?")
+        params.append(import_batch_id)
+
+    # Account code filters (exact OR prefix)
+    if code_exact is not None:
+        where_clauses.append("code = ?")
+        params.append(code_exact)
+    elif code_prefix is not None:
+        where_clauses.append("code LIKE ?")
+        params.append(code_prefix + "%")
+
+    # Case-insensitive substring filter on description
+    if description_contains is not None:
+        where_clauses.append("LOWER(description) LIKE ?")
+        params.append(f"%{description_contains.lower()}%")
+
+    # Amount bounds (stored as cents in DB)
+    if min_amount is not None:
+        where_clauses.append("amount_cents >= ?")
+        params.append(int(round(min_amount * 100)))
+    if max_amount is not None:
+        where_clauses.append("amount_cents <= ?")
+        params.append(int(round(max_amount * 100)))
+
+    if start is not None:
+        where_clauses.append("date >= ?")
+        params.append(start.isoformat())
+
+    if end is not None:
+        where_clauses.append("date <= ?")
+        params.append(end.isoformat())
+
+    where_sql = ""
+    if where_clauses:
+        where_sql = "WHERE " + " AND ".join(where_clauses)
+
+    limit_clause = ""
+    if limit is not None:
+        limit_clause = " LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+    query = f"""
+        SELECT
+            id,
+            date,
+            code,
+            description,
+            amount_cents,
+            import_batch_id,
+            imported_at,
+            existing_entry_id,
+            resolution_status,
+            resolution_at,
+            resolved_by,
+            resolution_comment
+        FROM duplicate_entries
+        {where_sql}
+        ORDER BY date ASC, id ASC
+        {limit_clause};
+    """
+
+    conn = _connect(cfg)
+    try:
+        cur = conn.cursor()
+        cur.execute(query, params)
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    return [_row_to_duplicate_entry(row) for row in rows]
+
+
+def get_duplicate_entry_by_id(
+    cfg: DatabaseConfig,
+    duplicate_id: int,
+) -> DuplicateEntry | None:
+    """Load a single duplicate entry by id.
+
+    This is a low-level helper intended for UI workflows that need to display
+    details for one duplicate candidate without fetching a full list.
+
+    Parameters
+    ----------
+    cfg:
+        Database configuration.
+    duplicate_id:
+        Identifier of the entry in `duplicate_entries.id`.
+
+    Returns
+    -------
+    DuplicateEntry | None
+        The matching duplicate entry, or None if it does not exist.
+    """
+    init_database(cfg)
+    conn = _connect(cfg)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT
+                id,
+                date,
+                code,
+                description,
+                amount_cents,
+                import_batch_id,
+                imported_at,
+                existing_entry_id,
+                resolution_status,
+                resolution_at,
+                resolved_by,
+                resolution_comment
+            FROM duplicate_entries
+            WHERE id = ?
+            LIMIT 1;
+            """,
+            (int(duplicate_id),),
+        )
+        row = cur.fetchone()
+    finally:
+        conn.close()
+
+    if row is None:
+        return None
+    return _row_to_duplicate_entry(row)
 
 
 def resolve_duplicate(
@@ -1961,3 +2159,38 @@ def resolve_duplicate(
         )
 
     return _row_to_duplicate_entry(updated_row)
+
+
+def set_import_batch_notes(
+    cfg: DatabaseConfig, batch_id: int, notes: str | None
+) -> None:
+    """
+    Update the 'notes' field of an import batch.
+
+    Args:
+        cfg: Database configuration.
+        batch_id: Import batch id.
+        notes: Optional notes string. If empty/None, stored as NULL (after stripping).
+    Notes:
+        - If batch_id does not exist, no row is updated and no exception is raised.
+
+    """
+    init_database(cfg)
+    conn = _connect(cfg)
+    try:
+        cur = conn.cursor()
+        val = notes.strip() if notes is not None else None
+        if val == "":
+            val = None
+
+        cur.execute(
+            """
+            UPDATE import_batches
+               SET notes = ?
+             WHERE id = ?;
+            """,
+            (val, int(batch_id)),
+        )
+        conn.commit()
+    finally:
+        conn.close()

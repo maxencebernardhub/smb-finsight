@@ -28,11 +28,11 @@ The CLI executes the following steps:
    using ``load_app_config()``. This provides:
 
    - fiscal year definition,
-   - accounting standard name,
    - accounting entries path,
    - standard-specific configuration (StandardConfig),
    - optional balance sheet / HR inputs,
-   - ratios options and display options.
+   - ratios options
+   - CLI options.
 
 2) Resolve paths with optional CLI overrides (accounting entries,
    mapping templates, chart of accounts), while keeping TOML config
@@ -1745,13 +1745,7 @@ def main() -> None:
         "all_statements",
         "all",
     }
-    want_ratios = scope in {"ratios", "all"} and config.ratios_enabled
-
-    if scope in {"ratios", "all"} and not config.ratios_enabled:
-        print(
-            "Ratios have been requested in scope, but ratios are disabled in the "
-            "configuration (ratios.enabled = false). Skipping ratio computation."
-        )
+    want_ratios = scope in {"ratios", "all"}
 
     # 7) Aggregate primary statement.
     primary_template = Template.from_csv(primary_mapping_path)
@@ -1799,7 +1793,7 @@ def main() -> None:
             extra_measures = {
                 **config.balance_sheet_inputs,
                 **config.hr_inputs,
-                "period_days": float(config.period_days),
+                "period_days": float((period.end - period.start).days + 1),
             }
 
             measures = build_canonical_measures(
@@ -1838,11 +1832,11 @@ def main() -> None:
             )
             ratios_df = ratios_to_dataframe(
                 ratios_list,
-                decimals=config.ratio_decimals,
+                decimals=config.cli_ratio_decimals,
             )
 
     # 10) Resolve display mode: config value overridden by CLI if provided.
-    display_mode = config.display_mode
+    display_mode = config.cli_display_mode
     if args.display_mode:
         display_mode = args.display_mode
 

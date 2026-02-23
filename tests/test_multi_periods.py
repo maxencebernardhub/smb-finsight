@@ -169,7 +169,28 @@ def _install_stubs(monkeypatch):
     monkeypatch.setattr(mp, "compute_derived_measures", stub_compute_derived_measures)
 
     # ---- compute_ratios: one dummy ratio using the provided level ----------
-    def stub_compute_ratios(all_measures, rules_file, level: str):
+    def stub_compute_ratios(
+        *args,
+        measures=None,
+        rules_file=None,
+        level: str = "basic",
+        **kwargs,
+    ):
+        """
+        Stub compatible with multiple compute_ratios() signatures.
+
+        The production code may call compute_ratios with:
+        - positional args: (measures, rules_file, level)
+        - keyword args: measures=..., rules_file=..., level=...
+        """
+        # Backward/positional compatibility
+        if measures is None and len(args) >= 1:
+            measures = args[0]
+        if rules_file is None and len(args) >= 2:
+            rules_file = args[1]
+        if len(args) >= 3 and (level == "basic" or level is None):
+            level = args[2]
+
         return [
             RatioResult(
                 key="gross_margin_pct",
@@ -177,7 +198,7 @@ def _install_stubs(monkeypatch):
                 value=0.6,
                 unit="percent",
                 notes="Dummy ratio",
-                level=level,
+                level=level or "basic",
             )
         ]
 
@@ -306,7 +327,7 @@ def test_ratios_have_period_label_and_level(monkeypatch, tmp_path):
     """
     _install_stubs(monkeypatch)
     app_config, standard_config = _make_app_and_standard(tmp_path)
-    app_config.ratios_level = "advanced"
+    app_config.default_ratios_level = "advanced"
 
     periods = [
         Period(start=date(2025, 1, 1), end=date(2025, 1, 31), label="2025-01"),
@@ -328,5 +349,5 @@ def test_ratios_have_period_label_and_level(monkeypatch, tmp_path):
     assert set(df["period_label"]) == {"2025-01", "2025-02"}
     assert set(df["key"]) == {"gross_margin_pct"}
 
-    # The level should match app_config.ratios_level passed to compute_ratios.
+    # The level should match app_config.default_ratios_level passed to compute_ratios.
     assert set(df["level"]) == {"advanced"}

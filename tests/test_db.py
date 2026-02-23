@@ -103,4 +103,5 @@ def test_import_detects_duplicates(tmp_path):
         "source_type",
         "source_label",
         "rows_inserted",
+        "notes",
     }

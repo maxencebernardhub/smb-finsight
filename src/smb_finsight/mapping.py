@@ -48,6 +48,7 @@ class RowDef:
         formula: Formula string for 'calc' rows (e.g. '=1+2', '=SUM(4;5)').
         canonical_measure: Optional canonical measure name used to feed
             derived financial metrics and ratios (e.g. 'revenue', 'ebe').
+        notes: Optional free-text notes for UI tooltips/help.
     """
 
     display_order: int
@@ -59,6 +60,7 @@ class RowDef:
     exclude: str
     formula: str
     canonical_measure: str = ""
+    notes: str = ""
 
 
 def _to_patterns(s: Optional[str]) -> list[str]:
@@ -151,6 +153,9 @@ class Template:
                         r.get("canonical_measure", "")
                         if pd.notna(r.get("canonical_measure", ""))
                         else ""
+                    ),
+                    notes=str(
+                        r.get("notes", "") if pd.notna(r.get("notes", "")) else ""
                     ),
                 )
             )
