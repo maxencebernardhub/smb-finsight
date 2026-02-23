@@ -146,9 +146,11 @@ def main() -> None:
     selected_page_id = st.sidebar.radio(
         label="Navigation",
         options=page_ids,
-        format_func=lambda pid: f"{pages[pid].icon}  {pages[pid].title}"
-        if pages[pid].icon
-        else pages[pid].title,
+        format_func=lambda pid: (
+            f"{pages[pid].icon}  {pages[pid].title}"
+            if pages[pid].icon
+            else pages[pid].title
+        ),
         index=page_ids.index(default_page_id),
         label_visibility="collapsed",  # hide the label from the UI
         width="stretch",  # <-- NEW: make the widget use full sidebar width
