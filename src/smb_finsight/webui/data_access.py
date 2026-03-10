@@ -64,9 +64,7 @@ def _measure_value(
     return _safe_float(rows.iloc[0]["value"])
 
 
-def _ratio_value(
-    ratios_df: pd.DataFrame, period_label: str, key: str
-) -> float | None:
+def _ratio_value(ratios_df: pd.DataFrame, period_label: str, key: str) -> float | None:
     """
     Return the numeric ratio value for a given period and key.
 
