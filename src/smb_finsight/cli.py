@@ -506,7 +506,6 @@ End of module description.
 import argparse
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional
 
 from . import __version__
 from .accounts import filter_unknown_accounts, load_list_of_accounts
@@ -1081,7 +1080,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return ap
 
 
-def _parse_optional_date(value: Optional[str]) -> Optional[date]:
+def _parse_optional_date(value: str | None) -> date | None:
     """
     Parse an optional CLI date argument (YYYY-MM-DD).
 
@@ -1684,7 +1683,7 @@ def main() -> None:
         return
 
     # 4) Resolve paths with optional CLI overrides for mappings and chart of accounts
-    primary_mapping_path: Optional[Path] = (
+    primary_mapping_path: Path | None = (
         Path(args.income_statement_mapping)
         if args.income_statement_mapping
         else std_cfg.income_statement_mapping
@@ -1696,13 +1695,13 @@ def main() -> None:
             "--income-statement-mapping."
         )
 
-    secondary_mapping_path: Optional[Path] = (
+    secondary_mapping_path: Path | None = (
         Path(args.secondary_mapping)
         if args.secondary_mapping
         else std_cfg.secondary_mapping
     )
 
-    chart_of_accounts_path: Optional[Path] = (
+    chart_of_accounts_path: Path | None = (
         Path(args.chart_of_accounts)
         if args.chart_of_accounts
         else std_cfg.chart_of_accounts
@@ -1716,7 +1715,9 @@ def main() -> None:
     # 5) Load the user-maintained chart of accounts.
     accounts_df = load_list_of_accounts(chart_of_accounts_path)
     known_codes = set(accounts_df["account_number"])
-    name_by_code = dict(zip(accounts_df["account_number"], accounts_df["name"]))
+    name_by_code = dict(
+        zip(accounts_df["account_number"], accounts_df["name"], strict=False)
+    )
 
     # 6) Determine reporting period.
     period = determine_period_from_args(args, config.fiscal_year)

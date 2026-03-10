@@ -24,7 +24,6 @@ Finance conventions:
 """
 
 import math
-from typing import Optional
 
 
 # Treat NaN as missing value to prevent "nan" leaking into UI strings.
@@ -61,7 +60,7 @@ def _format_currency(
 
 
 def _fmt_value(
-    value: Optional[float],
+    value: float | None,
     fmt: str,
     *,
     currency_code: str,
@@ -137,14 +136,14 @@ def _format_pp(delta_fraction: float, *, thousands_separator: str) -> str:
 
 def _build_delta_string(
     *,
-    delta_abs: Optional[float],
-    delta_pct: Optional[float],
+    delta_abs: float | None,
+    delta_pct: float | None,
     fmt: str,
     show_abs: bool,
     show_pct: bool,
     currency_code: str,
     thousands_separator: str,
-) -> Optional[str]:
+) -> str | None:
     """
     Build a single Streamlit-compatible delta string.
 
@@ -197,8 +196,8 @@ def _build_delta_string(
 
 
 def _compute_delta(
-    primary: Optional[float], comp: Optional[float]
-) -> tuple[Optional[float], Optional[float]]:
+    primary: float | None, comp: float | None
+) -> tuple[float | None, float | None]:
     """
     Compute deltas between primary and comparison values.
 

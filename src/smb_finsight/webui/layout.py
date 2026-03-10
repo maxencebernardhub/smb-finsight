@@ -24,7 +24,7 @@ layer on top of the existing computation engine.
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 try:
     import tomllib  # Python 3.11+
@@ -124,7 +124,7 @@ class PagePeriodsConfig:
 
     default_primary_preset: str
     default_comparison_preset: str
-    default_granularity: Optional[str]
+    default_granularity: str | None
     allowed_granularities: Sequence[str]
     primary_preset_labels: Mapping[str, str] = field(default_factory=dict)
     comparison_preset_labels: Mapping[str, str] = field(default_factory=dict)
@@ -161,7 +161,7 @@ class PageConfig:
     title: str
     icon: str
     allow_secondary_period: bool
-    periods: Optional[PagePeriodsConfig]
+    periods: PagePeriodsConfig | None
     default_view: str = ""
     ui: Mapping[str, Any] = field(default_factory=dict)
 
@@ -271,7 +271,7 @@ class DashboardChartConfig:
     title: str
     period_preset: str
     comparison_preset: str
-    default_granularity: Optional[str]
+    default_granularity: str | None
     allowed_granularities: Sequence[str]
     series: Sequence[ChartSeriesConfig]
 
@@ -315,10 +315,10 @@ class RatiosTileSpec:
     source: str  # "measure" | "ratio"
     key: str
     delta_good_direction: str  # "up" | "down"
-    label: Optional[str] = None
-    show_delta_abs: Optional[bool] = None
-    show_delta_pct: Optional[bool] = None
-    tooltip_from: Optional[str] = None
+    label: str | None = None
+    show_delta_abs: bool | None = None
+    show_delta_pct: bool | None = None
+    tooltip_from: str | None = None
 
 
 @dataclass(frozen=True)
@@ -333,10 +333,10 @@ class RatiosChartDraftSpec:
     id: str
     title: str
     type: str
-    default_granularity: Optional[str] = None
+    default_granularity: str | None = None
     allowed_granularities: Sequence[str] = ()
     series: Sequence["ChartSeriesConfig"] = ()
-    stack: Optional[bool] = None
+    stack: bool | None = None
 
 
 @dataclass(frozen=True)

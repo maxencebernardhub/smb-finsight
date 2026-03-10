@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 try:
     import tomllib  # Python 3.11+
@@ -44,13 +44,13 @@ class StandardConfig:
     """
 
     name: str
-    income_statement_mapping: Optional[Path]
-    secondary_mapping: Optional[Path]
-    chart_of_accounts: Optional[Path]
-    ratios_rules_file: Optional[Path]
-    ratios_custom_file: Optional[Path]
+    income_statement_mapping: Path | None
+    secondary_mapping: Path | None
+    chart_of_accounts: Path | None
+    ratios_rules_file: Path | None
+    ratios_custom_file: Path | None
     primary_statement_label: str
-    secondary_statement_label: Optional[str]
+    secondary_statement_label: str | None
 
 
 @dataclass(frozen=True)
@@ -192,7 +192,7 @@ def _parse_standard_config(
     if not isinstance(ratios_section, Mapping):
         ratios_section = {}
 
-    def _resolve_optional(rel: Optional[str]) -> Optional[Path]:
+    def _resolve_optional(rel: str | None) -> Path | None:
         if not rel:
             return None
         return (std_path.parent / rel).resolve()
@@ -218,7 +218,7 @@ def _parse_standard_config(
     primary_label = str(statements_section.get("primary_label", "Income statement"))
 
     raw_secondary_label = statements_section.get("secondary_label")
-    secondary_label: Optional[str]
+    secondary_label: str | None
     if raw_secondary_label is None or raw_secondary_label == "":
         secondary_label = None
     else:
@@ -236,7 +236,7 @@ def _parse_standard_config(
     )
 
 
-def load_app_config(config_path: Optional[str] = None) -> AppConfig:
+def load_app_config(config_path: str | None = None) -> AppConfig:
     """
     Load the SMB FinSight application configuration from a TOML file.
 

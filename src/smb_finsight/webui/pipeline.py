@@ -65,7 +65,7 @@ This approach allows:
 """
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -140,7 +140,7 @@ class StatementsPipelineResult:
     """
 
     primary_df: pd.DataFrame
-    secondary_df: Optional[pd.DataFrame]
+    secondary_df: pd.DataFrame | None
     all_periods: list[Any]
 
 
@@ -148,7 +148,7 @@ def run_dashboard_pipeline(
     *,
     app_config: AppConfig,
     primary_period: Any,
-    comparison_period: Optional[Any],
+    comparison_period: Any | None,
     granularity: str,
 ) -> DashboardPipelineResult:
     """
@@ -227,7 +227,7 @@ def run_ratios_pipeline(
     *,
     app_config: AppConfig,
     primary_period: Any,
-    comparison_period: Optional[Any],
+    comparison_period: Any | None,
     granularity: str,
 ) -> RatiosPipelineResult:
     """
@@ -308,7 +308,7 @@ def run_statements_pipeline(
     *,
     app_config: AppConfig,
     primary_period: Any,
-    comparison_period: Optional[Any],
+    comparison_period: Any | None,
 ) -> StatementsPipelineResult:
     """
     Run the Statements compute pipeline.

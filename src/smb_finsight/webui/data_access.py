@@ -23,12 +23,12 @@ All helpers are defensive:
 - They return "" (empty string) for missing notes.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
 
-def _safe_float(x: Any) -> Optional[float]:
+def _safe_float(x: Any) -> float | None:
     try:
         if x is None:
             return None
@@ -39,7 +39,7 @@ def _safe_float(x: Any) -> Optional[float]:
 
 def _measure_value(
     measures_df: pd.DataFrame, period_label: str, key: str
-) -> Optional[float]:
+) -> float | None:
     """
     Return the numeric measure value for a given period and key.
 
@@ -66,7 +66,7 @@ def _measure_value(
 
 def _ratio_value(
     ratios_df: pd.DataFrame, period_label: str, key: str
-) -> Optional[float]:
+) -> float | None:
     """
     Return the numeric ratio value for a given period and key.
 

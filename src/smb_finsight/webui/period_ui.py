@@ -33,9 +33,10 @@ Design notes:
 and can be bucketized later.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Callable, Optional
+from typing import Any
 
 import streamlit as st
 
@@ -48,8 +49,8 @@ from smb_finsight.webui.utils import _as_list, _get, _to_mapping
 
 
 def _validate_custom_range(
-    start: Optional[date],
-    end: Optional[date],
+    start: date | None,
+    end: date | None,
     *,
     toast: bool,
     error_message: str,
@@ -87,13 +88,13 @@ class PeriodControlsResult:
     """
 
     primary_period: Any
-    comparison_period: Optional[Any]
+    comparison_period: Any | None
     granularity: str
     primary_preset: str
-    comparison_preset: Optional[str]
+    comparison_preset: str | None
     comparison_enabled: bool
     primary_preset_label: str
-    comparison_preset_label: Optional[str]
+    comparison_preset_label: str | None
     # Optional value returned by a custom renderer injected in the 3rd column.
     third_slot_value: Any = None
 
@@ -104,7 +105,7 @@ def render_period_controls(
     app_config: Any,
     allow_secondary_period: bool,
     show_granularity: bool = True,
-    third_slot_renderer: Optional[Callable[[], Any]] = None,
+    third_slot_renderer: Callable[[], Any] | None = None,
 ) -> PeriodControlsResult:
     """
     Render period controls (primary, optional comparison, and optional granularity).
@@ -234,13 +235,13 @@ def render_period_controls(
     c1, c2, c3 = st.columns([1.2, 1.2, 1.0])
 
     primary_preset: str
-    comparison_preset: Optional[str] = None
+    comparison_preset: str | None = None
     comparison_enabled: bool
 
-    primary_custom_start: Optional[date] = None
-    primary_custom_end: Optional[date] = None
-    comparison_custom_start: Optional[date] = None
-    comparison_custom_end: Optional[date] = None
+    primary_custom_start: date | None = None
+    primary_custom_end: date | None = None
+    comparison_custom_start: date | None = None
+    comparison_custom_end: date | None = None
 
     third_slot_value: Any = None
 
@@ -377,7 +378,7 @@ def render_period_controls(
         "error_custom_end_before_start", "End date cannot be earlier than start date."
     )
 
-    custom_primary: Optional[CustomRange] = None
+    custom_primary: CustomRange | None = None
     if primary_preset == "CUSTOM":
         if _validate_custom_range(
             primary_custom_start,
@@ -387,7 +388,7 @@ def render_period_controls(
         ):
             custom_primary = CustomRange(primary_custom_start, primary_custom_end)
 
-    custom_comp: Optional[CustomRange] = None
+    custom_comp: CustomRange | None = None
     if comparison_enabled and comparison_preset == "CUSTOM":
         if _validate_custom_range(
             comparison_custom_start,

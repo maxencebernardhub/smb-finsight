@@ -33,7 +33,7 @@ import calendar
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from .config import FiscalYear
 from .periods import Period
@@ -127,10 +127,10 @@ def period_from_preset(
     preset: str,
     fy: FiscalYear,
     *,
-    as_of: Optional[date] = None,
-    custom: Optional[CustomRange] = None,
-    label: Optional[str] = None,
-    user_presets: Optional[Mapping[str, Mapping[str, str]]] = None,
+    as_of: date | None = None,
+    custom: CustomRange | None = None,
+    label: str | None = None,
+    user_presets: Mapping[str, Mapping[str, str]] | None = None,
 ) -> Period:
     """
     Build a Period from a preset string.
@@ -259,7 +259,7 @@ def period_from_relative_preset(
     preset: str,
     reference: Period,
     *,
-    label: Optional[str] = None,
+    label: str | None = None,
 ) -> Period:
     """
     Build a Period relative to an existing one (reference).

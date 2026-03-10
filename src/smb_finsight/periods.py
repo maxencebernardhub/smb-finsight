@@ -12,7 +12,6 @@ from the current fiscal year and CLI arguments.
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Optional
 
 import pandas as pd
 
@@ -135,8 +134,8 @@ def determine_period_from_args(
         raise ValueError(f"Unknown period: {p!r}")
 
     # 2) Custom from/to dates
-    from_raw: Optional[str] = getattr(args, "from_date", None)
-    to_raw: Optional[str] = getattr(args, "to_date", None)
+    from_raw: str | None = getattr(args, "from_date", None)
+    to_raw: str | None = getattr(args, "to_date", None)
 
     if from_raw or to_raw:
         start = date.fromisoformat(from_raw) if from_raw else fy.start_date

@@ -111,7 +111,8 @@ def render_statement_table(
     levels = pd.to_numeric(df.get("level", 0), errors="coerce").fillna(0).astype(int)
     names = df.get("name", "").astype(str)
     df["Line"] = [
-        _indent_label(n, int(lvl)) for n, lvl in zip(names.tolist(), levels.tolist())
+        _indent_label(n, int(lvl))
+        for n, lvl in zip(names.tolist(), levels.tolist(), strict=False)
     ]
 
     # --- format amounts via shared helper ---
@@ -293,7 +294,8 @@ def render_statement_comparison_table(
     levels = pd.to_numeric(df.get("level", 0), errors="coerce").fillna(0).astype(int)
     names = df.get("name", "").astype(str)
     df["Line"] = [
-        _indent_label(n, int(lvl)) for n, lvl in zip(names.tolist(), levels.tolist())
+        _indent_label(n, int(lvl))
+        for n, lvl in zip(names.tolist(), levels.tolist(), strict=False)
     ]
 
     if display_mode == "traditional":

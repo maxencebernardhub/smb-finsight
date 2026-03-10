@@ -9,7 +9,7 @@ from smb_finsight.views import apply_view_level_filter, build_complete_view
 
 
 def _is_step10(seq) -> bool:
-    return all(b - a == 10 for a, b in zip(seq, seq[1:]))
+    return all(b - a == 10 for a, b in zip(seq, seq[1:], strict=False))
 
 
 @pytest.fixture(scope="module")

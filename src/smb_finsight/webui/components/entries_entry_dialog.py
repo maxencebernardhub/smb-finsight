@@ -18,7 +18,7 @@ UI labels/messages are provided through the `ui` dict (layout_en.toml).
 """
 
 from datetime import date
-from typing import Any, Optional
+from typing import Any
 
 import streamlit as st
 
@@ -166,7 +166,7 @@ def open_entry_dialog(
     layout: Any,
     ui: dict[str, Any],
     title: str,
-    existing: Optional[AccountingEntry] = None,
+    existing: AccountingEntry | None = None,
 ) -> None:
     """
     Common dialog used by both 'Add single entry' and 'Edit'.
