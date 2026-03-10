@@ -26,7 +26,7 @@ Notes:
 
 # SMB FinSight - Recycle bin subview renderer (WebUI)
 
-from typing import Any, Optional
+from typing import Any
 
 import streamlit as st
 
@@ -54,7 +54,7 @@ from smb_finsight.webui.utils import _get, _to_mapping
 def __render_unknown_toggle_and_badge(
     *,
     page: Any,
-    unknown_count: Optional[int] = None,
+    unknown_count: int | None = None,
 ) -> bool:
     """
     Render the right-side controls for the Recycle Bin header:

@@ -92,12 +92,11 @@ foundation for higher-level reporting and visualization layers.
 
 import ast
 import operator
+import tomllib  # Python 3.11+
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
-
-import tomllib  # Python 3.11+
+from typing import Any
 
 from .engine import MeasureMeta
 
@@ -123,7 +122,7 @@ class RatioResult:
 
     key: str
     label: str
-    value: Optional[float]
+    value: float | None
     unit: str
     notes: str
     level: str
@@ -402,7 +401,7 @@ def compute_ratios(
             unit = str(cfg.get("unit", "amount"))
             notes = str(cfg.get("notes", ""))
 
-            value: Optional[float]
+            value: float | None
 
             if not formula:
                 value = None

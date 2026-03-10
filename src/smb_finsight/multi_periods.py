@@ -85,7 +85,7 @@ layers.
 """
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -145,7 +145,7 @@ class StatementsMultiPeriod:
     """
 
     primary: pd.DataFrame
-    secondary: Optional[pd.DataFrame] = None
+    secondary: pd.DataFrame | None = None
 
 
 @dataclass(frozen=True)
@@ -374,7 +374,7 @@ def compute_all_multi_period(
         primary_base["period_label"] = period.label
         primary_frames.append(primary_base)
 
-        secondary_base: Optional[pd.DataFrame] = None
+        secondary_base: pd.DataFrame | None = None
         if secondary_template is not None:
             secondary_base = aggregate(
                 accounting_entries=tx_period,
@@ -514,7 +514,7 @@ def compute_all_multi_period(
     }
     primary_df["notes"] = primary_df["id"].map(notes_by_id_primary).fillna("")
 
-    secondary_df: Optional[pd.DataFrame]
+    secondary_df: pd.DataFrame | None
     if secondary_frames and secondary_template is not None:
         secondary_df = pd.concat(secondary_frames, ignore_index=True)
         notes_by_id_secondary = {

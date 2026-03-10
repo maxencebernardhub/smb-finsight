@@ -17,8 +17,6 @@ Responsibilities:
 - Build summary reports for unknown accounts (per account code).
 """
 
-from typing import Optional
-
 import pandas as pd
 
 
@@ -88,7 +86,7 @@ def load_list_of_accounts(path: str) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 
-def _resolve_to_known_account(code: str, known_codes: set[str]) -> Optional[str]:
+def _resolve_to_known_account(code: str, known_codes: set[str]) -> str | None:
     """Return the closest known ancestor of a given account code.
 
     The matching rule is based on prefix containment:

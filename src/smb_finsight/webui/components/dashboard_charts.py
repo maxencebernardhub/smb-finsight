@@ -22,7 +22,7 @@ from layout TOML.
 """
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 import streamlit as st
@@ -50,19 +50,19 @@ class DashboardChartsContext:
     granularity: str
 
     primary_preset_code: str
-    comparison_preset_code: Optional[str]
+    comparison_preset_code: str | None
 
     primary_period: Any
-    comparison_period: Optional[Any]
+    comparison_period: Any | None
 
     # Buckets used for chart x-axis (label_prefix applied in pipeline)
     primary_buckets: list[Any]
-    comp_buckets: Optional[list[Any]]
+    comp_buckets: list[Any] | None
 
     comparison_enabled: bool
 
     primary_preset_label: str
-    comparison_preset_label: Optional[str]
+    comparison_preset_label: str | None
 
     # Formatting for tooltips (shared with tiles)
     currency_code: str

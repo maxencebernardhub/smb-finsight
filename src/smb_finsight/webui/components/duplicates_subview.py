@@ -33,7 +33,7 @@ Notes
 """
 
 from dataclasses import asdict
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 import streamlit as st
@@ -73,8 +73,8 @@ def _status_labels(ui: dict[str, Any]) -> dict[str, str]:
 def _render_duplicates_toggles_and_pills(
     *,
     page: Any,
-    unknown_count: Optional[int] = None,
-) -> tuple[bool, Optional[str]]:
+    unknown_count: int | None = None,
+) -> tuple[bool, str | None]:
     """
     Render the "Unknown only" toggle + resolution status pills.
 
@@ -315,8 +315,8 @@ def render_duplicates_subview(
             )
         )
 
-    unknown_count: Optional[int] = None
-    df_unknown: Optional[pd.DataFrame] = None
+    unknown_count: int | None = None
+    df_unknown: pd.DataFrame | None = None
     coa_path = getattr(
         getattr(app_config, "standard_config", None), "chart_of_accounts", None
     )

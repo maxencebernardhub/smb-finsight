@@ -29,7 +29,7 @@ def insert_import_batch(conn) -> int:
         INSERT INTO import_batches (created_at, source_type, source_label)
         VALUES (?, ?, ?)
         """,
-        (dt.datetime.now(dt.timezone.utc).isoformat(), "test", "test-batch"),
+        (dt.datetime.now(dt.UTC).isoformat(), "test", "test-batch"),
     )
     conn.commit()
     return cur.lastrowid
@@ -120,7 +120,7 @@ def test_duplicate_resolution_flow(tmp_path):
             "Consulting",
             200_000,
             batch_id,
-            dt.datetime.now(dt.timezone.utc).isoformat(),
+            dt.datetime.now(dt.UTC).isoformat(),
             existing_id,
             "pending",
             None,
@@ -197,7 +197,7 @@ def test_duplicate_discard(tmp_path):
             "Travel",
             50_000,
             batch_id,
-            dt.datetime.now(dt.timezone.utc).isoformat(),
+            dt.datetime.now(dt.UTC).isoformat(),
             None,
             "pending",
             None,

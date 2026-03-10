@@ -24,7 +24,7 @@ Finance conventions implemented:
   - "down"   -> "inverse" (negative is good)
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 import streamlit as st
@@ -108,8 +108,8 @@ def render_metric_tiles(
         show_delta_pct = bool(t.get("show_delta_pct", False))
         delta_good_direction = (t.get("delta_good_direction") or "up").lower()
 
-        primary_val: Optional[float] = None
-        comp_val: Optional[float] = None
+        primary_val: float | None = None
+        comp_val: float | None = None
 
         # Optional tooltip sourcing from compute notes
         # (kept outside TOML to avoid duplication).

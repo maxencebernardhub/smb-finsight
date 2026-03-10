@@ -26,7 +26,6 @@ This module exposes:
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 import pandas as pd
 
@@ -63,7 +62,7 @@ class RowDef:
     notes: str = ""
 
 
-def _to_patterns(s: Optional[str]) -> list[str]:
+def _to_patterns(s: str | None) -> list[str]:
     """Convert a semicolon-separated pattern string into a list.
 
     Examples:

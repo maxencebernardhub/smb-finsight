@@ -39,7 +39,7 @@ by period utilities.
 
 import calendar
 from datetime import date
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 import altair as alt
 import pandas as pd
@@ -105,7 +105,7 @@ def _build_chart_df(
         if not key:
             continue
 
-        values: list[Optional[float]] = []
+        values: list[float | None] = []
         for pl in period_labels:
             if source == "ratio":
                 values.append(_ratio_value(ratios_df, pl, key))

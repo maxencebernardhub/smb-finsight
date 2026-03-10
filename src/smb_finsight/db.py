@@ -174,7 +174,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -739,7 +739,7 @@ def _to_iso_date(value) -> str:
 
 def _now_utc_iso() -> str:
     """Return the current UTC datetime as ISO string."""
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 # ---------------------------------------------------------------------------
@@ -2106,7 +2106,7 @@ def resolve_duplicate(
             status_value = "discarded"
 
         # Update resolution metadata on the duplicate row.
-        resolution_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        resolution_at = datetime.now(UTC).isoformat(timespec="seconds")
         cur.execute(
             """
             UPDATE duplicate_entries

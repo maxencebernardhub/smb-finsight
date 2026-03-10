@@ -85,7 +85,7 @@ and reusable in both CLI and Web UI contexts.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -196,7 +196,7 @@ def aggregate(accounting_entries: pd.DataFrame, template: Template) -> pd.DataFr
 def build_canonical_measures(
     statement: pd.DataFrame,
     template: Template,
-    extra_measures: Optional[Mapping[str, Any]] = None,
+    extra_measures: Mapping[str, Any] | None = None,
 ) -> dict[str, float]:
     """Build a dictionary of canonical measures from an aggregated statement.
 

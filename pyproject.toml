@@ -10,17 +10,17 @@ description = "SMB FinSight - Financial Dashboard & Analysis application for SMB
 authors = [{ name = "Maxence Bernard", email = "maxence@maxencebernardhub.com" }]
 license = { text = "MIT" }
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11,<3.15"
 dependencies = ["pandas>=2.0.0","numpy>=1.23.0"]
 
 [project.optional-dependencies]
 dev = [
-  "pytest",
-  "ruff"
+  "pytest>=8.0",
+  "ruff>=0.6"
 ]
 
 webui = [
-  "streamlit>=1.35.0",
+  "streamlit>=1.51.0",
   "tomlkit>=0.12"
 ]
 
@@ -29,7 +29,7 @@ where = ["src"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py311"
 src = ["src", "tests"]
 exclude = [
   ".venv",

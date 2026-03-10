@@ -21,7 +21,7 @@ Design notes
 
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 import streamlit as st
@@ -209,14 +209,14 @@ def view_duplicate_details_dialog(
     """
     st.subheader(ui.get("duplicate_view_details_title", "Duplicate details"))
 
-    dup: Optional[DuplicateEntry] = load_duplicate_entry(app_config, int(duplicate_id))
+    dup: DuplicateEntry | None = load_duplicate_entry(app_config, int(duplicate_id))
     if dup is None:
         st.warning(
             ui.get("duplicate_view_details_not_found", "Duplicate entry not found.")
         )
         return
 
-    existing: Optional[AccountingEntry] = None
+    existing: AccountingEntry | None = None
     if dup.existing_entry_id is not None:
         existing = load_entry(app_config, int(dup.existing_entry_id))
 

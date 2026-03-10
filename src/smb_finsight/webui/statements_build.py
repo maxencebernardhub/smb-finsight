@@ -206,7 +206,9 @@ def build_statement_view(
 
         accounts_df = load_list_of_accounts(coa_path)
         known_codes = set(accounts_df["account_number"])
-        name_by_code = dict(zip(accounts_df["account_number"], accounts_df["name"]))
+        name_by_code = dict(
+            zip(accounts_df["account_number"], accounts_df["name"], strict=False)
+        )
 
         # Filter unknown accounts (same behavior as CLI)
         tx = filter_unknown_accounts(tx_raw, known_codes)

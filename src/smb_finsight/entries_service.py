@@ -73,7 +73,7 @@ Design notes
 import sqlite3
 from dataclasses import dataclass
 from datetime import date
-from typing import Literal, Optional
+from typing import Literal
 
 import pandas as pd
 
@@ -147,7 +147,7 @@ class DuplicatePair:
     """
 
     duplicate: DuplicateEntry
-    existing: Optional[AccountingEntry]
+    existing: AccountingEntry | None
 
 
 @dataclass(frozen=True)
@@ -182,7 +182,7 @@ def _get_db_config(app_config: AppConfig) -> DatabaseConfig:
 
 def _merge_filters(
     base: EntriesFilter,
-    override: Optional[EntriesFilter],
+    override: EntriesFilter | None,
 ) -> EntriesFilter:
     """
     Merge two EntriesFilter instances into a single one.
@@ -228,7 +228,7 @@ def _merge_filters(
 def list_import_batches(
     app_config: AppConfig,
     *,
-    limit: Optional[int] = 200,
+    limit: int | None = 200,
 ) -> pd.DataFrame:
     """
     List import batches stored in the database.
@@ -265,9 +265,9 @@ def list_import_batches(
 def list_entries_for_period(
     app_config: AppConfig,
     period: Period,
-    extra_filters: Optional[EntriesFilter] = None,
+    extra_filters: EntriesFilter | None = None,
     *,
-    limit: Optional[int] = None,
+    limit: int | None = None,
     offset: int = 0,
     order_by: tuple[str, str] = ("date", "ASC"),
 ) -> pd.DataFrame:
@@ -397,7 +397,7 @@ def search_entries(
     app_config: AppConfig,
     filters: EntriesFilter,
     *,
-    limit: Optional[int] = None,
+    limit: int | None = None,
     offset: int = 0,
     order_by: tuple[str, str] = ("date", "ASC"),
 ) -> pd.DataFrame:
@@ -467,15 +467,15 @@ def get_duplicate_stats(app_config: AppConfig) -> DuplicateStats:
 def list_duplicate_pairs(
     app_config: AppConfig,
     *,
-    status: Optional[str] = None,
-    import_batch_id: Optional[int] = None,
+    status: str | None = None,
+    import_batch_id: int | None = None,
     code_exact: str | None = None,
     code_prefix: str | None = None,
     description_contains: str | None = None,
     min_amount: float | None = None,
     max_amount: float | None = None,
-    period: Optional[Period] = None,
-    limit: Optional[int] = 100,
+    period: Period | None = None,
+    limit: int | None = 100,
     offset: int = 0,
 ) -> list[DuplicatePair]:
     """
@@ -553,7 +553,7 @@ def list_duplicate_pairs(
 
     result: list[DuplicatePair] = []
     for duplicate in duplicates:
-        existing: Optional[AccountingEntry]
+        existing: AccountingEntry | None
 
         if duplicate.existing_entry_id is None:
             existing = None
@@ -579,7 +579,7 @@ def list_duplicate_pairs(
 def load_duplicate_entry(
     app_config: AppConfig,
     duplicate_id: int,
-) -> Optional[DuplicateEntry]:
+) -> DuplicateEntry | None:
     """
     Load a single duplicate entry by id.
 
@@ -596,7 +596,7 @@ def resolve_duplicate_entry(
     duplicate_id: int,
     decision: DuplicateDecision,
     *,
-    comment: Optional[str] = None,
+    comment: str | None = None,
     resolved_by: ResolvedBy = "cli",
 ) -> DuplicatePair:
     """
@@ -656,7 +656,7 @@ def resolve_duplicate_entry(
         resolved_by=resolved_by,
     )
 
-    existing: Optional[AccountingEntry]
+    existing: AccountingEntry | None
     if updated_duplicate.existing_entry_id is None:
         existing = None
     else:
@@ -699,7 +699,7 @@ def get_entries_count(app_config: AppConfig, *, include_deleted: bool = False) -
         return int(cur.fetchone()[0])
 
 
-def load_entry(app_config: AppConfig, entry_id: int) -> Optional[AccountingEntry]:
+def load_entry(app_config: AppConfig, entry_id: int) -> AccountingEntry | None:
     """
     Load a single accounting entry by id.
 
@@ -841,7 +841,7 @@ def edit_entry(
 def delete_entry(
     app_config: AppConfig,
     entry_id: int,
-    reason: Optional[str] = None,
+    reason: str | None = None,
 ) -> AccountingEntry:
     """
     Soft-delete an entry by marking it as deleted.

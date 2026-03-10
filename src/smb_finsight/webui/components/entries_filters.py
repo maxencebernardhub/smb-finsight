@@ -58,7 +58,7 @@ Session state keys:
 import re
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Optional
+from typing import Any
 
 import streamlit as st
 
@@ -140,8 +140,8 @@ def render_entries_period_filter(*, page: Any, app_config: Any) -> PeriodFilterR
             help=ui.get("help_period", "Select the period."),
         )
 
-        period_custom_start: Optional[date] = None
-        period_custom_end: Optional[date] = None
+        period_custom_start: date | None = None
+        period_custom_end: date | None = None
 
         if period_preset == "CUSTOM":
             # Dedicated keys for Entries to avoid interfering with other pages.
@@ -168,7 +168,7 @@ def render_entries_period_filter(*, page: Any, app_config: Any) -> PeriodFilterR
         "error_custom_end_before_start", "End date cannot be earlier than start date."
     )
 
-    custom_period: Optional[CustomRange] = None
+    custom_period: CustomRange | None = None
     if period_preset == "CUSTOM":
         if _validate_custom_range(
             period_custom_start,
@@ -194,7 +194,7 @@ def render_entries_period_filter(*, page: Any, app_config: Any) -> PeriodFilterR
     )
 
 
-def _parse_code_pattern(raw: str) -> tuple[Optional[str], Optional[str]]:
+def _parse_code_pattern(raw: str) -> tuple[str | None, str | None]:
     """
     Parse a code filter expression.
 
@@ -226,7 +226,7 @@ def _parse_code_pattern(raw: str) -> tuple[Optional[str], Optional[str]]:
     return (s, None)
 
 
-def render_entries_code_filter(*, page: Any) -> tuple[Optional[str], Optional[str]]:
+def render_entries_code_filter(*, page: Any) -> tuple[str | None, str | None]:
     """
     Render the Account code filter (single input with '*' wildcard suffix).
 
@@ -312,7 +312,7 @@ def render_entries_description_filter(*, page: Any) -> str:
     return (value or "").strip()
 
 
-def render_entries_amount_filter(*, page: Any) -> tuple[Optional[int], Optional[int]]:
+def render_entries_amount_filter(*, page: Any) -> tuple[int | None, int | None]:
     """
     Render the Amount min/max filter for the Entries view.
 
@@ -376,7 +376,7 @@ def render_entries_amount_filter(*, page: Any) -> tuple[Optional[int], Optional[
 
 def render_entries_batch_filter(
     *, page: Any, batch_options: list[tuple[int, str]]
-) -> Optional[int]:
+) -> int | None:
     """
     Render the Import Batch filter (dropdown) for the Entries view.
 
@@ -402,14 +402,14 @@ def render_entries_batch_filter(
     opt_all = ui.get("option_import_batch_all", "All batches")
 
     # Streamlit selectbox options: first entry is None meaning "All".
-    ids: list[Optional[int]] = [None] + [bid for (bid, _) in batch_options]
+    ids: list[int | None] = [None] + [bid for (bid, _) in batch_options]
 
     # Map id -> label for formatting
-    label_map: dict[Optional[int], str] = {None: opt_all}
+    label_map: dict[int | None, str] = {None: opt_all}
     for bid, blabel in batch_options:
         label_map[bid] = blabel
 
-    def fmt(value: Optional[int]) -> str:
+    def fmt(value: int | None) -> str:
         return label_map.get(value, str(value))
 
     with st.container(border=True, height="stretch"):
@@ -427,7 +427,7 @@ def render_entries_batch_filter(
 def render_entries_toggles_and_badge(
     *,
     page: Any,
-    unknown_count: Optional[int] = None,
+    unknown_count: int | None = None,
 ) -> tuple[bool, bool]:
     """
     Render the right-side controls for the Entries header:
